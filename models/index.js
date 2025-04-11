@@ -1,0 +1,27 @@
+const models = {
+    Customer: require('./Customer'),
+    Room: require('./Rooms'),
+    ShopItem: require('./ShopItem'),
+    Carousel: require('./Carousel'),
+    BannedDevice: require('./BannedDevice'),
+    Posts: require('./Posts'),
+    Wallet: require('./Wallet'),
+    UserDiamondHistory: require('./UserDiamondHistory'),
+    Shop: require('./Shop'),
+    SendGift: require('./SendGift'),
+    Like: require('./Like'),
+    Comment: require('./Comment'),
+    PushMessage: require('./PushMessage'),
+    Agency: require('./Agency'),
+    Club: require('./Club'),
+    GiftCategory: require('./GiftCategory'),
+    Gift: require('./Gift'),
+    RoomMember: require('./RoomMember'),
+    AppVersion: require('./AppVersion'),
+    OfficialUser: require('./OfficialUser'),
+    DiamondValue: require('./DiamondValue'),
+    UserReport: require('./UserReport'),
+    ApiConfig: require('./apiConfig')
+}
+
+module.exports = models;
