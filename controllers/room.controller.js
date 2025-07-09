@@ -927,9 +927,9 @@ const getKickHistory = async (req, res) => {
 
 const getRoomJoinedUsers = async (req, res) => {
   const roomId = req.params.roomId;
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000); // last 24 hours
 
   try {
+    // Get room details
     const room = await models.Room.findById(roomId)
       .select("activeUsers lastMembers")
       .lean();
@@ -940,34 +940,21 @@ const getRoomJoinedUsers = async (req, res) => {
         .json({ success: false, message: "Room not found" });
     }
 
-    // Combine and deduplicate user IDs
+    // Combine activeUsers + lastMembers and deduplicate
     const userIdsSet = new Set([
       ...room.activeUsers.map((id) => id.toString()),
       ...room.lastMembers.map((id) => id.toString()),
     ]);
     const userIds = Array.from(userIdsSet);
 
-    // Fetch RoomMember entries for those users who joined in last 24h
-    const joinedMembers = await models.RoomMember.find({
-      roomId,
-      userId: { $in: userIds },
-      createdAt: { $gte: since },
-    })
-      .populate("userId")
-      .sort({ createdAt: -1 });
-
-    const users = joinedMembers.map((join) => ({
-      _id: join.userId._id,
-      name: join.userId.name,
-      email: join.userId.email,
-      profileImage: join.userId.profileImage,
-      level: join.userId.level,
-      joinedAt: join.createdAt,
-    }));
+    // Fetch full user details
+    const users = await models.Customer.find({ _id: { $in: userIds } }).select(
+      "name profileImage email level isLive"
+    );
 
     res.status(200).json({
       success: true,
-      message: "Users who joined the room in the last 24 hours.",
+      message: "All users who ever joined the room.",
       data: users,
     });
   } catch (error) {
