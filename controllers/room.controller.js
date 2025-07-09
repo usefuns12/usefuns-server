@@ -879,9 +879,15 @@ const kickUser = async (req, res) => {
     }
 
     const kickedAt = new Date();
-    const expireAt = new Date(kickedAt.getTime() + 3 * 60 * 60 * 1000); // 3 hrs
+    const expireAt = new Date(kickedAt.getTime() + 3 * 60 * 60 * 1000); // 3 hours
 
-    // Remove from active users
+    // Remove any existing kick entry for this user
+    await models.Room.updateOne(
+      { _id: roomId },
+      { $pull: { kickHistory: { userId } } }
+    );
+
+    // Remove from active users and add to kick history
     await models.Room.updateOne(
       { _id: roomId },
       {
@@ -890,6 +896,7 @@ const kickUser = async (req, res) => {
       }
     );
 
+    // Remove from RoomMember
     await models.RoomMember.deleteOne({ roomId, userId });
 
     res.status(200).json({

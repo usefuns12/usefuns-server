@@ -71,12 +71,6 @@ const RoomSchema = new mongoose.Schema(
         ref: "customers",
       },
     ],
-    kickHistory: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "customers",
-      },
-    ],
     groupMembers: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -133,23 +127,18 @@ const RoomSchema = new mongoose.Schema(
       required: true,
       default: true,
     },
+
     kickHistory: [
       {
         userId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "customers",
-        },
-        kickedAt: {
-          type: Date,
-          default: Date.now,
-        },
-        expireAt: {
-          type: Date,
           required: true,
         },
+        kickedAt: { type: Date, required: true },
+        expireAt: { type: Date, required: true },
       },
     ],
-
     mutedList: [
       {
         type: mongoose.Schema.Types.ObjectId,
