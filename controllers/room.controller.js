@@ -860,8 +860,11 @@ const unblockUser = async (req, res) => {
   }
 };
 
+const mongoose = require("mongoose");
+
 const kickUser = async (req, res) => {
-  const { userId, roomId } = req.body;
+  const { roomId } = req.body;
+  let { userId } = req.body;
 
   if (!userId || !roomId) {
     return res.status(400).json({
@@ -871,6 +874,9 @@ const kickUser = async (req, res) => {
   }
 
   try {
+    // Convert to ObjectId
+    userId = mongoose.Types.ObjectId(userId);
+
     const room = await models.Room.findById(roomId);
     if (!room) {
       return res
@@ -892,7 +898,13 @@ const kickUser = async (req, res) => {
       { _id: roomId },
       {
         $pull: { activeUsers: userId },
-        $push: { kickHistory: { userId, kickedAt, expireAt } },
+        $push: {
+          kickHistory: {
+            userId,
+            kickedAt,
+            expireAt,
+          },
+        },
       }
     );
 
