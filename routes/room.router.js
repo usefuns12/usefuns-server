@@ -49,10 +49,10 @@ router.route("/admin/remove").post(controller.removeAdmin);
 router.route("/kickUser").post(controller.kickUser);
 
 // 📜 Get kick history in the last 24 hours
-router.route("/kickHistory/:roomId").get(controller.getKickedUsersToday);
+router.route("/kickHistory/:roomId").get(controller.getKickHistory);
 
 // 🧾 Get users who joined a room in last 24 hours
-router.route("/joinedHistory/:roomId").get(controller.getRoomJoinedUsersToday);
+router.route("/joinedHistory/:roomId").get(controller.getRoomJoinedUsers);
 
 // 🔇 Mute a user permanently in a room
 router.route("/muteUser").post(controller.muteUser);

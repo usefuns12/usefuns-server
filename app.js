@@ -64,7 +64,7 @@ app.use((req, res, next) => {
     `);
 });
 
-require("./cron/kickCleaner");
+require("./scheduler/kickCleaner");
 
 // Global error handler
 app.use((err, req, res, next) => {
