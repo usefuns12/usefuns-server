@@ -873,7 +873,7 @@ const kickUser = async (req, res) => {
 
   try {
     // Convert to ObjectId
-    userId = mongoose.Types.ObjectId(userId);
+    userId = new mongoose.Types.ObjectId(userId);
 
     const room = await models.Room.findById(roomId);
     if (!room) {
