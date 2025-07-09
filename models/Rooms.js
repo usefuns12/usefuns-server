@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 
 const RoomSchema = new mongoose.Schema(
   {
-    roomId : {
+    roomId: {
       type: String,
       required: true,
       unique: true,
@@ -106,15 +106,15 @@ const RoomSchema = new mongoose.Schema(
     // Time Spent in Room
     lastHostJoinedAt: {
       type: Date,
-      default: null
+      default: null,
     },
     hostingTimeCurrentSession: {
       type: Number,
-      default: 0
+      default: 0,
     },
     hostingTimeLastSession: {
       type: Number,
-      default: 0
+      default: 0,
     },
 
     // Room Status Flags
@@ -133,6 +133,29 @@ const RoomSchema = new mongoose.Schema(
       required: true,
       default: true,
     },
+    kickHistory: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "customers",
+        },
+        kickedAt: {
+          type: Date,
+          default: Date.now,
+        },
+        expireAt: {
+          type: Date,
+          required: true,
+        },
+      },
+    ],
+
+    mutedList: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "customers",
+      },
+    ],
   },
   {
     timestamps: true,
