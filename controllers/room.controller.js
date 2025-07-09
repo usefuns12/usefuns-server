@@ -923,10 +923,11 @@ const getKickHistory = async (req, res) => {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   try {
-    const room = await models.Room.findOne(
-      { _id: roomId },
-      { kickHistory: 1 }
-    ).populate("kickHistory");
+    const room = await models.Room.findOne({ _id: roomId }, { kickHistory: 1 })
+      .populate("kickHistory.userId", "name profileImage")
+      .lean();
+
+    console.log("Kick History:", room.kickHistory);
 
     const recentKicks = room.kickHistory.filter(
       (entry) => new Date(entry.kickedAt) >= since
