@@ -926,7 +926,7 @@ const getKickHistory = async (req, res) => {
     const room = await models.Room.findOne(
       { _id: roomId },
       { kickHistory: 1 }
-    ).populate("kickHistory.userId");
+    ).populate("kickHistory");
 
     const recentKicks = room.kickHistory.filter(
       (entry) => new Date(entry.kickedAt) >= since
