@@ -860,8 +860,6 @@ const unblockUser = async (req, res) => {
   }
 };
 
-const mongoose = require("mongoose");
-
 const kickUser = async (req, res) => {
   const { roomId } = req.body;
   let { userId } = req.body;
