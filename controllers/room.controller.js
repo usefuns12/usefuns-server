@@ -942,7 +942,7 @@ const getKickHistory = async (req, res) => {
       .filter((id) => !!id); // remove nulls
 
     // Fetch user data
-    const users = await models.User.find(
+    const users = await models.Customer.find(
       { _id: { $in: userIds } },
       { name: 1, profileImage: 1 }
     ).lean();
