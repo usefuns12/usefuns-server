@@ -920,26 +920,57 @@ const kickUser = async (req, res) => {
 
 const getKickHistory = async (req, res) => {
   const roomId = req.params.roomId;
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000); // last 24 hours
 
   try {
-    const room = await models.Room.findOne({ _id: roomId }, { kickHistory: 1 })
-      .populate("kickHistory.userId", "name profileImage")
-      .lean();
+    const room = await models.Room.findById(roomId).lean(); // lean for performance
 
-    console.log("Kick History:", room.kickHistory);
+    if (!room) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Room not found" });
+    }
 
+    // Filter recent kick entries
     const recentKicks = room.kickHistory.filter(
       (entry) => new Date(entry.kickedAt) >= since
     );
 
+    // Extract userIds
+    const userIds = recentKicks
+      .map((entry) => entry.userId)
+      .filter((id) => !!id); // remove nulls
+
+    // Fetch user data
+    const users = await models.User.find(
+      { _id: { $in: userIds } },
+      { name: 1, profileImage: 1 }
+    ).lean();
+
+    const userMap = {};
+    users.forEach((user) => {
+      userMap[user._id.toString()] = user;
+    });
+
+    // Attach user info to each kickHistory item
+    const enrichedKickHistory = recentKicks.map((entry) => {
+      const user = userMap[entry.userId?.toString()];
+      return {
+        ...entry,
+        userId: user
+          ? { _id: user._id, name: user.name, profileImage: user.profileImage }
+          : null,
+      };
+    });
+
     res.status(200).json({
       success: true,
       message: "Kick history retrieved.",
-      data: recentKicks,
+      data: enrichedKickHistory,
     });
   } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+    console.error("Kick history error:", error);
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
