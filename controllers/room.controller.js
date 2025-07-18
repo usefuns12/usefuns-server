@@ -1028,6 +1028,67 @@ const unmuteUser = async (req, res) => {
   }
 };
 
+const sendGift = async (req, res) => {
+  try {
+    const { senderId, receiverId, roomId, qtyId, giftId } = req.body;
+
+    if (!senderId || !receiverId || !roomId || !qtyId || !giftId) {
+      return res.status(400).json({ message: "Missing required fields." });
+    }
+
+    // Fetch quantity cashback
+    const quantityData = await models.QuantityCashback.findById(qtyId);
+    if (!quantityData) {
+      return res.status(404).json({ message: "Invalid quantity ID." });
+    }
+
+    const { quantity, cashbackAmount } = quantityData;
+
+    // Fetch gift by ID from request
+    const selectedGift = await models.Gift.findById(giftId);
+    if (!selectedGift) {
+      return res.status(404).json({ message: "Gift not found." });
+    }
+
+    const totalGiftDiamonds = selectedGift.diamonds * quantity;
+
+    // Update receiver's diamonds
+    const receiver = await models.Customer.findById(receiverId);
+    if (!receiver) {
+      return res.status(404).json({ message: "Receiver not found." });
+    }
+    receiver.diamonds += totalGiftDiamonds;
+    await receiver.save();
+
+    // Update sender's cashback
+    const sender = await models.Customer.findById(senderId);
+    if (!sender) {
+      return res.status(404).json({ message: "Sender not found." });
+    }
+    sender.diamonds += cashbackAmount;
+    await sender.save();
+
+    // Create SendGift record
+    const giftData = {
+      roomId,
+      sender: senderId,
+      receiver: receiverId,
+      count: quantity,
+      gift: selectedGift,
+    };
+    await models.SendGift.create(giftData);
+
+    res.status(200).json({
+      message: `Gift sent successfully. Receiver got ${totalGiftDiamonds} diamonds, sender received ₹${cashbackAmount} cashback.`,
+    });
+  } catch (error) {
+    console.error("Error in sendGift:", error);
+    res
+      .status(500)
+      .json({ message: "Internal server error", error: error.message });
+  }
+};
+
 module.exports = {
   getRooms,
   getRoomsPagination,
@@ -1057,4 +1118,5 @@ module.exports = {
   getBlockedUsersDetailed,
   muteUser,
   unmuteUser,
+  sendGift,
 };

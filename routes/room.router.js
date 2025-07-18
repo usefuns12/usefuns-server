@@ -60,4 +60,7 @@ router.route("/muteUser").post(controller.muteUser);
 // 🔊 Unmute a user from a room
 router.route("/unmuteUser").post(controller.unmuteUser);
 
+// 🎁 Send a gift to a user in a room
+router.post("/send-gift", controller.sendGift);
+
 module.exports = router;
