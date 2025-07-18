@@ -1,38 +1,37 @@
-const axios = require('axios');
-const models = require('../models');
+const axios = require("axios");
+const models = require("../models");
 //const redisClient = require('../config').redis;
-const logger = require('../classes').Logger(__filename);
+const logger = require("../classes").Logger(__filename);
 const mongoose = require("mongoose");
-const constants = require('../utils/constants.json');
-const moment = require('moment');
-const { cleanupS3Files } = require('../utils/s3FileManager');
+const constants = require("../utils/constants.json");
+const moment = require("moment");
+const { cleanupS3Files } = require("../utils/s3FileManager");
 
 const login = async (req, res) => {
-  try 
-  {
+  try {
     const { email, mobile, deviceId } = req.body;
 
-    if(deviceId) 
-    {
+    if (deviceId) {
       const isBanned = await models.BannedDevice.findOne({ deviceId });
-      if(isBanned) {
+      if (isBanned) {
         return res.status(200).json({
-          success: true, message: "Your device has been banned."
-        });  
+          success: true,
+          message: "Your device has been banned.",
+        });
       }
     }
 
     let customer;
-    if(mobile) {
+    if (mobile) {
       customer = await models.Customer.loginMobile(mobile);
-    }
-    else {
+    } else {
       customer = await models.Customer.loginEmail(email);
     }
 
     if (!customer) {
       return res.status(401).json({
-        success: false, message: "Login failed! Check authentication credentials",
+        success: false,
+        message: "Login failed! Check authentication credentials",
       });
     }
 
@@ -53,36 +52,45 @@ const login = async (req, res) => {
       image_url: customer.image_url,
       token: token,
     };
-    
-    res.status(200).json({ success: true, message: "Login successful.", data: response });
-  } 
-  catch (error) {
+
+    res
+      .status(200)
+      .json({ success: true, message: "Login successful.", data: response });
+  } catch (error) {
     console.log(error);
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const register = async (req, res) => {
-  try 
-  { 
-    const { name, mobile, email, dob, gender,
-      language, countryCode, deviceId } = req.body;
+  try {
+    const {
+      name,
+      mobile,
+      email,
+      dob,
+      gender,
+      language,
+      countryCode,
+      deviceId,
+    } = req.body;
     //const registerBonus = JSON.parse(await redisClient.get('registerBonus'));
 
-    if(deviceId) 
-    {
+    if (deviceId) {
       const isBanned = await models.BannedDevice.findOne({ deviceId });
-      if(isBanned) {
+      if (isBanned) {
         return res.status(200).json({
-          success: true, message: "Your device has been banned."
-        });  
+          success: true,
+          message: "Your device has been banned.",
+        });
       }
     }
 
-    if(!mobile && !email) {
+    if (!mobile && !email) {
       return res.status(400).json({
-        success: false, message: "Please provide either mobile or email.",
+        success: false,
+        message: "Please provide either mobile or email.",
       });
     }
 
@@ -90,13 +98,15 @@ const register = async (req, res) => {
     registerBonus.frame = constants.defaultShopItems.frame;
     registerBonus.theme = constants.defaultShopItems.theme;
     registerBonus.chatBubble = constants.defaultShopItems.chatBubble;
-    const validTill = moment().add(3, 'days').toISOString();
+    const validTill = moment().add(3, "days").toISOString();
     registerBonus.frame.validTill = validTill;
     registerBonus.theme.validTill = validTill;
     registerBonus.chatBubble.validTill = validTill;
 
     let customerData = {
-      name, dob, gender,
+      name,
+      dob,
+      gender,
       countryCode,
       diamonds: 0,
       language,
@@ -104,37 +114,39 @@ const register = async (req, res) => {
       frames: [registerBonus.frame],
       themes: [registerBonus.theme],
       chatBubbles: [registerBonus.chatBubble],
-      deviceId
+      deviceId,
     };
 
-    if(mobile) 
-    {
+    if (mobile) {
       const ismobile = await models.Customer.findOne({ mobile: mobile });
-      if(ismobile) {
+      if (ismobile) {
         return res.status(400).json({
-          success: false, message: "Mobile already exists.",
+          success: false,
+          message: "Mobile already exists.",
         });
       }
 
       customerData.mobile = mobile;
-    }
-    else {
+    } else {
       const isEmail = await models.Customer.findOne({ email: email });
-      if(isEmail) {
+      if (isEmail) {
         return res.status(400).json({
-          success: false, message: "Email already exists.",
+          success: false,
+          message: "Email already exists.",
         });
       }
 
       customerData.email = email;
     }
 
-    let lastUser = await models.Customer.findOne({}, 'userId').sort({ _id: -1 });
+    let lastUser = await models.Customer.findOne({}, "userId").sort({
+      _id: -1,
+    });
     let lastUserId = lastUser?.userId || "9999";
 
     const getUserId = (userId) => {
       let newUserId = parseInt(userId) + 1;
-      while(constants.specialIds.includes(newUserId)) {
+      while (constants.specialIds.includes(newUserId)) {
         ++newUserId;
       }
       return newUserId.toString();
@@ -169,16 +181,15 @@ const register = async (req, res) => {
       message: "User registered successfully.",
       data: response,
     });
-  } 
-  catch (error) {
+  } catch (error) {
     logger.error(error);
     console.error(error);
     res.status(400).json({ success: false, message: error.message });
-    if(req.body.image) {
+    if (req.body.image) {
       cleanupS3Files(req.body.image);
     }
   }
-}
+};
 
 const getPagination = async (req, res) => {
   // Pagination parameters
@@ -186,27 +197,32 @@ const getPagination = async (req, res) => {
   const limit = parseInt(req.query.limit) || 100; // Default limit 10
   const skip = (page - 1) * limit;
 
-  try
-  {
+  try {
     const [totalUsers, customers] = await Promise.all([
       models.Customer.countDocuments(),
-      models.Customer.find({}, {
-        userId: 1,
-        name: 1,
-        gender: 1,
-        diamonds: 1,
-        beans: 1,
-        userRole: 1,
-        isActiveUser: 1,
-        isActiveDevice: 1
-      }).skip(skip).limit(limit).lean()
+      models.Customer.find(
+        {},
+        {
+          userId: 1,
+          name: 1,
+          gender: 1,
+          diamonds: 1,
+          beans: 1,
+          userRole: 1,
+          isActiveUser: 1,
+          isActiveDevice: 1,
+        }
+      )
+        .skip(skip)
+        .limit(limit)
+        .lean(),
     ]);
 
     if (customers?.length === 0) {
       return res.status(200).json({
         success: true,
         message: "No customers found",
-        data: []
+        data: [],
       });
     }
 
@@ -219,64 +235,65 @@ const getPagination = async (req, res) => {
         currentPage: page,
       },
     });
-  }
-  catch(error) {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({
       success: false,
       message: error.message,
     });
   }
-}
+};
 
 const getCustomers = async (req, res) => {
-  try
-  {
+  try {
     const customers = await models.Customer.find();
 
-    const customerData = customers.map(customer => ({
+    const customerData = customers.map((customer) => ({
       _id: customer._id,
       userId: customer.userId,
       name: customer.name,
       mobile: customer.mobile,
       images: customer.images,
       diamonds: customer.diamonds,
-      is_active_userId: customer.is_active_userId
+      is_active_userId: customer.is_active_userId,
     }));
 
-    res.status(200).json({ success: true, message: "Find successful.", data: customerData });
-  }
-  catch(error) {
+    res
+      .status(200)
+      .json({ success: true, message: "Find successful.", data: customerData });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getCustomersById = async (req, res) => {
-  
   const id = req.params.id;
   let customer;
 
-  try
-  {
+  try {
     if (mongoose.Types.ObjectId.isValid(id)) {
       customer = await models.Customer.findOne({ _id: id })
-      .populate({
-        path: 'roomId',
-        select: 'roomId name announcement roomImage hostingTimeCurrentSession'
-      }).lean();
-    } 
-    else {
+        .populate({
+          path: "roomId",
+          select:
+            "roomId name announcement roomImage hostingTimeCurrentSession",
+        })
+        .lean();
+    } else {
       customer = await models.Customer.findOne({ userId: id })
-      .populate({
-        path: 'roomId',
-        select: 'roomId name announcement roomImage hostingTimeCurrentSession'
-      }).lean();
+        .populate({
+          path: "roomId",
+          select:
+            "roomId name announcement roomImage hostingTimeCurrentSession",
+        })
+        .lean();
     }
 
     if (!customer) {
       return res.status(400).json({
-        success: false, message: "User not found",
+        success: false,
+        message: "User not found",
       });
     }
 
@@ -285,44 +302,44 @@ const getCustomersById = async (req, res) => {
       delete customer.roomId;
     }
 
-    res.status(200).json({ success: true, message: "Find successful.", data: customer });
-  }
-  catch(error) {
+    res
+      .status(200)
+      .json({ success: true, message: "Find successful.", data: customer });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getViewCount = async (req, res) => {
-  try 
-  {
+  try {
     const id = req.params.id;
 
-    const userData = await models.Customer.findOneAndUpdate({ _id: id },
+    const userData = await models.Customer.findOneAndUpdate(
+      { _id: id },
       {
-        $inc: { views: 1 }
-      }, 
+        $inc: { views: 1 },
+      },
       { new: true }
     );
 
     if (!userData) {
       return res.status(400).json({
-        success: false, message: "User not found",
+        success: false,
+        message: "User not found",
       });
     }
-    
-    io.to(id).emit('userDataUpdate', userData);
+
+    io.to(id).emit("userDataUpdate", userData);
     res.status(200).json({ success: true, message: "Find successful." });
-  } 
-  catch (error) {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getByMultipleId = async (req, res) => {
-  
-  const { userId } = req.body;  
+  const { userId } = req.body;
   const pipe = [];
 
   if (userId && userId.trim()) {
@@ -333,64 +350,61 @@ const getByMultipleId = async (req, res) => {
     });
   }
 
-  try 
-  {
+  try {
     const users = pipe.length > 0 ? await Customer.aggregate(pipe) : [];
-  
+
     if (!users || users.length === 0) {
       return res.status(400).json({
-        success: false, message: "User not found",
+        success: false,
+        message: "User not found",
       });
     }
-  
-    res.status(200).json({ success: true, message: "Find successful.", data: users });
-  }
-  catch (error) {
+
+    res
+      .status(200)
+      .json({ success: true, message: "Find successful.", data: users });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getOtp = async (req, res) => {
-
   const { mobile } = req.body;
   const otp = Math.floor(1000 + Math.random() * 9000).toString();
 
-  try
-  {
+  try {
     await models.Customer.findOneAndUpdate(
       { mobile: mobile },
       {
         $set: {
-          loginOtp: otp
-        }
+          loginOtp: otp,
+        },
       }
     );
-  
-    const url = "https://rcsoft.in/api.php?appkey=9a2623e2-9d64-4fe5-8c3b-d514c11dd8e3&" + 
+
+    const url =
+      "https://rcsoft.in/api.php?appkey=9a2623e2-9d64-4fe5-8c3b-d514c11dd8e3&" +
       "authkey=E7DtJ1qZZtXcdlD5QmI2lSZ0B1HCniD50AfS1q05rQPjiVvEhR&" +
       `to=${mobile}&` +
       `message=Your OTP for USEFUNS login is: ${otp}. This OTP will expire in 5 minutes. Do not share your OTP with others.`;
-    
+
     const response = await axios.get(url);
-    if(response.data.message_status === 'Success') {
-      res.status(200).json({ success: true, message: "OTP sent", data: { otp: otp } });
-    }
-    else 
-    {
+    if (response.data.message_status === "Success") {
+      res
+        .status(200)
+        .json({ success: true, message: "OTP sent", data: { otp: otp } });
+    } else {
       res.status(400).json({ success: false, message: "OTP sent failure." });
       logger.error(JSON.stringify(response.data));
     }
-  }
-  catch(error)
-  {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const updateCustomer = async (req, res) => {
-
   const id = req.params.id;
   const userParams = req.body;
 
@@ -398,74 +412,76 @@ const updateCustomer = async (req, res) => {
     userParams.profileImage = req.body.image;
   }
 
-  try
-  {
+  try {
     const userData = await models.Customer.findOneAndUpdate(
       { _id: id },
       { $set: userParams },
       { new: true }
     );
-  
+
     if (!userData) {
       return res.status(400).json({
-        success: false, message: "User not found",
+        success: false,
+        message: "User not found",
       });
     }
-    
-    io.to(id).emit('userDataUpdate', userData);
-    res.status(200).json({ success: true, message: "Updated successfully."});
-  }
-  catch(error) {
+
+    console.log("userData======>", userData);
+
+    io.to(id).emit("userDataUpdate", userData);
+    res.status(200).json({ success: true, message: "Updated successfully." });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const updateMobileEmail = async (req, res) => {
-
   const id = req.params.id;
   const { type, value } = req.body;
   const updateField = type === 0 ? "mobile" : type === 1 ? "email" : null;
 
   if (!updateField) {
-    return res.status(400).json({ success: false, message: "Invalid type specified." });
+    return res
+      .status(400)
+      .json({ success: false, message: "Invalid type specified." });
   }
 
-  try
-  {
+  try {
     const user = await models.Customer.findOne({ _id: id });
 
-    if(!user) {
+    if (!user) {
       return res.status(400).json({
-        success: false, message: "user not found",
+        success: false,
+        message: "user not found",
       });
     }
 
-    const existingUserField = await models.Customer.findOne({ [updateField]: value });
+    const existingUserField = await models.Customer.findOne({
+      [updateField]: value,
+    });
 
-    if(existingUserField) {
-      return res.status(400).json({ success: false, message: `${updateField} already exists.` });
+    if (existingUserField) {
+      return res
+        .status(400)
+        .json({ success: false, message: `${updateField} already exists.` });
     }
 
     user[updateField] = value;
     const userData = await user.save();
 
-    io.to(id).emit('userDataUpdate', userData);
+    io.to(id).emit("userDataUpdate", userData);
     res.status(200).json({ success: true, message: "Updated successfully." });
-  }
-  catch(error)
-  {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const setDefaultItem = async (req, res) => {
-  
   const { itemId, userId, type } = req.body;
 
-  try
-  {
+  try {
     // Reusable function to update default item
     const updateDefaultItem = async (typeField) => {
       await models.Customer.updateOne(
@@ -485,36 +501,32 @@ const setDefaultItem = async (req, res) => {
     let userData;
     if (type === "frame") {
       userData = await updateDefaultItem("frames");
-    } 
-    else if (type === "chatBubble") {
+    } else if (type === "chatBubble") {
       userData = await updateDefaultItem("chatBubbles");
-    } 
-    else if (type === "vehicle") {
+    } else if (type === "vehicle") {
       userData = await updateDefaultItem("vehicles");
-    } 
-    else if (type === "theme") {
+    } else if (type === "theme") {
       userData = await updateDefaultItem("themes");
     }
 
-    if(!userData) {
-      return res.status(400).json({ success: false, message: "User not found." });
+    if (!userData) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User not found." });
     }
 
-    io.to(userId).emit('userDataUpdate', userData);
+    io.to(userId).emit("userDataUpdate", userData);
     res.status(200).json({
       success: true,
       message: `${type} updated successfully.`,
     });
-  }
-  catch(error)
-  {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const followUser = async (req, res) => {
-  
   const { from, to } = req.body;
 
   if (!from || !to) {
@@ -524,8 +536,7 @@ const followUser = async (req, res) => {
     });
   }
 
-  try 
-  {
+  try {
     const users = await models.Customer.find({ _id: { $in: [from, to] } });
 
     // Check if both users were found
@@ -537,7 +548,7 @@ const followUser = async (req, res) => {
     }
 
     // Determine which user is initiating and which is the target
-    const user = users.find(u => u._id.toString() === from);
+    const user = users.find((u) => u._id.toString() === from);
 
     // Determine if 'from' user is already following 'to' user
     const isFollowing = user.following.includes(to);
@@ -562,44 +573,42 @@ const followUser = async (req, res) => {
     io.to(to).emit("userDataUpdate", updatedFollowingUser);
 
     res.status(200).json({ success: true, message });
-  } 
-  catch (error) {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const logout = async (req, res) => {
-
   const id = req.params.id;
 
-  try
-  {
+  try {
     const user = await models.Customer.findOneAndUpdate(
-      {_id: id},
-      { $set : {
-        tokens: null
-      }}
+      { _id: id },
+      {
+        $set: {
+          tokens: null,
+        },
+      }
     );
 
     if (!user) {
       return res.status(400).json({
-        success: false, message: "user not found",
+        success: false,
+        message: "user not found",
       });
     }
 
     res.status(200).json({ success: true, message: "Logout successful." });
-  }
-  catch(error) {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const addPost = async (req, res) => {
-  
   const { createdBy, caption } = req.body;
-  
+
   if (!createdBy) {
     return res.status(200).json({
       success: false,
@@ -607,8 +616,7 @@ const addPost = async (req, res) => {
     });
   }
 
-  try
-  {
+  try {
     const users = await models.Customer.findOne({ _id: createdBy });
     if (!users) {
       return res.status(400).json({
@@ -621,25 +629,27 @@ const addPost = async (req, res) => {
     const postData = await models.Posts.create({
       createdBy: createdBy,
       image,
-      caption: caption
+      caption: caption,
     });
 
-    res.status(200).json({ success: true, message: "Post created successfully.", data: postData });
-  }
-  catch(error)
-  {
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Post created successfully.",
+        data: postData,
+      });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
-    if(req.body.image) {
+    if (req.body.image) {
       cleanupS3Files(req.body.image);
     }
   }
-}
+};
 
 const getAllPosts = async (req, res) => {
-
-  try
-  {
+  try {
     const posts = await models.Posts.aggregate([
       {
         $match: {},
@@ -734,23 +744,21 @@ const getAllPosts = async (req, res) => {
       },
     ]);
 
-    return res.status(200).json({ success: true, message: "User post details", data: posts });
-  }
-  catch(error) 
-  {
+    return res
+      .status(200)
+      .json({ success: true, message: "User post details", data: posts });
+  } catch (error) {
     logger.error(error);
     return res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getPostsPagination = async (req, res) => {
-
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  try
-  {
+  try {
     const pipeline = [
       {
         $match: {},
@@ -794,7 +802,7 @@ const getPostsPagination = async (req, res) => {
         },
       },
       {
-        $sort: { createdAt: -1 } // Sort by createdAt field in descending order (latest first)
+        $sort: { createdAt: -1 }, // Sort by createdAt field in descending order (latest first)
       },
       {
         $skip: skip,
@@ -805,27 +813,27 @@ const getPostsPagination = async (req, res) => {
     ];
 
     const posts = await models.Posts.aggregate(pipeline).limit(20);
-    return res.status(200).json({ success: true, message: `user post details`, data: posts });
-  }
-  catch(error)
-  {
+    return res
+      .status(200)
+      .json({ success: true, message: `user post details`, data: posts });
+  } catch (error) {
     logger.error(error);
     return res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getPostsByUserId = async (req, res) => {
-
   const { createdBy } = req.params;
   const page = parseInt(req.query.page) || 1;
   const PAGE_SIZE = 20;
   const skip = (page - 1) * PAGE_SIZE;
 
-  try
-  {
+  try {
     const aggregationPipeline = [
       {
-        $match: { createdBy: mongoose.Types.ObjectId.createFromHexString(createdBy) },
+        $match: {
+          createdBy: mongoose.Types.ObjectId.createFromHexString(createdBy),
+        },
       },
       {
         $lookup: {
@@ -866,7 +874,7 @@ const getPostsByUserId = async (req, res) => {
         },
       },
       {
-        $sort: { createdAt: -1 }
+        $sort: { createdAt: -1 },
       },
       {
         $skip: skip,
@@ -883,52 +891,55 @@ const getPostsByUserId = async (req, res) => {
       message: `User post details for page ${page}`,
       data: posts,
     });
-  }
-  catch(error)
-  {
+  } catch (error) {
     logger.error(error);
     return res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const deletePost = async (req, res) => {
-  
   const id = req.params.id;
 
-  try 
-  {  
+  try {
     const result = await models.Posts.findOneAndDelete(
       { _id: id },
       { projection: { image: 1 } }
     );
 
-    if (result) 
-    {
+    if (result) {
       res.status(400).json({ success: false, message: "Post not found." });
-      if(result.image) {
+      if (result.image) {
         cleanupS3Files(result.image);
       }
+    } else {
+      res
+        .status(200)
+        .json({ success: true, message: "Post deleted successfully." });
     }
-    else {
-      res.status(200).json({ success: true, message: "Post deleted successfully." });
-    }
-  }
-  catch (error) {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
 };
 
 const addWallet = async (req, res) => {
-
-  const { userId, diamonds, payment_method, price, status, transactionId, merchantTransactionId } = req.body;
+  const {
+    userId,
+    diamonds,
+    payment_method,
+    price,
+    status,
+    transactionId,
+    merchantTransactionId,
+  } = req.body;
 
   if (!userId) {
-    return res.status(400).json({ success: false, message: 'please provide userId' });
+    return res
+      .status(400)
+      .json({ success: false, message: "please provide userId" });
   }
 
-  try
-  {
+  try {
     const walletData = await models.Wallet.create({
       userId,
       status,
@@ -936,46 +947,53 @@ const addWallet = async (req, res) => {
       price,
       payment_method,
       transactionId,
-      merchantTransactionId
+      merchantTransactionId,
     });
-  
-    if(status === 'success')
-    {
+
+    if (status === "success") {
       const userData = await models.Customer.findOneAndUpdate(
         { userId },
         {
           $inc: {
             diamonds: diamonds,
-            totalPurchasedDiamonds: diamonds
-          }
+            totalPurchasedDiamonds: diamonds,
+          },
         },
         { new: true }
       );
-  
+
       await models.UserDiamondHistory.create({
         userId,
         diamonds,
         type: 2,
         uses: "Recharge",
       });
-  
-      io.to(userId).emit('userDataUpdate', userData);
-      res.status(200).json({ success: true, message: "added successfully.", data: walletData });
+
+      io.to(userId).emit("userDataUpdate", userData);
+      res
+        .status(200)
+        .json({
+          success: true,
+          message: "added successfully.",
+          data: walletData,
+        });
+    } else {
+      res
+        .status(400)
+        .json({
+          success: false,
+          message: "Payment not completed",
+          data: walletData,
+        });
     }
-    else {
-      res.status(400).json({ success: false, message: 'Payment not completed', data: walletData });
-    }
-  }
-  catch(error)
-  {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getWalletTransactions = async (req, res) => {
-  try 
-  {
+  try {
     const userId = req.params.userId;
     if (!userId) {
       return res.status(400).json({
@@ -984,105 +1002,106 @@ const getWalletTransactions = async (req, res) => {
       });
     }
 
-    const wallet = await models.Wallet.find({ userId: userId }).sort({ createdAt: -1 });
+    const wallet = await models.Wallet.find({ userId: userId }).sort({
+      createdAt: -1,
+    });
     res.status(200).json({
       success: true,
       message: "find successful.",
       data: wallet,
     });
-  } 
-  catch (error) {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const convertBeansToDiamonds = async (req, res) => {
-
   const { userId, diamonds, beans } = req.body;
 
   if (!userId) {
-    return res.status(400).json({ success: false, message: 'Please provide userId' });
+    return res
+      .status(400)
+      .json({ success: false, message: "Please provide userId" });
   }
 
-  try
-  {
+  try {
     const userData = await models.Customer.findOneAndUpdate(
       { _id: userId, beans: { $gte: beans } }, // Ensures enough beans are available
       {
         $inc: {
           diamonds: diamonds,
-          beans: -beans
-        }
+          beans: -beans,
+        },
       },
       { new: true }
     );
 
     if (!userData) {
-      return res.status(400).json({ success: false, message: 'Not enough beans' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Not enough beans" });
     }
 
     await models.UserDiamondHistory.create({
       userId,
       diamonds,
       type: 2,
-      uses: "Beans To Diamonds"
+      uses: "Beans To Diamonds",
     });
 
-    io.to(userId).emit('userDataUpdate', userData);
-    return res.status(200).json({ success: true, message: 'Converted successfully.' });
-  }
-  catch(error)
-  {
+    io.to(userId).emit("userDataUpdate", userData);
+    return res
+      .status(200)
+      .json({ success: true, message: "Converted successfully." });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const addBeans = async (req, res) => {
-
   const { userId, beans } = req.body;
 
   if (!userId) {
-    return res.status(400).json({ success: false, message: 'please provide userId' });
+    return res
+      .status(400)
+      .json({ success: false, message: "please provide userId" });
   }
-  
-  try
-  {
+
+  try {
     const userData = await models.Customer.findOneAndUpdate(
       { _id: userId },
       {
         $inc: {
-          beans: beans
-        }
-      }, 
+          beans: beans,
+        },
+      },
       { new: true }
     );
-  
-    io.to(userId).emit('userDataUpdate', userData);
+
+    io.to(userId).emit("userDataUpdate", userData);
     res.status(200).json({ success: true, message: "added successfully." });
-  }
-  catch(error)
-  {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const shop = async (req, res) => {
-
   const { userId, item, itemType, price } = req.body;
 
   // Check for required fields
   if (!userId || !item || !itemType || !price) {
     return res.status(400).json({
       success: false,
-      message: `please provide ${!userId ? 'userId' : !item ? 'item' : !itemType ? 'itemType' : 'price'}`,
+      message: `please provide ${
+        !userId ? "userId" : !item ? "item" : !itemType ? "itemType" : "price"
+      }`,
     });
   }
 
-  try
-  {
+  try {
     const user = await models.Customer.findOne(
       { _id: userId },
       {
@@ -1097,27 +1116,27 @@ const shop = async (req, res) => {
         relationship: 1,
         specialId: 1,
         lockRoom: 1,
-        extraSeat: 1
+        extraSeat: 1,
       }
     );
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: 'user not found',
+        message: "user not found",
       });
     }
-  
+
     // Check if user has enough diamonds
     if (price > user.diamonds) {
       return res.status(400).json({
         success: false,
-        message: 'you do not have enough diamonds',
+        message: "you do not have enough diamonds",
       });
     }
 
     const updateUserItem = (field) => {
-      const index = user[field].findIndex(f => f._id.toString() === item._id);
+      const index = user[field].findIndex((f) => f._id.toString() === item._id);
       if (index !== -1) {
         user[field].splice(index, 1);
       }
@@ -1125,18 +1144,34 @@ const shop = async (req, res) => {
     };
 
     switch (itemType) {
-      case "frame": updateUserItem('frames'); break;
-      case "chatBubble": updateUserItem('chatBubbles'); break;
-      case "theme": updateUserItem('themes'); break;
-      case "vehicle": updateUserItem('vehicles'); break;
-      case "relationship": updateUserItem('relationships'); break;
-      case "specialId": updateUserItem('specialId'); break;
-      case "lockRoom": updateUserItem('lockRooms'); break;
-      case "extraSeat": updateUserItem('extraSeats'); break;
+      case "frame":
+        updateUserItem("frames");
+        break;
+      case "chatBubble":
+        updateUserItem("chatBubbles");
+        break;
+      case "theme":
+        updateUserItem("themes");
+        break;
+      case "vehicle":
+        updateUserItem("vehicles");
+        break;
+      case "relationship":
+        updateUserItem("relationships");
+        break;
+      case "specialId":
+        updateUserItem("specialId");
+        break;
+      case "lockRoom":
+        updateUserItem("lockRooms");
+        break;
+      case "extraSeat":
+        updateUserItem("extraSeats");
+        break;
       default:
         return res.status(400).json({
           success: false,
-          message: 'invalid itemType provided',
+          message: "invalid itemType provided",
         });
     }
 
@@ -1145,7 +1180,6 @@ const shop = async (req, res) => {
     user.xp = (BigInt(user.xp) + BigInt(price)).toString();
     await user.save();
 
-    
     const shopData = await models.Shop.create({
       userId,
       item,
@@ -1158,59 +1192,62 @@ const shop = async (req, res) => {
       userId,
       diamonds: price,
       type: 1,
-      uses: "Shop"
+      uses: "Shop",
     });
 
-    return res.status(200).json({ success: true, message: 'purchase successful', data: shopData });
-  }
-  catch(error)
-  {
+    return res
+      .status(200)
+      .json({ success: true, message: "purchase successful", data: shopData });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
-const assistItems = async(req, res) => {
+const assistItems = async (req, res) => {
   const { userIds, items } = req.body;
 
   // Check for required fields
   if (!userIds || !items) {
     return res.status(400).json({
       success: false,
-      message: `please provide ${!userIds ? 'userIds' : 'items'}`,
+      message: `please provide ${!userIds ? "userIds" : "items"}`,
     });
   }
 
-  try
-  {
+  try {
     for (const item of items) {
       const itemType = `${item.itemType}s`;
-  
+
       for (const userId of userIds) {
-        const user = await models.Customer.findById(userId).select(`${itemType}`).lean();
+        const user = await models.Customer.findById(userId)
+          .select(`${itemType}`)
+          .lean();
 
         // Filter out the existing item by _id
-        const filteredItems = user[itemType].filter(i => !i._id.equals(item._id));
+        const filteredItems = user[itemType].filter(
+          (i) => !i._id.equals(item._id)
+        );
 
         // Add the new item
         filteredItems.push(item);
 
         // Replace the entire array with filtered + new item
         await models.Customer.updateOne(
-            { _id: userId },
-            { $set: { [itemType]: filteredItems } }
+          { _id: userId },
+          { $set: { [itemType]: filteredItems } }
         );
       }
     }
 
-    return res.status(200).json({ success: true, message: 'Items assisted successfully' });
-  }
-  catch(error)
-  {
+    return res
+      .status(200)
+      .json({ success: true, message: "Items assisted successfully" });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const removeItem = async (req, res) => {
   const { userId, itemType, itemId } = req.body;
@@ -1219,91 +1256,93 @@ const removeItem = async (req, res) => {
   if (!userId || !itemType || !itemId) {
     return res.status(400).json({
       success: false,
-      message: `please provide ${!userId ? 'userId' : !itemType ? 'itemType' : 'itemId'}`,
+      message: `please provide ${
+        !userId ? "userId" : !itemType ? "itemType" : "itemId"
+      }`,
     });
   }
 
-  try
-  {
+  try {
     const user = await models.Customer.findOneAndUpdate(
       { _id: userId },
       {
-        $pull: { [itemType]: { _id: itemId } }
+        $pull: { [itemType]: { _id: itemId } },
       }
     );
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: 'User not found or item not removed',
+        message: "User not found or item not removed",
       });
     }
 
-    return res.status(200).json({ success: true, message: 'item removed successfully' });
-  }
-  catch(error)
-  {
+    return res
+      .status(200)
+      .json({ success: true, message: "item removed successfully" });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getShopHistory = async (req, res) => {
-
   const userId = req.params.userId;
 
   if (!userId) {
-    return res.status(400).json({success: false, message: 'please provide userId' });
+    return res
+      .status(400)
+      .json({ success: false, message: "please provide userId" });
   }
 
-  try
-  {
-    const data = await models.Shop.find({ userId: userId }).sort({ createdAt: -1 });
-    res.status(200).json({ success: true, message: "get successful.", data: data });
-  }
-  catch(error)
-  {
+  try {
+    const data = await models.Shop.find({ userId: userId }).sort({
+      createdAt: -1,
+    });
+    res
+      .status(200)
+      .json({ success: true, message: "get successful.", data: data });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const diamondSubmitFlow = async (req, res) => {
-
   const { userId, diamonds, type, uses } = req.body;
 
   if (!userId) {
-    return res.status(400).json({ success: false, message: 'please provide userId' });
+    return res
+      .status(400)
+      .json({ success: false, message: "please provide userId" });
   }
 
-  try
-  {
+  try {
     let condition, updateData;
-    if(type === 1)
-    {
+    if (type === 1) {
       condition = {
         userId,
-        diamonds: { $gte:  diamonds }
+        diamonds: { $gte: diamonds },
       };
       updateData = {
         $inc: {
           diamonds: -diamonds,
-          totalDiamondsUses: diamonds
-        }
+          totalDiamondsUses: diamonds,
+        },
       };
-    }
-    else if(type === 2) {
+    } else if (type === 2) {
       condition = {
         userId,
       };
       updateData = {
         $inc: {
-          diamonds: diamonds
-        }
+          diamonds: diamonds,
+        },
       };
-    }
-    else {
-      return res.status(400).json({ success: false, message: 'invalid type provided.' });  
+    } else {
+      return res
+        .status(400)
+        .json({ success: false, message: "invalid type provided." });
     }
 
     const userData = await models.Customer.findOneAndUpdate(
@@ -1312,99 +1351,111 @@ const diamondSubmitFlow = async (req, res) => {
       { new: true }
     );
 
-    if(type === 1 && !userData) {
-      return res.status(400).json({ success: false, message: 'not enough diamonds or user not found' });
+    if (type === 1 && !userData) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "not enough diamonds or user not found",
+        });
     }
 
     await models.UserDiamondHistory.create({
       userId: userId,
       diamonds: diamonds,
       type: type,
-      uses: uses
+      uses: uses,
     });
 
-    io.to(userId).emit('userDataUpdate', userData);
+    io.to(userId).emit("userDataUpdate", userData);
     res.status(200).json({ success: true, message: "updated successfully." });
-  }
-  catch(error)
-  {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getDiamondHistory = async (req, res) => {
-
   const userId = req.params.userId;
   const { uses } = req.body;
 
-  if(!userId || !uses) {
-    return res.status(400).json({ success: false, message: `please provide ${!userId ? 'userId' : 'uses'}` });
+  if (!userId || !uses) {
+    return res
+      .status(400)
+      .json({
+        success: false,
+        message: `please provide ${!userId ? "userId" : "uses"}`,
+      });
   }
 
-  try
-  {
+  try {
     let wallet;
-    if(uses === "All") {
-      wallet = await models.UserDiamondHistory.find({ userId: userId }).sort({ createdAt: -1 });
-    }
-    else {
-      wallet = await models.UserDiamondHistory.find({ uses: uses, userId: userId }).sort({ createdAt: -1 });
+    if (uses === "All") {
+      wallet = await models.UserDiamondHistory.find({ userId: userId }).sort({
+        createdAt: -1,
+      });
+    } else {
+      wallet = await models.UserDiamondHistory.find({
+        uses: uses,
+        userId: userId,
+      }).sort({ createdAt: -1 });
     }
 
-    res.status(200).json({ success: true, message: "find successful.", data: wallet });
-  }
-  catch(error)
-  {
+    res
+      .status(200)
+      .json({ success: true, message: "find successful.", data: wallet });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const likePost = async (req, res) => {
-
   const { userId, postId } = req.body;
 
   if (!userId || !postId) {
-    return res.status(400).json({ success: false, message: "please provide userId and postId" });
+    return res
+      .status(400)
+      .json({ success: false, message: "please provide userId and postId" });
   }
 
-  try
-  {
+  try {
     const [isUserExist, isPostExist] = await Promise.all([
-      models.Customer.findOne({_id: userId}),
-      models.Posts.findOne({_id: postId})
+      models.Customer.findOne({ _id: userId }),
+      models.Posts.findOne({ _id: postId }),
     ]);
-  
+
     if (!isUserExist) {
-      return res.status(400).json({ success: false, message: "please provide valid user id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "please provide valid user id" });
     }
-  
+
     if (!isPostExist) {
-      return res.status(400).json({ success: false, message: "please provide valid post id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "please provide valid post id" });
     }
-  
+
     const like = await models.Like.findOne({ postId, userId });
-    if(!like) 
-    {
+    if (!like) {
       await models.Like.create({ postId, userId });
-      res.status(200).json({ success: true, message: "Like added for the post" });
-    }
-    else 
-    {
+      res
+        .status(200)
+        .json({ success: true, message: "Like added for the post" });
+    } else {
       await models.Like.deleteOne({ postId, userId });
-      res.status(200).json({ success: true, message: "like deleted successfully" });
+      res
+        .status(200)
+        .json({ success: true, message: "like deleted successfully" });
     }
-  }
-  catch(error)
-  {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const addPostComment = async (req, res) => {
-
   const { userId, postId, comment } = req.body;
 
   if (!userId || !comment || !postId) {
@@ -1414,42 +1465,49 @@ const addPostComment = async (req, res) => {
     });
   }
 
-  try
-  {
+  try {
     const [isUserExist, isPostExist] = await Promise.all([
-      models.Customer.findOne({_id: userId}, {isCommentRestricted: 1}),
-      models.Posts.findOne({_id: postId})
+      models.Customer.findOne({ _id: userId }, { isCommentRestricted: 1 }),
+      models.Posts.findOne({ _id: postId }),
     ]);
 
     if (!isUserExist) {
-      return res.status(400).json({ success: false, message: "please provide valid user id" });
-    }
-  
-    if (!isPostExist) {
-      return res.status(400).json({ success: false, message: "please provide valid post id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "please provide valid user id" });
     }
 
-    if(isUserExist.isCommentRestricted) {
-      return res.status(400).json({ success: false, message: "Comment will be restricted on this user" });
+    if (!isPostExist) {
+      return res
+        .status(400)
+        .json({ success: false, message: "please provide valid post id" });
+    }
+
+    if (isUserExist.isCommentRestricted) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Comment will be restricted on this user",
+        });
     }
 
     await models.Comment.create({
       postId: postId,
       userId: userId,
-      comment: comment
+      comment: comment,
     });
 
-    res.status(200).json({ success: true, message: "comment added for the post" });
-  }
-  catch(error)
-  {
+    res
+      .status(200)
+      .json({ success: true, message: "comment added for the post" });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const updatePostComment = async (req, res) => {
-
   const { userId, commentId, comment } = req.body;
 
   if (!userId || !commentId) {
@@ -1459,62 +1517,62 @@ const updatePostComment = async (req, res) => {
     });
   }
 
-  try
-  {
+  try {
     const [isUserExist, isCommentExist] = await Promise.all([
-      models.Customer.findOne({_id: userId}),
-      models.Comment.findOne({_id: commentId})
+      models.Customer.findOne({ _id: userId }),
+      models.Comment.findOne({ _id: commentId }),
     ]);
 
     if (!isUserExist) {
-      return res.status(400).json({ success: false, message: "please provide valid user id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "please provide valid user id" });
     }
-  
+
     if (!isCommentExist) {
-      return res.status(400).json({ success: false, message: "please provide valid commentId id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "please provide valid commentId id" });
     }
 
     if (!isCommentExist.userId.equals(userId)) {
-      return res.status(400).json({success: false, message: "you are not authorized" });
+      return res
+        .status(400)
+        .json({ success: false, message: "you are not authorized" });
     }
 
     await models.Comment.updateOne(
-      {_id: commentId},
+      { _id: commentId },
       {
-        $set: {comment: comment}
+        $set: { comment: comment },
       }
     );
 
-    res.status(200).json({ success: true, message: "comment updated successfully" });
-  }
-  catch(error)
-  {
+    res
+      .status(200)
+      .json({ success: true, message: "comment updated successfully" });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getPostComment = async (req, res) => {
-
-  try
-  {
+  try {
     const comments = await models.Comment.find({});
 
     return res.status(200).json({
       success: true,
       message: "comment get successful",
-      data: comments
+      data: comments,
     });
-  }
-  catch(error)
-  {
+  } catch (error) {
     logger.error(error);
     return res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const deletePostComment = async (req, res) => {
-  
   const { userId, commentId } = req.body;
 
   if (!userId || !commentId) {
@@ -1524,53 +1582,60 @@ const deletePostComment = async (req, res) => {
     });
   }
 
-  try
-  {
+  try {
     const [isUserExist, isCommentExist] = await Promise.all([
-      models.Customer.findOne({_id: userId}),
-      models.Comment.findOne({_id: commentId})
+      models.Customer.findOne({ _id: userId }),
+      models.Comment.findOne({ _id: commentId }),
     ]);
 
     if (!isUserExist) {
-      return res.status(400).json({ success: false, message: "please provide valid user id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "please provide valid user id" });
     }
-  
+
     if (!isCommentExist) {
-      return res.status(400).json({ success: false, message: "please provide valid commentId id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "please provide valid commentId id" });
     }
 
     if (!isCommentExist.userId.equals(userId)) {
-      return res.status(400).json({success: false, message: "you are not authorized" });
+      return res
+        .status(400)
+        .json({ success: false, message: "you are not authorized" });
     }
 
-    await models.Comment.deleteOne({_id: commentId});
+    await models.Comment.deleteOne({ _id: commentId });
 
-    res.status(200).json({ success: true, message: "comment deleted successfully" });
-  }
-  catch(error)
-  {
+    res
+      .status(200)
+      .json({ success: true, message: "comment deleted successfully" });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getFollowingUsers = async (req, res) => {
-
   const id = req.params.id;
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  try
-  {
-    const user = await models.Customer.findOne({_id: id}, {following: 1});
+  try {
+    const user = await models.Customer.findOne({ _id: id }, { following: 1 });
     if (!user) {
-      return res.status(400).json({ success: false, message: "User not found" });
+      return res
+        .status(400)
+        .json({ success: false, message: "User not found" });
     }
 
     const followingUserIds = user.following;
     if (!followingUserIds || followingUserIds.length === 0) {
-      return res.status(200).json({ success: true, message: "No following users" });
+      return res
+        .status(200)
+        .json({ success: true, message: "No following users" });
     }
 
     const pipeline = [
@@ -1611,8 +1676,8 @@ const getFollowingUsers = async (req, res) => {
       },
       {
         $project: {
-          "commented": 0,
-          "like": 0,
+          commented: 0,
+          like: 0,
         },
       },
       {
@@ -1621,138 +1686,129 @@ const getFollowingUsers = async (req, res) => {
       { $skip: skip },
       { $limit: limit },
     ];
-  
+
     const posts = await models.Posts.aggregate(pipeline);
-    return res.status(200).json({ success: true, message: "User post details", data: posts });
-  }
-  catch(error)
-  {
+    return res
+      .status(200)
+      .json({ success: true, message: "User post details", data: posts });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const searchUser = async (req, res) => {
-
   const userId = req.params.userId;
 
-  try
-  {
+  try {
     const customers = await models.Customer.find({
       userId: { $regex: userId, $options: "i" },
     });
 
     if (!customers) {
       res.status(400).json({ success: true, message: "User not found." });
-    }
-    else {
+    } else {
       res.status(200).json({
         success: true,
         message: "Get successful.",
         data: customers,
       });
     }
-  }
-  catch(error)
-  {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getPushMessage = async (req, res) => {
-  
   const id = req.params.id;
 
-  try 
-  {  
+  try {
     const host = await models.PushMessage.find({ userId: id });
-    res.status(200).json({ success: true, message: "Find successfully.", data: host });
-  } 
-  catch (error) 
-  {
+    res
+      .status(200)
+      .json({ success: true, message: "Find successfully.", data: host });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const deletePushMessage = async (req, res) => {
-  
   const id = req.params.id;
 
-  try 
-  {  
+  try {
     await models.PushMessage.deleteOne({ _id: id });
     res.status(200).json({ success: true, message: "Deleted successfully." });
-  } 
-  catch (error) 
-  {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const agencyLogin = async (req, res) => {
-  
   const { mobile } = req.body;
 
-  try
-  {
+  try {
     const customer = await models.Agency.loginMobile(mobile);
 
     if (!customer) {
-      return res.status(400).json({ success: false, message: "Login failed! Check authentication credentials" });
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: "Login failed! Check authentication credentials",
+        });
     }
 
-    res.status(200).json({ success: true, message: "Login successful.", data: customer });
-  }
-  catch(error)
-  {
+    res
+      .status(200)
+      .json({ success: true, message: "Login successful.", data: customer });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const deleteUserDp = async (req, res) => {
-
   const userId = req.params.userId;
 
-  try
-  {
+  try {
     const user = await models.Customer.findOne({ userId: userId });
 
     if (!userId) {
-      return res.status(400).json({ success: false, message: "userId is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "userId is required" });
     }
 
     if (!user) {
-      return res.status(400).json({ success: false, message: "user is not available" });
+      return res
+        .status(400)
+        .json({ success: false, message: "user is not available" });
     }
 
     const userData = await models.Customer.findOneAndUpdate(
-      { userId: userId }, 
+      { userId: userId },
       {
         $set: {
-          images: constants.banDpLink
+          images: constants.banDpLink,
         },
-      }, 
+      },
       { new: true }
     );
 
-    io.to(userId).emit('userDataUpdate', userData);
+    io.to(userId).emit("userDataUpdate", userData);
     res.status(200).json({ success: true, message: "Dp Ban successful." });
-  }
-  catch(error)
-  {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getReports = async (req, res) => {
-  
   const { userId, message } = req.body;
-  
+
   if (!userId) {
     return res.status(400).json({
       success: false,
@@ -1760,8 +1816,7 @@ const getReports = async (req, res) => {
     });
   }
 
-  try 
-  {
+  try {
     const users = await models.Customer.findOne({ _id: userId }, { _id: 1 });
     if (!users) {
       return res.status(400).json({
@@ -1772,33 +1827,38 @@ const getReports = async (req, res) => {
 
     const report = await models.UserReport.create({
       userId,
-      message
+      message,
     });
 
-    res.status(200).json({ success: true, message: "Report added successfully.", data: report });
-  }
-  catch (error) {
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Report added successfully.",
+        data: report,
+      });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const addReports = async (req, res) => {
-  try 
-  {
+  try {
     const report = await models.UserReport.find({}).populate("userId");
 
-    res.status(200).json({ success: true, message: "Find successful.", data: report });
-  } 
-  catch (error) {
+    res
+      .status(200)
+      .json({ success: true, message: "Find successful.", data: report });
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getGifts = async (req, res) => {
   const userId = req.params.userId;
-  
+
   if (!userId) {
     return res.status(400).json({
       success: false,
@@ -1806,50 +1866,85 @@ const getGifts = async (req, res) => {
     });
   }
 
-  try 
-  {
+  try {
     const matchStage = {
       $or: [
         { sender: mongoose.Types.ObjectId.createFromHexString(userId) },
-        { receiver: mongoose.Types.ObjectId.createFromHexString(userId) }
-      ]
+        { receiver: mongoose.Types.ObjectId.createFromHexString(userId) },
+      ],
     };
-    
+
     const gifts = await models.SendGift.aggregate([
       {
-        $match: matchStage
+        $match: matchStage,
       },
       {
-        $unwind: "$gift"
+        $unwind: "$gift",
       },
       {
         $group: {
           _id: {
             giftId: "$gift._id",
             name: "$gift.name",
-            thumbnail: "$gift.thumbnail"
+            thumbnail: "$gift.thumbnail",
           },
           totalSent: {
             $sum: {
-              $cond: [{ $eq: ["$sender", mongoose.Types.ObjectId.createFromHexString(userId)] }, "$count", 0]  // Count sent gifts
-            }
+              $cond: [
+                {
+                  $eq: [
+                    "$sender",
+                    mongoose.Types.ObjectId.createFromHexString(userId),
+                  ],
+                },
+                "$count",
+                0,
+              ], // Count sent gifts
+            },
           },
           totalReceived: {
             $sum: {
-              $cond: [{ $eq: ["$receiver", mongoose.Types.ObjectId.createFromHexString(userId)] }, "$count", 0]  // Count received gifts
-            }
+              $cond: [
+                {
+                  $eq: [
+                    "$receiver",
+                    mongoose.Types.ObjectId.createFromHexString(userId),
+                  ],
+                },
+                "$count",
+                0,
+              ], // Count received gifts
+            },
           },
           totalDiamondsSent: {
             $sum: {
-              $cond: [{ $eq: ["$sender", mongoose.Types.ObjectId.createFromHexString(userId)] }, { $multiply: ["$count", "$gift.diamonds"] }, 0]
-            }
+              $cond: [
+                {
+                  $eq: [
+                    "$sender",
+                    mongoose.Types.ObjectId.createFromHexString(userId),
+                  ],
+                },
+                { $multiply: ["$count", "$gift.diamonds"] },
+                0,
+              ],
+            },
           },
           totalDiamondsReceived: {
             $sum: {
-              $cond: [{ $eq: ["$receiver", mongoose.Types.ObjectId.createFromHexString(userId)] }, { $multiply: ["$count", "$gift.diamonds"] }, 0]
-            }
-          }
-        }
+              $cond: [
+                {
+                  $eq: [
+                    "$receiver",
+                    mongoose.Types.ObjectId.createFromHexString(userId),
+                  ],
+                },
+                { $multiply: ["$count", "$gift.diamonds"] },
+                0,
+              ],
+            },
+          },
+        },
       },
       {
         $project: {
@@ -1857,11 +1952,11 @@ const getGifts = async (req, res) => {
           giftId: "$_id.giftId",
           name: "$_id.name",
           thumbnail: "$_id.thumbnail",
-          totalSent: { $ifNull: ["$totalSent", 0] },         // Ensure 0 if no sent gifts
-          totalReceived: { $ifNull: ["$totalReceived", 0] },  // Ensure 0 if no received gifts
+          totalSent: { $ifNull: ["$totalSent", 0] }, // Ensure 0 if no sent gifts
+          totalReceived: { $ifNull: ["$totalReceived", 0] }, // Ensure 0 if no received gifts
           totalDiamondsSent: { $ifNull: ["$totalDiamondsSent", 0] },
-          totalDiamondsReceived: { $ifNull: ["$totalDiamondsReceived", 0] }
-        }
+          totalDiamondsReceived: { $ifNull: ["$totalDiamondsReceived", 0] },
+        },
       },
     ]);
 
@@ -1873,59 +1968,59 @@ const getGifts = async (req, res) => {
     }
 
     res.status(200).json({ success: true, data: gifts });
-  }
-  catch (error) {
+  } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
   }
-}
+};
 
 const getTopSupporters = async (req, res) => {
   const userId = req.customer?._id;
 
   if (!userId) {
-    return res.status(400).json({ success: false, message: "token is required" });
-  } 
+    return res
+      .status(400)
+      .json({ success: false, message: "token is required" });
+  }
 
-  const startDate = moment().startOf('month').toDate();   // First day of the month at 00:00:00
-  const endDate = moment().endOf('month').toDate();
+  const startDate = moment().startOf("month").toDate(); // First day of the month at 00:00:00
+  const endDate = moment().endOf("month").toDate();
 
-  try 
-  {
+  try {
     const results = await models.SendGift.aggregate([
       {
         $match: {
           receiver: userId,
-          createdAt: { $gte: startDate, $lt: endDate }
-        }
+          createdAt: { $gte: startDate, $lt: endDate },
+        },
       },
       {
         $addFields: {
-          giftDiamonds: { $multiply: ["$gift.diamonds", "$count"] }
-        }
+          giftDiamonds: { $multiply: ["$gift.diamonds", "$count"] },
+        },
       },
       {
         $group: {
-          _id: "$sender",                      // Group by receiver
-          totalGiftDiamonds: { $sum: "$giftDiamonds" }
-        }
+          _id: "$sender", // Group by receiver
+          totalGiftDiamonds: { $sum: "$giftDiamonds" },
+        },
       },
       {
-        $sort: { totalGiftDiamonds: -1 }
+        $sort: { totalGiftDiamonds: -1 },
       },
       {
-        $limit: 10                                // Top 10 receivers
+        $limit: 10, // Top 10 receivers
       },
       {
         $lookup: {
-          from: "customers",                    // Lookup customer data
+          from: "customers", // Lookup customer data
           localField: "_id",
           foreignField: "_id",
-          as: "senderInfo"
-        }
+          as: "senderInfo",
+        },
       },
       {
-        $unwind: "$senderInfo"                  // Unwind the customer data
+        $unwind: "$senderInfo", // Unwind the customer data
       },
       {
         $project: {
@@ -1933,14 +2028,15 @@ const getTopSupporters = async (req, res) => {
           totalGiftDiamonds: 1,
           "senderInfo.name": 1,
           "senderInfo.profileImage": 1,
-          "senderInfo.level": 1
-        }
-      }
+          "senderInfo.level": 1,
+        },
+      },
     ]);
 
-    res.status(200).json({ success: true, message: "Find successfull.", data: results });
-  } 
-  catch (error) {
+    res
+      .status(200)
+      .json({ success: true, message: "Find successfull.", data: results });
+  } catch (error) {
     res.status(400).json({ success: false, message: error.message });
     logger.error(error);
   }
@@ -1949,56 +2045,53 @@ const getTopSupporters = async (req, res) => {
 const banDevice = async (req, res) => {
   const { userId, isActiveDevice } = req.body;
 
-  if(!userId) {
-    return res.status(400).json({ success: false, message: "userId is required." });
+  if (!userId) {
+    return res
+      .status(400)
+      .json({ success: false, message: "userId is required." });
   }
 
-  try 
-  {
+  try {
     const user = await models.Customer.findOneAndUpdate(
       { _id: userId },
-      { $set: {isActiveDevice: isActiveDevice }},
+      { $set: { isActiveDevice: isActiveDevice } },
       { new: true }
     );
 
     if (!user) {
-      return res.status(400).json({ success: false, message: "Customer not found" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Customer not found" });
     }
 
-    if(user.deviceId)
-    {
+    if (user.deviceId) {
       await models.Customer.updateMany(
         {
-          $and: [
-            { deviceId: user.deviceId }, 
-            { deviceId: { $ne: null } }
-          ] 
+          $and: [{ deviceId: user.deviceId }, { deviceId: { $ne: null } }],
         },
         { $set: { isActiveDevice: isActiveDevice } }
       );
 
-      if(!isActiveDevice) {
-        await models.BannedDevice.create({deviceId: user.deviceId});
-      }
-      else {
-        await models.BannedDevice.deleteOne({deviceId: user.deviceId});
+      if (!isActiveDevice) {
+        await models.BannedDevice.create({ deviceId: user.deviceId });
+      } else {
+        await models.BannedDevice.deleteOne({ deviceId: user.deviceId });
       }
     }
-    
-    io.to(user._id).emit('userDataUpdate', user);
+
+    io.to(user._id).emit("userDataUpdate", user);
     res.status(200).json({ success: true, message: "Device ban successfull." });
-  } 
-  catch (error) {
-    if(error.code === 11000) {
-      res.status(400).json({ success: true, message: "Device already banned." });  
-    }
-    else {
+  } catch (error) {
+    if (error.code === 11000) {
+      res
+        .status(400)
+        .json({ success: true, message: "Device already banned." });
+    } else {
       res.status(400).json({ success: false, message: error.message });
     }
     logger.error(error);
   }
-}
-
+};
 
 module.exports = {
   login,
@@ -2044,5 +2137,5 @@ module.exports = {
   addReports,
   getGifts,
   getTopSupporters,
-  banDevice
-}
+  banDevice,
+};
