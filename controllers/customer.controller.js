@@ -426,8 +426,6 @@ const updateCustomer = async (req, res) => {
       });
     }
 
-    console.log("userData======>", userData);
-
     io.to(id).emit("userDataUpdate", userData);
     res.status(200).json({ success: true, message: "Updated successfully." });
   } catch (error) {
@@ -632,13 +630,11 @@ const addPost = async (req, res) => {
       caption: caption,
     });
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Post created successfully.",
-        data: postData,
-      });
+    res.status(200).json({
+      success: true,
+      message: "Post created successfully.",
+      data: postData,
+    });
   } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
@@ -970,21 +966,17 @@ const addWallet = async (req, res) => {
       });
 
       io.to(userId).emit("userDataUpdate", userData);
-      res
-        .status(200)
-        .json({
-          success: true,
-          message: "added successfully.",
-          data: walletData,
-        });
+      res.status(200).json({
+        success: true,
+        message: "added successfully.",
+        data: walletData,
+      });
     } else {
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "Payment not completed",
-          data: walletData,
-        });
+      res.status(400).json({
+        success: false,
+        message: "Payment not completed",
+        data: walletData,
+      });
     }
   } catch (error) {
     logger.error(error);
@@ -1352,12 +1344,10 @@ const diamondSubmitFlow = async (req, res) => {
     );
 
     if (type === 1 && !userData) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "not enough diamonds or user not found",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "not enough diamonds or user not found",
+      });
     }
 
     await models.UserDiamondHistory.create({
@@ -1380,12 +1370,10 @@ const getDiamondHistory = async (req, res) => {
   const { uses } = req.body;
 
   if (!userId || !uses) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-        message: `please provide ${!userId ? "userId" : "uses"}`,
-      });
+    return res.status(400).json({
+      success: false,
+      message: `please provide ${!userId ? "userId" : "uses"}`,
+    });
   }
 
   try {
@@ -1484,12 +1472,10 @@ const addPostComment = async (req, res) => {
     }
 
     if (isUserExist.isCommentRestricted) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Comment will be restricted on this user",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Comment will be restricted on this user",
+      });
     }
 
     await models.Comment.create({
@@ -1753,12 +1739,10 @@ const agencyLogin = async (req, res) => {
     const customer = await models.Agency.loginMobile(mobile);
 
     if (!customer) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Login failed! Check authentication credentials",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Login failed! Check authentication credentials",
+      });
     }
 
     res
@@ -1830,13 +1814,11 @@ const getReports = async (req, res) => {
       message,
     });
 
-    res
-      .status(200)
-      .json({
-        success: true,
-        message: "Report added successfully.",
-        data: report,
-      });
+    res.status(200).json({
+      success: true,
+      message: "Report added successfully.",
+      data: report,
+    });
   } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
