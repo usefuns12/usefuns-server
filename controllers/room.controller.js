@@ -1036,7 +1036,6 @@ const sendGift = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields." });
     }
 
-    // Fetch quantity cashback
     const quantityData = await models.QuantityCashback.findById(qtyId);
     if (!quantityData) {
       return res.status(404).json({ message: "Invalid quantity ID." });
@@ -1044,42 +1043,98 @@ const sendGift = async (req, res) => {
 
     const { quantity, cashbackAmount } = quantityData;
 
-    // Fetch gift by ID from request
-    const selectedGift = await models.Gift.findById(giftId);
+    const selectedGift = await models.Gift.findById(giftId).populate(
+      "category"
+    );
     if (!selectedGift) {
       return res.status(404).json({ message: "Gift not found." });
     }
 
+    const categoryName =
+      selectedGift.category?.name?.toLowerCase() ||
+      selectedGift.category?.toLowerCase();
     const totalGiftDiamonds = selectedGift.diamonds * quantity;
 
-    // Update receiver's diamonds
     const receiver = await models.Customer.findById(receiverId);
     if (!receiver) {
       return res.status(404).json({ message: "Receiver not found." });
     }
-    receiver.diamonds += totalGiftDiamonds;
-    await receiver.save();
 
-    // Update sender's cashback
     const sender = await models.Customer.findById(senderId);
     if (!sender) {
       return res.status(404).json({ message: "Sender not found." });
     }
-    sender.diamonds += cashbackAmount;
+
+    let actualReceiverDiamonds = totalGiftDiamonds;
+    let senderCashback = cashbackAmount;
+
+    // 💥 Surprise Gift Logic
+    if (categoryName === "surprise") {
+      actualReceiverDiamonds = Math.floor(totalGiftDiamonds / 2); // Receiver gets half
+
+      // 30% chance to give cashback
+      const shouldGiveCashback = Math.random() < 0.3;
+      if (shouldGiveCashback) {
+        const now = new Date();
+        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+        const transactions = await models.GiftTransaction.aggregate([
+          {
+            $match: {
+              countryCode: sender.countryCode,
+              giftTime: { $gte: fiveMinutesAgo, $lte: now },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalDiamonds: { $sum: "$totalDiamonds" },
+            },
+          },
+        ]);
+
+        const recentTotal = transactions?.[0]?.totalDiamonds || 0;
+        const maxCashback = Math.floor(recentTotal * 0.1); // Max 10% of recent 5-min spend
+
+        senderCashback = Math.floor(Math.random() * (maxCashback + 1)); // up to maxCashback
+      } else {
+        senderCashback = 0;
+      }
+    }
+
+    // 💎 Update receiver diamonds
+    receiver.diamonds += actualReceiverDiamonds;
+    await receiver.save();
+
+    // 💰 Update sender cashback
+    sender.diamonds += senderCashback;
     await sender.save();
 
-    // Create SendGift record
-    const giftData = {
+    // 🧾 Record SendGift
+    await models.SendGift.create({
       roomId,
       sender: senderId,
       receiver: receiverId,
       count: quantity,
       gift: selectedGift,
-    };
-    await models.SendGift.create(giftData);
+    });
+
+    // 🧾 Record GiftTransaction
+    await models.GiftTransaction.create({
+      sender: senderId,
+      receiver: receiverId,
+      gift: selectedGift._id,
+      totalDiamonds: actualReceiverDiamonds,
+      countryCode: sender.countryCode,
+      giftTime: new Date(),
+    });
 
     res.status(200).json({
-      message: `Gift sent successfully. Receiver got ${totalGiftDiamonds} diamonds, sender received ₹${cashbackAmount} cashback.`,
+      message: `Gift sent successfully. Receiver got ${actualReceiverDiamonds} diamonds. ${
+        senderCashback > 0
+          ? `Sender received ₹${senderCashback} cashback.`
+          : "No cashback rewarded this time."
+      }`,
     });
   } catch (error) {
     console.error("Error in sendGift:", error);
