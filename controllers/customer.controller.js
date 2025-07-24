@@ -51,6 +51,7 @@ const login = async (req, res) => {
       google_id: customer.google_id,
       image_url: customer.image_url,
       token: token,
+      countryCode: customer.countryCode,
     };
 
     res
@@ -1972,7 +1973,7 @@ const getTopSupporters = async (req, res) => {
     const results = await models.SendGift.aggregate([
       {
         $match: {
-          receiver: userId,
+          receiver: new mongoose.Types.ObjectId(userId),
           createdAt: { $gte: startDate, $lt: endDate },
         },
       },
@@ -1983,7 +1984,7 @@ const getTopSupporters = async (req, res) => {
       },
       {
         $group: {
-          _id: "$sender", // Group by receiver
+          _id: "$sender", // Group by sender
           totalGiftDiamonds: { $sum: "$giftDiamonds" },
         },
       },
@@ -1991,26 +1992,24 @@ const getTopSupporters = async (req, res) => {
         $sort: { totalGiftDiamonds: -1 },
       },
       {
-        $limit: 10, // Top 10 receivers
+        $limit: 10,
       },
       {
         $lookup: {
-          from: "customers", // Lookup customer data
+          from: "customers",
           localField: "_id",
           foreignField: "_id",
-          as: "senderInfo",
+          as: "sender",
         },
       },
       {
-        $unwind: "$senderInfo", // Unwind the customer data
+        $unwind: "$sender",
       },
       {
         $project: {
-          _id: 1,
+          _id: 0,
           totalGiftDiamonds: 1,
-          "senderInfo.name": 1,
-          "senderInfo.profileImage": 1,
-          "senderInfo.level": 1,
+          sender: 1, // includes full customer document
         },
       },
     ]);
