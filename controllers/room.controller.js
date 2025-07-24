@@ -1053,6 +1053,7 @@ const sendGift = async (req, res) => {
     const categoryName =
       selectedGift.category?.name?.toLowerCase() ||
       selectedGift.category?.toLowerCase();
+
     const totalGiftDiamonds = selectedGift.diamonds * quantity;
 
     const receiver = await models.Customer.findById(receiverId);
@@ -1068,11 +1069,10 @@ const sendGift = async (req, res) => {
     let actualReceiverDiamonds = totalGiftDiamonds;
     let senderCashback = cashbackAmount;
 
-    // 💥 Surprise Gift Logic
+    // 🎁 Surprise gift logic
     if (categoryName === "surprise") {
-      actualReceiverDiamonds = Math.floor(totalGiftDiamonds / 2); // Receiver gets half
+      actualReceiverDiamonds = Math.floor(totalGiftDiamonds / 2);
 
-      // 30% chance to give cashback
       const shouldGiveCashback = Math.random() < 0.3;
       if (shouldGiveCashback) {
         const now = new Date();
@@ -1094,23 +1094,22 @@ const sendGift = async (req, res) => {
         ]);
 
         const recentTotal = transactions?.[0]?.totalDiamonds || 0;
-        const maxCashback = Math.floor(recentTotal * 0.1); // Max 10% of recent 5-min spend
-
-        senderCashback = Math.floor(Math.random() * (maxCashback + 1)); // up to maxCashback
+        const maxCashback = Math.floor(recentTotal * 0.1);
+        senderCashback = Math.floor(Math.random() * (maxCashback + 1));
       } else {
         senderCashback = 0;
       }
     }
 
-    // 💎 Update receiver diamonds
+    // 💎 Update receiver
     receiver.diamonds += actualReceiverDiamonds;
     await receiver.save();
 
-    // 💰 Update sender cashback
-    sender.diamonds += senderCashback;
+    // 💰 Update sender
+    sender.diamonds += senderCashback - totalGiftDiamonds;
     await sender.save();
 
-    // 🧾 Record SendGift
+    // 📦 Save SendGift
     await models.SendGift.create({
       roomId,
       sender: senderId,
@@ -1119,7 +1118,7 @@ const sendGift = async (req, res) => {
       gift: selectedGift,
     });
 
-    // 🧾 Record GiftTransaction
+    // 🧾 Save GiftTransaction
     await models.GiftTransaction.create({
       sender: senderId,
       receiver: receiverId,
@@ -1129,6 +1128,59 @@ const sendGift = async (req, res) => {
       giftTime: new Date(),
     });
 
+    // 📚 Diamond History
+    await models.UserDiamondHistory.create([
+      {
+        userId: senderId,
+        diamonds: totalGiftDiamonds,
+        type: 1,
+        uses: "Gift",
+      },
+      {
+        userId: receiverId,
+        diamonds: actualReceiverDiamonds,
+        type: 2,
+        uses: "Gift",
+      },
+      ...(senderCashback > 0
+        ? [
+            {
+              userId: senderId,
+              diamonds: senderCashback,
+              type: 2,
+              uses: "Cashback Rewards",
+            },
+          ]
+        : []),
+    ]);
+
+    // 1. Emit to Room
+    io.to(roomId).emit("giftSent", {
+      senderId,
+      receiverId,
+      roomId,
+      giftId,
+      quantity,
+      gift: {
+        name: selectedGift.name,
+        diamonds: selectedGift.diamonds,
+        category: categoryName,
+      },
+    });
+
+    // 2. Emit to Sender for diamond update
+    io.to(senderId).emit("diamondUpdate", {
+      userId: senderId,
+      diamonds: sender.diamonds,
+    });
+
+    // 3. Emit to Receiver for diamond update
+    io.to(receiverId).emit("diamondUpdate", {
+      userId: receiverId,
+      diamonds: receiver.diamonds,
+    });
+
+    // ✅ Response
     res.status(200).json({
       message: `Gift sent successfully. Receiver got ${actualReceiverDiamonds} diamonds. ${
         senderCashback > 0
@@ -1138,9 +1190,10 @@ const sendGift = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in sendGift:", error);
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
+    res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 
