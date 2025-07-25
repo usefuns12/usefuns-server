@@ -78,6 +78,20 @@ const RoomSchema = new mongoose.Schema(
       },
     ],
 
+    // ✅ New Fields
+    chatUserBannedList: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "customers",
+      },
+    ],
+    seatLockedUserList: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "customers",
+      },
+    ],
+
     // Room Details
     roomImage: {
       type: String,
@@ -97,6 +111,7 @@ const RoomSchema = new mongoose.Schema(
     groupName: {
       type: String,
     },
+
     // Time Spent in Room
     lastHostJoinedAt: {
       type: Date,

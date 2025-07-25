@@ -1197,6 +1197,92 @@ const sendGift = async (req, res) => {
   }
 };
 
+const banChatUser = async (req, res) => {
+  const { roomId, userId } = req.body;
+
+  try {
+    await models.Room.updateOne(
+      { _id: roomId },
+      { $addToSet: { chatUserBannedList: userId } }
+    );
+    res.status(200).json({ success: true, message: "User chat banned." });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const unbanChatUser = async (req, res) => {
+  const { roomId, userId } = req.body;
+
+  try {
+    await models.Room.updateOne(
+      { _id: roomId },
+      { $pull: { chatUserBannedList: userId } }
+    );
+    res.status(200).json({ success: true, message: "User chat unbanned." });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const lockSeatForUser = async (req, res) => {
+  const { roomId, userId } = req.body;
+
+  try {
+    await models.Room.updateOne(
+      { _id: roomId },
+      { $addToSet: { seatLockedUserList: userId } }
+    );
+    res.status(200).json({ success: true, message: "User seat locked." });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const unlockSeatForUser = async (req, res) => {
+  const { roomId, userId } = req.body;
+
+  try {
+    await models.Room.updateOne(
+      { _id: roomId },
+      { $pull: { seatLockedUserList: userId } }
+    );
+    res.status(200).json({ success: true, message: "User seat unlocked." });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const lockAllSeats = async (req, res) => {
+  const { roomId, userIds } = req.body; // pass all current users
+
+  try {
+    await models.Room.updateOne(
+      { _id: roomId },
+      { $addToSet: { seatLockedUserList: { $each: userIds } } }
+    );
+    res.status(200).json({ success: true, message: "All user seats locked." });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
+const unlockAllSeats = async (req, res) => {
+  const { roomId } = req.body;
+
+  try {
+    await models.Room.updateOne(
+      { _id: roomId },
+      { $set: { seatLockedUserList: [] } }
+    );
+    res
+      .status(200)
+      .json({ success: true, message: "All user seats unlocked." });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getRooms,
   getRoomsPagination,
@@ -1227,4 +1313,10 @@ module.exports = {
   muteUser,
   unmuteUser,
   sendGift,
+  banChatUser,
+  unbanChatUser,
+  lockSeatForUser,
+  unlockSeatForUser,
+  lockAllSeats,
+  unlockAllSeats,
 };
