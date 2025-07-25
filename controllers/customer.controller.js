@@ -1129,8 +1129,6 @@ const shop = async (req, res) => {
     }
 
     const updateUserItem = (field) => {
-      console.log(`Updating user item for field: ${field}`, user);
-
       const index = user[field]?.findIndex(
         (f) => f._id.toString() === item._id
       );
