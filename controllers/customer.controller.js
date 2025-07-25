@@ -1135,9 +1135,9 @@ const shop = async (req, res) => {
         (f) => f._id.toString() === item._id
       );
       if (index !== -1) {
-        user[field].splice(index, 1);
+        user[field]?.splice(index, 1);
       }
-      user[field].push(item);
+      user[field]?.push(item);
     };
 
     switch (itemType) {
