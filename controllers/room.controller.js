@@ -1225,57 +1225,21 @@ const unbanChatUser = async (req, res) => {
   }
 };
 
-const lockSeatForUser = async (req, res) => {
-  const { roomId, seatIndex } = req.body;
+const updateSeatLocks = async (req, res) => {
+  const { roomId, seatIndexes } = req.body; // seatIndexes should be an array of numbers
 
-  try {
-    await models.Room.updateOne(
-      { _id: roomId },
-      { $addToSet: { seatLockedUserList: seatIndex } }
-    );
-    res.status(200).json({ success: true, message: "Seat locked." });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
+  if (!Array.isArray(seatIndexes)) {
+    return res
+      .status(400)
+      .json({ success: false, message: "seatIndexes must be an array" });
   }
-};
-
-const unlockSeatForUser = async (req, res) => {
-  const { roomId, seatIndex } = req.body;
 
   try {
     await models.Room.updateOne(
       { _id: roomId },
-      { $pull: { seatLockedUserList: seatIndex } }
+      { $set: { seatLockedUserList: seatIndexes } }
     );
-    res.status(200).json({ success: true, message: "Seat unlocked." });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
-
-const lockAllSeats = async (req, res) => {
-  const { roomId, seatIndexes } = req.body; // pass array of seat index numbers
-
-  try {
-    await models.Room.updateOne(
-      { _id: roomId },
-      { $addToSet: { seatLockedUserList: { $each: seatIndexes } } }
-    );
-    res.status(200).json({ success: true, message: "All seats locked." });
-  } catch (error) {
-    res.status(400).json({ success: false, message: error.message });
-  }
-};
-
-const unlockAllSeats = async (req, res) => {
-  const { roomId } = req.body;
-
-  try {
-    await models.Room.updateOne(
-      { _id: roomId },
-      { $set: { seatLockedUserList: [] } }
-    );
-    res.status(200).json({ success: true, message: "All seats unlocked." });
+    res.status(200).json({ success: true, message: "Seat lock list updated." });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -1313,8 +1277,5 @@ module.exports = {
   sendGift,
   banChatUser,
   unbanChatUser,
-  lockSeatForUser,
-  unlockSeatForUser,
-  lockAllSeats,
-  unlockAllSeats,
+  updateSeatLocks,
 };

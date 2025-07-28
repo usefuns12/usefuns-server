@@ -69,16 +69,7 @@ router.post("/ban-chat-user", controller.banChatUser);
 // 🚫 Unban a user from chat in a room
 router.post("/unban-chat-user", controller.unbanChatUser);
 
-// 🔒 Lock a user's seat in a room
-router.post("/lock-seat", controller.lockSeatForUser);
-
-// 🔓 Unlock a user's seat in a room
-router.post("/unlock-seat", controller.unlockSeatForUser);
-
-// 🔒 Lock all seats in a room
-router.post("/lock-all-seats", controller.lockAllSeats);
-
-// 🔓 Unlock all seats in a room
-router.post("/unlock-all-seats", controller.unlockAllSeats);
+// Seat Locking Features
+router.post("/lock-unlock-seat", controller.updateSeatLocks);
 
 module.exports = router;
