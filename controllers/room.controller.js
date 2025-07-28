@@ -1226,42 +1226,42 @@ const unbanChatUser = async (req, res) => {
 };
 
 const lockSeatForUser = async (req, res) => {
-  const { roomId, userId } = req.body;
+  const { roomId, seatIndex } = req.body;
 
   try {
     await models.Room.updateOne(
       { _id: roomId },
-      { $addToSet: { seatLockedUserList: userId } }
+      { $addToSet: { seatLockedUserList: seatIndex } }
     );
-    res.status(200).json({ success: true, message: "User seat locked." });
+    res.status(200).json({ success: true, message: "Seat locked." });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 };
 
 const unlockSeatForUser = async (req, res) => {
-  const { roomId, userId } = req.body;
+  const { roomId, seatIndex } = req.body;
 
   try {
     await models.Room.updateOne(
       { _id: roomId },
-      { $pull: { seatLockedUserList: userId } }
+      { $pull: { seatLockedUserList: seatIndex } }
     );
-    res.status(200).json({ success: true, message: "User seat unlocked." });
+    res.status(200).json({ success: true, message: "Seat unlocked." });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
 };
 
 const lockAllSeats = async (req, res) => {
-  const { roomId, userIds } = req.body; // pass all current users
+  const { roomId, seatIndexes } = req.body; // pass array of seat index numbers
 
   try {
     await models.Room.updateOne(
       { _id: roomId },
-      { $addToSet: { seatLockedUserList: { $each: userIds } } }
+      { $addToSet: { seatLockedUserList: { $each: seatIndexes } } }
     );
-    res.status(200).json({ success: true, message: "All user seats locked." });
+    res.status(200).json({ success: true, message: "All seats locked." });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -1275,9 +1275,7 @@ const unlockAllSeats = async (req, res) => {
       { _id: roomId },
       { $set: { seatLockedUserList: [] } }
     );
-    res
-      .status(200)
-      .json({ success: true, message: "All user seats unlocked." });
+    res.status(200).json({ success: true, message: "All seats unlocked." });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
