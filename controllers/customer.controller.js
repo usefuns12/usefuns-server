@@ -1183,6 +1183,8 @@ const shop = async (req, res) => {
       price,
     });
 
+    console.log("Shop Data:", shopData);
+
     await models.UserDiamondHistory.create({
       userId,
       diamonds: price,
