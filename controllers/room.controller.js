@@ -926,7 +926,7 @@ const getKickHistory = async (req, res) => {
     const room = await models.Room.findOne(
       { _id: roomId },
       { kickHistory: 1 }
-    ).populate("kickHistory.userId", "name profileImage");
+    ).populate("kickHistory.userId", "name profileImage userId");
 
     const recentKicks = room.kickHistory.filter(
       (entry) => new Date(entry.kickedAt) >= since
@@ -966,7 +966,7 @@ const getRoomJoinedUsers = async (req, res) => {
 
     // Fetch full user details
     const users = await models.Customer.find({ _id: { $in: userIds } }).select(
-      "name profileImage email level isLive"
+      "name profileImage email level isLive userId"
     );
 
     res.status(200).json({
