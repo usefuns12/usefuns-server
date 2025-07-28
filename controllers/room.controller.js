@@ -1228,6 +1228,13 @@ const unbanChatUser = async (req, res) => {
 const updateSeatLocks = async (req, res) => {
   const { roomId, seatIndexes } = req.body; // seatIndexes should be an array of numbers
 
+  console.log(
+    "Updating seat locks for room:",
+    roomId,
+    "with indexes:",
+    seatIndexes
+  );
+
   if (!Array.isArray(seatIndexes)) {
     return res
       .status(400)
