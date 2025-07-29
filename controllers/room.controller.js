@@ -1245,6 +1245,39 @@ const updateSeatLocks = async (req, res) => {
   }
 };
 
+const updateRoomSeatCount = async (req, res) => {
+  const { roomId, seatCount } = req.body;
+
+  if (!roomId || typeof seatCount !== "number") {
+    return res
+      .status(400)
+      .json({ success: false, message: "roomId and seatCount are required." });
+  }
+
+  try {
+    const room = await models.Room.findByIdAndUpdate(
+      roomId,
+      { noOfSeats: seatCount },
+      { new: true }
+    );
+
+    if (!room) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Room not found." });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Seat count updated successfully.",
+      data: { roomId: room._id, noOfSeats: room.noOfSeats },
+    });
+  } catch (error) {
+    console.error("Error updating seat count:", error);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
 module.exports = {
   getRooms,
   getRoomsPagination,
@@ -1278,4 +1311,5 @@ module.exports = {
   banChatUser,
   unbanChatUser,
   updateSeatLocks,
+  updateRoomSeatCount,
 };

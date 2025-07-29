@@ -72,4 +72,7 @@ router.post("/unban-chat-user", controller.unbanChatUser);
 // Seat Locking Features
 router.post("/lock-unlock-seat", controller.updateSeatLocks);
 
+// Update Room Seat Count
+router.post("/update-seat-count", controller.updateRoomSeatCount);
+
 module.exports = router;

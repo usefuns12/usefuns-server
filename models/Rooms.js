@@ -85,7 +85,7 @@ const RoomSchema = new mongoose.Schema(
         ref: "customers",
       },
     ],
-    seatLockedUserList: [{ type: Number, enum: [1, 2, 3, 4, 5, 6, 7, 8] }], // Array of seat numbers
+    seatLockedUserList: [{ type: Number }], // Array of seat numbers
     // Room Details
     roomImage: {
       type: String,
