@@ -2174,4 +2174,5 @@ module.exports = {
   getGifts,
   getTopSupporters,
   banDevice,
+  purchaseSpecialId,
 };
