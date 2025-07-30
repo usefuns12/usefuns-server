@@ -25,6 +25,14 @@ const userItemSchema = new mongoose.Schema({
     type: Boolean,
     required: true,
   },
+  oldUserId: {
+    type: String,
+    default: null,
+  },
+  specialIdValidity: {
+    type: Date,
+    default: null,
+  },
 });
 
 const customerSchema = new mongoose.Schema(

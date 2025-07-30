@@ -2076,6 +2076,59 @@ const banDevice = async (req, res) => {
   }
 };
 
+const purchaseSpecialId = async (req, res) => {
+  try {
+    const { userId, specialId, validityDays } = req.body;
+
+    if (!userId || !specialId || !validityDays) {
+      return res.status(400).json({ message: "Missing required fields." });
+    }
+
+    const user = await models.Customer.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    if (user.diamonds < 100) {
+      return res.status(400).json({ message: "Insufficient diamonds." });
+    }
+
+    const existing = await models.Customer.findOne({ userId: specialId });
+    if (existing) {
+      return res.status(409).json({ message: "Special ID already taken." });
+    }
+
+    const originalUserId = user.userId;
+    const expiryDate = new Date(
+      Date.now() + validityDays * 24 * 60 * 60 * 1000
+    );
+
+    user.oldUserId = originalUserId;
+    user.userId = specialId;
+    user.specialIdValidity = expiryDate;
+    user.diamonds -= 100;
+
+    await user.save();
+
+    // Diamond history
+    await models.UserDiamondHistory.create({
+      userId: user._id,
+      diamonds: 100,
+      type: 1, // Debited
+      uses: "Shop",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Special ID '${specialId}' purchased successfully, valid for ${validityDays} days.`,
+      expiresAt: expiryDate,
+    });
+  } catch (err) {
+    console.error("purchaseSpecialId error:", err);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
 module.exports = {
   login,
   register,

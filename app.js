@@ -65,6 +65,7 @@ app.use((req, res, next) => {
 });
 
 require("./scheduler/kickCleaner");
+require("./scheduler/revertExpiredSpecialIds");
 
 // Global error handler
 app.use((err, req, res, next) => {
