@@ -5,27 +5,28 @@ const jwt = require("jsonwebtoken");
 const userItemSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true
+    required: true,
   },
   resource: {
     type: String,
-    required: true
+    required: true,
   },
   thumbnail: {
-    type: String
+    type: String,
   },
   validTill: {
     type: Date,
-    required: true
+    default: null,
+    required: true,
   },
   isDefault: {
     type: Boolean,
-    required: true
+    required: true,
   },
   isOfficial: {
     type: Boolean,
-    required: true
-  }
+    required: true,
+  },
 });
 
 const customerSchema = new mongoose.Schema(
@@ -39,9 +40,19 @@ const customerSchema = new mongoose.Schema(
     },
     userRole: {
       type: [String],
-      enum: ["ufTeam", "agency", "seller", "manager", "countryAdmin", "admin", "subAdmin", "host", "merchant"]
+      enum: [
+        "ufTeam",
+        "agency",
+        "seller",
+        "manager",
+        "countryAdmin",
+        "admin",
+        "subAdmin",
+        "host",
+        "merchant",
+      ],
     },
-    
+
     // Basic Info
     name: {
       type: String,
@@ -55,12 +66,12 @@ const customerSchema = new mongoose.Schema(
     mobile: {
       type: Number,
       unique: true,
-      sparse: true
+      sparse: true,
     },
     email: {
       type: String,
       unique: true,
-      sparse: true
+      sparse: true,
     },
     dob: {
       type: Date,
@@ -95,7 +106,7 @@ const customerSchema = new mongoose.Schema(
         ref: "customers",
       },
     ],
-    
+
     // Status Flags
     isCommentRestricted: {
       type: Boolean,
@@ -138,7 +149,7 @@ const customerSchema = new mongoose.Schema(
     },
     xp: {
       type: String,
-      default: '0'
+      default: "0",
     },
     usedDiamonds: {
       type: Number,
@@ -167,12 +178,12 @@ const customerSchema = new mongoose.Schema(
     roomId: {
       type: mongoose.Schema.Types.ObjectId,
       default: null,
-      ref: "room"
+      ref: "room",
     },
     isLive: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
 
     // Commented Fields for Potential Future Use
     /* status: {
@@ -207,8 +218,8 @@ const customerSchema = new mongoose.Schema(
   }
 );
 
-customerSchema.set('toObject', { getters: true });
-customerSchema.set('toJSON', { getters: true });
+customerSchema.set("toObject", { getters: true });
+customerSchema.set("toJSON", { getters: true });
 
 customerSchema.pre("save", async function (next) {
   // Hash the password before saving the user models
@@ -217,7 +228,6 @@ customerSchema.pre("save", async function (next) {
   }
   next();
 });
-
 
 customerSchema.methods.generateAuthToken = async function () {
   // Generate an auth token for the user
@@ -234,7 +244,7 @@ customerSchema.statics.loginMobile = async function (mobile) {
   if (!customer) {
     throw new Error("Invalid credentials.");
   }
-  
+
   if (!customer.isActiveUser) {
     throw new Error("Your account has been banned.");
   }
@@ -272,7 +282,6 @@ customerSchema.statics.logingoogle = async function (google_id) {
   return user;
 };
 
-
 customerSchema.statics.changepassword = async function (email, oldpwd, newpwd) {
   const customer = await this.findOne({ email });
   if (!customer) {
@@ -281,9 +290,7 @@ customerSchema.statics.changepassword = async function (email, oldpwd, newpwd) {
   const isPasswordMatch = await bcrypt.compare(oldpwd, customer.pwd);
   if (!isPasswordMatch) {
     throw new Error("Invalid old password.");
-  } 
-  else 
-  {
+  } else {
     customer = await this.findOneAndUpdate(
       { username },
       { pwd: await bcrypt.hash(newpwd, 9) },
