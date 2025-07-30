@@ -424,33 +424,31 @@ const addActiveUser = async (req, res) => {
         message: "User is blocked from joining this room",
       });
     }
-    if (room.activeUsers.includes(userId)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "User already exists" });
-    }
+
     if (room.isLocked) {
       return res
         .status(400)
         .json({ success: false, message: "Room is locked" });
     }
 
-    await models.RoomMember.create({
-      roomId: roomId,
-      userId: userId,
-    });
+    if (!room.activeUsers.includes(userId)) {
+      await models.RoomMember.create({
+        roomId: roomId,
+        userId: userId,
+      });
 
-    await models.Room.updateOne(
-      { _id: roomId },
-      {
-        $push: {
-          activeUsers: userId,
-        },
-      }
-    );
+      await models.Room.updateOne(
+        { _id: roomId },
+        {
+          $push: {
+            activeUsers: userId,
+          },
+        }
+      );
 
+      user.recentlyJoinedRooms.push(roomId);
+    }
     user.isLive = true;
-    user.recentlyJoinedRooms.push(roomId);
     const userData = await user.save();
 
     io.to(userId).emit("userDataUpdate", userData);
