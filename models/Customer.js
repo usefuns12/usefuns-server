@@ -16,8 +16,6 @@ const userItemSchema = new mongoose.Schema({
   },
   validTill: {
     type: Date,
-    default: null,
-    required: true,
   },
   isDefault: {
     type: Boolean,

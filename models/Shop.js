@@ -13,8 +13,6 @@ const userItemSchema = new mongoose.Schema({
   },
   validTill: {
     type: Date,
-    required: true,
-    default: null,
   },
   isDefault: {
     type: Boolean,
@@ -36,8 +34,6 @@ const ShopSchema = new mongoose.Schema(
     item: userItemSchema,
     validTill: {
       type: Date,
-      required: true,
-      default: null,
     },
     itemType: {
       type: String,
