@@ -74,4 +74,8 @@ router.route("/getGifts/:userId").get(controller.getGifts);
 router.route("/banDevice").post(controller.banDevice);
 router.route("/purchase-special-id").post(controller.purchaseSpecialId);
 
+// user active status
+router.route("/set-online").post(controller.setUserOnline);
+router.route("/set-offline").post(controller.setUserOffline);
+
 module.exports = router;

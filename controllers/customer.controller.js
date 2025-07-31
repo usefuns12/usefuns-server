@@ -2129,6 +2129,54 @@ const purchaseSpecialId = async (req, res) => {
   }
 };
 
+const setUserOnline = async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ success: false, message: "Missing userId" });
+  }
+
+  try {
+    await models.Customer.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          isOnline: true,
+          lastActiveAt: new Date(),
+        },
+      }
+    );
+
+    res.status(200).json({ success: true, message: "User marked as online" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const setUserOffline = async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ success: false, message: "Missing userId" });
+  }
+
+  try {
+    await models.Customer.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          isOnline: false,
+          lastActiveAt: new Date(),
+        },
+      }
+    );
+
+    res.status(200).json({ success: true, message: "User marked as offline" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   login,
   register,
@@ -2175,4 +2223,6 @@ module.exports = {
   getTopSupporters,
   banDevice,
   purchaseSpecialId,
+  setUserOnline,
+  setUserOffline,
 };

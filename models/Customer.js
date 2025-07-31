@@ -44,6 +44,21 @@ const customerSchema = new mongoose.Schema(
       unique: true,
       trim: true,
     },
+    currentJoinedRoomId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+      ref: "room",
+    },
+    // Status Flags (extended)
+    isOnline: {
+      type: Boolean,
+      default: false,
+    },
+
+    lastActiveAt: {
+      type: Date,
+      default: null,
+    },
     userRole: {
       type: [String],
       enum: [
