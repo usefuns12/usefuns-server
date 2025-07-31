@@ -15,6 +15,7 @@ const models = {
   Agency: require("./Agency"),
   Club: require("./Club"),
   GiftCategory: require("./GiftCategory"),
+  GiftTransaction: require("./GiftTransaction"),
   Gift: require("./Gift"),
   RoomMember: require("./RoomMember"),
   AppVersion: require("./AppVersion"),
