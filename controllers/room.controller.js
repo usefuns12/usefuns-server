@@ -1041,15 +1041,15 @@ const sendGift = async (req, res) => {
     const { quantity, cashbackAmount } = quantityData;
 
     const selectedGift = await models.Gift.findById(giftId).populate(
-      "category"
+      "categoryId"
     );
     if (!selectedGift) {
       return res.status(404).json({ message: "Gift not found." });
     }
 
     const categoryName =
-      selectedGift.category?.name?.toLowerCase() ||
-      selectedGift.category?.toLowerCase();
+      selectedGift.categoryId?.name?.toLowerCase() ||
+      selectedGift.categoryId?.toLowerCase();
 
     const totalGiftDiamonds = selectedGift.diamonds * quantity;
 
