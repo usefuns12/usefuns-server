@@ -1000,10 +1000,9 @@ const muteUser = async (req, res) => {
   const { roomId, userId } = req.body;
 
   try {
-    await models.Room.updateOne(
-      { _id: roomId },
-      { $addToSet: { mutedList: userId } }
-    );
+    await models.Room.findByIdAndUpdate(roomId, {
+      $addToSet: { mutedList: userId },
+    });
 
     res.status(200).json({ success: true, message: "User muted." });
   } catch (error) {
