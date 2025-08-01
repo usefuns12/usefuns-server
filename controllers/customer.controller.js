@@ -145,11 +145,25 @@ const register = async (req, res) => {
     });
     let lastUserId = lastUser?.userId || "9999";
 
-    const getUserId = (userId) => {
+    const getUserId = async (userId) => {
+      // Get all specialId arrays from items in the DB and flatten them
+      const items = await models.ShopItem.find(
+        { itemType: "specialId" },
+        { specialId: 1, _id: 0 }
+      );
+
+      // Flatten all specialId arrays into one
+      const specialIdsInUse = new Set(
+        items.flatMap((item) => item.specialId || []).map((id) => parseInt(id))
+      );
+
       let newUserId = parseInt(userId) + 1;
-      while (constants.specialIds.includes(newUserId)) {
+
+      // Loop until a unique ID is found
+      while (specialIdsInUse.has(newUserId)) {
         ++newUserId;
       }
+
       return newUserId.toString();
     };
 

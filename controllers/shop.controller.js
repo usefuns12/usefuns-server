@@ -5,7 +5,7 @@ const { cleanupS3Files } = require("../utils/s3FileManager");
 const getItems = async (req, res) => {
   try {
     const items = await models.ShopItem.find({});
-    console.log("items:", items);
+    // console.log("items:", items);
     res.status(200).json({ success: true, data: items });
   } catch (error) {
     logger.error(error);
@@ -15,6 +15,46 @@ const getItems = async (req, res) => {
 
 const addItem = async (req, res) => {
   const itemData = req.body;
+
+  // Parse and sanitize specialId list
+  if (req.body?.specialId) {
+    try {
+      // Step 1: Parse and remove duplicates in the uploaded list
+      let uploadedIds = JSON.parse(req.body.specialId).map((id) =>
+        id.toString()
+      );
+      uploadedIds = [...new Set(uploadedIds)]; // remove duplicates within CSV
+
+      // Step 2: Check DB for already existing IDs
+      const existingItems = await models.ShopItem.find(
+        { itemType: "specialId", specialId: { $in: uploadedIds } },
+        { specialId: 1 }
+      );
+
+      const existingIdsInDB = new Set(
+        existingItems
+          .flatMap((item) => item.specialId || [])
+          .map((id) => id.toString())
+      );
+
+      // Step 3: Filter out already existing IDs
+      const uniqueNewIds = uploadedIds.filter((id) => !existingIdsInDB.has(id));
+
+      if (!uniqueNewIds.length) {
+        return res.status(400).json({
+          success: false,
+          message: "All Special IDs in CSV already exist in database.",
+        });
+      }
+
+      itemData.specialId = uniqueNewIds;
+    } catch (e) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid CSV User ID format.",
+      });
+    }
+  }
 
   itemData.resource = req.body.resourceImage ? req.body.resourceImage : null;
   itemData.thumbnail = req.body.thumbnailImage ? req.body.thumbnailImage : null;
