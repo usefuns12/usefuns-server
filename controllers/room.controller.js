@@ -1063,13 +1063,18 @@ const sendGift = async (req, res) => {
       return res.status(404).json({ message: "Sender not found." });
     }
 
-    let actualReceiverDiamonds = totalGiftDiamonds;
-    let senderCashback = cashbackAmount;
+    let actualReceiverBeans = totalGiftDiamonds; // Default: beans = diamonds
+    let senderCashback = 0;
 
     // 🎁 Surprise gift logic
     if (categoryName === "surprise") {
-      actualReceiverDiamonds = Math.floor(totalGiftDiamonds / 2);
+      // 🟡 Old logic: Receiver gets half diamonds
+      // actualReceiverDiamonds = Math.floor(totalGiftDiamonds / 2);
 
+      // ✅ New logic: Receiver gets 60 beans
+      actualReceiverBeans = 60;
+
+      // ✅ Sender gets cashback only if it's surprise
       const shouldGiveCashback = Math.random() < 0.3;
       if (shouldGiveCashback) {
         const now = new Date();
@@ -1093,18 +1098,17 @@ const sendGift = async (req, res) => {
         const recentTotal = transactions?.[0]?.totalDiamonds || 0;
         const maxCashback = Math.floor(recentTotal * 0.1);
         senderCashback = Math.floor(Math.random() * (maxCashback + 1));
-      } else {
-        senderCashback = 0;
       }
     }
 
-    // 💎 Update receiver
-    receiver.diamonds += actualReceiverDiamonds;
-    await receiver.save();
-
-    // 💰 Update sender
+    // 💎 Update sender
     sender.diamonds += senderCashback - totalGiftDiamonds;
     await sender.save();
+
+    // 💰 Update receiver
+    receiver.beans += actualReceiverBeans; // ✅ Always beans
+    // 🟡 Old logic: receiver.diamonds += actualReceiverDiamonds;
+    await receiver.save();
 
     // 📦 Save SendGift
     await models.SendGift.create({
@@ -1120,7 +1124,7 @@ const sendGift = async (req, res) => {
       sender: senderId,
       receiver: receiverId,
       gift: selectedGift._id,
-      totalDiamonds: actualReceiverDiamonds,
+      totalDiamonds: actualReceiverBeans, // Optional: rename to totalBeans later
       countryCode: sender.countryCode,
       giftTime: new Date(),
     });
@@ -1131,12 +1135,6 @@ const sendGift = async (req, res) => {
         userId: senderId,
         diamonds: totalGiftDiamonds,
         type: 1,
-        uses: "Gift",
-      },
-      {
-        userId: receiverId,
-        diamonds: actualReceiverDiamonds,
-        type: 2,
         uses: "Gift",
       },
       ...(senderCashback > 0
@@ -1171,15 +1169,15 @@ const sendGift = async (req, res) => {
       diamonds: sender.diamonds,
     });
 
-    // 3. Emit to Receiver for diamond update
-    io.to(receiverId).emit("diamondUpdate", {
+    // 3. Emit to Receiver for bean update (rename event if needed)
+    io.to(receiverId).emit("beanUpdate", {
       userId: receiverId,
-      diamonds: receiver.diamonds,
+      beans: receiver.beans,
     });
 
     // ✅ Response
     res.status(200).json({
-      message: `Gift sent successfully. Receiver got ${actualReceiverDiamonds} diamonds. ${
+      message: `Gift sent successfully. Receiver got ${actualReceiverBeans} beans. ${
         senderCashback > 0
           ? `Sender received ₹${senderCashback} cashback.`
           : "No cashback rewarded this time."

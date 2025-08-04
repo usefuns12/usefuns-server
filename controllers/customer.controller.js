@@ -167,7 +167,7 @@ const register = async (req, res) => {
       return newUserId.toString();
     };
 
-    customerData.userId = getUserId(lastUserId);
+    customerData.userId = await getUserId(lastUserId);
 
     const customer = await models.Customer.create(customerData);
 
