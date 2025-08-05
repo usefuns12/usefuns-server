@@ -2121,6 +2121,7 @@ const purchaseSpecialId = async (req, res) => {
     user.userId = specialId;
     user.specialIdValidity = expiryDate;
     user.diamonds -= price;
+    user.isSpecialId = true;
 
     await user.save();
 

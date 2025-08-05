@@ -13,6 +13,8 @@ const revertExpiredSpecialIds = async () => {
       user.userId = user.oldUserId;
       user.oldUserId = null;
       user.specialIdValidity = null;
+      user.isSpecialId = false;
+
       await user.save();
       console.log(`Reverted user ${user._id} to original ID: ${user.userId}`);
     }

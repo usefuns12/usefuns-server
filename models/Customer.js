@@ -45,6 +45,10 @@ const customerSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    isSpecialId: {
+      type: Boolean,
+      default: false,
+    },
     currentJoinedRoomId: {
       type: mongoose.Schema.Types.ObjectId,
       default: null,
