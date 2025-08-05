@@ -804,7 +804,10 @@ const getBlockedUsers = async (req, res) => {
   const roomId = req.params.roomId;
 
   try {
-    const room = await models.Room.findOne({ _id: roomId }, { blockedList: 1 });
+    const room = await models.Room.findOne(
+      { _id: roomId },
+      { blockedList: 1 }
+    ).populate("blockedList", "-pwd -token");
 
     if (!room) {
       return res.status(400).json({
