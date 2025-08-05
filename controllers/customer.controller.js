@@ -2092,9 +2092,9 @@ const banDevice = async (req, res) => {
 
 const purchaseSpecialId = async (req, res) => {
   try {
-    const { userId, specialId, validityDays } = req.body;
+    const { userId, specialId, validityDays, price } = req.body;
 
-    if (!userId || !specialId || !validityDays) {
+    if (!userId || !specialId || !validityDays || !price) {
       return res.status(400).json({ message: "Missing required fields." });
     }
 
@@ -2103,7 +2103,7 @@ const purchaseSpecialId = async (req, res) => {
       return res.status(404).json({ message: "User not found." });
     }
 
-    if (user.diamonds < 100) {
+    if (user.diamonds < price) {
       return res.status(400).json({ message: "Insufficient diamonds." });
     }
 
@@ -2120,14 +2120,14 @@ const purchaseSpecialId = async (req, res) => {
     user.oldUserId = originalUserId;
     user.userId = specialId;
     user.specialIdValidity = expiryDate;
-    user.diamonds -= 100;
+    user.diamonds -= price;
 
     await user.save();
 
     // Diamond history
     await models.UserDiamondHistory.create({
       userId: user._id,
-      diamonds: 100,
+      diamonds: price,
       type: 1, // Debited
       uses: "Shop",
     });
