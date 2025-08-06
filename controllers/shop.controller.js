@@ -16,42 +16,55 @@ const getItems = async (req, res) => {
 const addItem = async (req, res) => {
   const itemData = req.body;
 
-  // Parse and sanitize specialId list
   if (req.body?.specialId) {
     try {
-      // Step 1: Parse and remove duplicates in the uploaded list
+      // Step 1: Parse and deduplicate uploaded special IDs
       let uploadedIds = JSON.parse(req.body.specialId).map((id) =>
         id.toString()
       );
-      uploadedIds = [...new Set(uploadedIds)]; // remove duplicates within CSV
+      uploadedIds = [...new Set(uploadedIds)];
 
-      // Step 2: Check DB for already existing IDs
+      // Step 2: Check DB - if any IDs already exist in a ShopItem
       const existingItems = await models.ShopItem.find(
         { itemType: "specialId", specialId: { $in: uploadedIds } },
         { specialId: 1 }
       );
 
-      const existingIdsInDB = new Set(
+      const existingIdsInShop = new Set(
         existingItems
           .flatMap((item) => item.specialId || [])
           .map((id) => id.toString())
       );
 
-      // Step 3: Filter out already existing IDs
-      const uniqueNewIds = uploadedIds.filter((id) => !existingIdsInDB.has(id));
+      // Step 3: Check DB - if any IDs are already assigned to users
+      const assignedUsers = await models.Customer.find(
+        { userId: { $in: uploadedIds } },
+        { userId: 1 }
+      );
+
+      const alreadyAssignedIds = new Set(
+        assignedUsers.map((user) => user.userId.toString())
+      );
+
+      // Step 4: Filter out IDs that already exist in DB or are already assigned
+      const uniqueNewIds = uploadedIds.filter(
+        (id) => !existingIdsInShop.has(id) && !alreadyAssignedIds.has(id)
+      );
 
       if (!uniqueNewIds.length) {
         return res.status(400).json({
           success: false,
-          message: "All Special IDs in CSV already exist in database.",
+          message:
+            "All Special IDs are either already added or assigned to users.",
         });
       }
 
+      // Set cleaned-up specialId list in itemData
       itemData.specialId = uniqueNewIds;
     } catch (e) {
       return res.status(400).json({
         success: false,
-        message: "Invalid CSV User ID format.",
+        message: "Invalid special ID format in uploaded CSV.",
       });
     }
   }

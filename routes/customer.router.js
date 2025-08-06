@@ -78,4 +78,6 @@ router.route("/purchase-special-id").post(controller.purchaseSpecialId);
 router.route("/set-online").post(controller.setUserOnline);
 router.route("/set-offline").post(controller.setUserOffline);
 
+router.route("/assistSpecialIdItems").post(controller.assistSpecialIdItems);
+
 module.exports = router;

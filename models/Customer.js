@@ -45,6 +45,11 @@ const customerSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    specialIdItemId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+      ref: "shopItem",
+    },
     isSpecialId: {
       type: Boolean,
       default: false,

@@ -2099,9 +2099,7 @@ const purchaseSpecialId = async (req, res) => {
     }
 
     const user = await models.Customer.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: "User not found." });
-    }
+    if (!user) return res.status(404).json({ message: "User not found." });
 
     if (user.diamonds < price) {
       return res.status(400).json({ message: "Insufficient diamonds." });
@@ -2111,6 +2109,20 @@ const purchaseSpecialId = async (req, res) => {
     if (existing) {
       return res.status(409).json({ message: "Special ID already taken." });
     }
+
+    // Find item containing this specialId
+    const item = await models.ShopItem.findOne({
+      itemType: "specialId",
+      specialId: specialId,
+    });
+    if (!item)
+      return res
+        .status(404)
+        .json({ message: "Special ID not available in shop items." });
+
+    // Remove from shop item
+    item.specialId = item.specialId.filter((id) => id !== specialId);
+    await item.save();
 
     const originalUserId = user.userId;
     const expiryDate = new Date(
@@ -2122,14 +2134,14 @@ const purchaseSpecialId = async (req, res) => {
     user.specialIdValidity = expiryDate;
     user.diamonds -= price;
     user.isSpecialId = true;
-
+    user.specialIdItemId = item._id;
     await user.save();
 
     // Diamond history
     await models.UserDiamondHistory.create({
       userId: user._id,
       diamonds: price,
-      type: 1, // Debited
+      type: 1,
       uses: "Shop",
     });
 
@@ -2140,6 +2152,122 @@ const purchaseSpecialId = async (req, res) => {
     });
   } catch (err) {
     console.error("purchaseSpecialId error:", err);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
+const assistSpecialIdItems = async (req, res) => {
+  try {
+    const { userIds, items } = req.body;
+
+    if (!Array.isArray(userIds) || userIds.length === 0 || !items?.validTill) {
+      return res.status(400).json({ message: "Missing required fields." });
+    }
+
+    const specialId = items.specialId;
+    const validTill = new Date(items.validTill);
+
+    if (userIds.length === 1 && specialId) {
+      const user = await models.Customer.findById(userIds[0]);
+      if (!user) return res.status(404).json({ message: "User not found." });
+
+      const existing = await models.Customer.findOne({ userId: specialId });
+      if (existing)
+        return res
+          .status(409)
+          .json({ message: `Special ID '${specialId}' already taken.` });
+
+      // Find the item containing the specialId
+      const item = await models.ShopItem.findOne({
+        itemType: "specialId",
+        specialId: specialId,
+      });
+      if (!item)
+        return res
+          .status(404)
+          .json({ message: "Special ID not available in shop items." });
+
+      // Remove specialId from the item
+      item.specialId = item.specialId.filter((id) => id !== specialId);
+      await item.save();
+
+      // Assign to user
+      user.oldUserId = user.userId;
+      user.userId = specialId;
+      user.specialIdValidity = validTill;
+      user.isSpecialId = true;
+      user.specialIdItemId = item._id;
+      await user.save();
+
+      return res.status(200).json({
+        success: true,
+        message: `Special ID '${specialId}' assigned to user.`,
+      });
+    } else {
+      const allSpecialItems = await models.ShopItem.find({
+        itemType: "specialId",
+      });
+      const availableMap = new Map();
+
+      for (const item of allSpecialItems) {
+        for (const id of item.specialId || []) {
+          if (!availableMap.has(id)) {
+            availableMap.set(id, item); // Map specialId to its item
+          }
+        }
+      }
+
+      const availableIds = Array.from(availableMap.keys());
+      if (availableIds.length < userIds.length) {
+        return res
+          .status(400)
+          .json({ message: "Not enough unique Special IDs available." });
+      }
+
+      let assignedCount = 0;
+      for (const userId of userIds) {
+        const user = await models.Customer.findById(userId);
+        if (!user) continue;
+
+        let assigned = false;
+        for (const id of availableIds) {
+          const isTaken = await models.Customer.exists({ userId: id });
+          if (!isTaken) {
+            const item = availableMap.get(id);
+
+            // Remove specialId from the item
+            item.specialId = item.specialId.filter((sid) => sid !== id);
+            await item.save();
+
+            // Assign to user
+            user.oldUserId = user.userId;
+            user.userId = id;
+            user.specialIdValidity = validTill;
+            user.isSpecialId = true;
+            user.specialIdItemId = item._id;
+            await user.save();
+
+            // Remove from pool
+            availableMap.delete(id);
+            availableIds.splice(availableIds.indexOf(id), 1);
+            assigned = true;
+            assignedCount++;
+            break;
+          }
+        }
+
+        if (!assigned) {
+          console.warn(`Could not assign special ID to user.}`);
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `${assignedCount} special IDs assigned successfully.`,
+      });
+    }
+  } catch (err) {
+    console.error("assistSpecialIdItems error:", err);
     res.status(500).json({ success: false, message: "Internal server error." });
   }
 };
@@ -2240,4 +2368,5 @@ module.exports = {
   purchaseSpecialId,
   setUserOnline,
   setUserOffline,
+  assistSpecialIdItems,
 };
