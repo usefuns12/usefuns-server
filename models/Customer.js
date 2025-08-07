@@ -138,6 +138,13 @@ const customerSchema = new mongoose.Schema(
       },
     ],
 
+    blockedUsers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "customers",
+      },
+    ],
+
     // Status Flags
     isCommentRestricted: {
       type: Boolean,

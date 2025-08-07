@@ -2320,6 +2320,108 @@ const setUserOffline = async (req, res) => {
   }
 };
 
+const blockUser = async (req, res) => {
+  const { userId, targetUserId } = req.body;
+
+  try {
+    if (userId.equals(targetUserId)) {
+      return res.status(400).json({ message: "You can't block yourself." });
+    }
+
+    const currentUser = await models.Customer.findById(userId);
+    const targetUser = await models.Customer.findById(targetUserId);
+
+    if (!targetUser) {
+      return res.status(404).json({ message: "User to block not found." });
+    }
+
+    // 1. Remove from followers if targetUser is following me
+    const wasFollower = currentUser.followers.includes(targetUserId);
+    if (wasFollower) {
+      await models.Customer.updateOne(
+        { _id: userId },
+        { $pull: { followers: targetUserId } }
+      );
+    }
+
+    // 2. Add to blockedUsers (prevent duplicate)
+    await models.Customer.updateOne(
+      { _id: userId },
+      { $addToSet: { blockedUsers: targetUserId } }
+    );
+
+    // 3. Remove target user from rooms where current user is the owner
+
+    await models.Room.updateMany(
+      { ownerId: userId },
+      { $addToSet: { blockedList: targetUserId } }
+    );
+
+    return res.json({
+      message: "User blocked successfully.",
+      removedFromFollowers: wasFollower,
+    });
+  } catch (err) {
+    console.error("Block user error:", err);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+const unblockUser = async (req, res) => {
+  const { userId, unblockUserId } = req.body;
+
+  if (!userId || !unblockUserId) {
+    return res.status(400).json({
+      success: false,
+      message: "Both userId and unblockUserId are required.",
+    });
+  }
+
+  try {
+    // Step 1: Remove from user's personal blocked list
+    await models.Customer.updateOne(
+      { _id: userId },
+      { $pull: { blockedUsers: unblockUserId } }
+    );
+
+    // Step 2: Remove from all rooms owned by the user
+    await models.Room.updateMany(
+      { ownerId: userId },
+      { $pull: { blockedList: unblockUserId } }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "User unblocked successfully.",
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
+const getBlockedUsers = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await models.Customer.findById(userId).populate(
+      "blockedUsers",
+      "-pwd"
+    );
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found." });
+    }
+
+    res.status(200).json({ success: true, blockedUsers: user.blockedUsers });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Internal server error." });
+  }
+};
+
 module.exports = {
   login,
   register,
@@ -2369,4 +2471,7 @@ module.exports = {
   setUserOnline,
   setUserOffline,
   assistSpecialIdItems,
+  blockUser,
+  unblockUser,
+  getBlockedUsers,
 };

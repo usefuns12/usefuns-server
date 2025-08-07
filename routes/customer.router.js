@@ -80,4 +80,9 @@ router.route("/set-offline").post(controller.setUserOffline);
 
 router.route("/assistSpecialIdItems").post(controller.assistSpecialIdItems);
 
+// Block User
+router.route("/block").post(controller.blockUser);
+router.route("/unblock").post(controller.unblockUser);
+router.route("/blocked-users/:userId").get(controller.getBlockedUsers);
+
 module.exports = router;
