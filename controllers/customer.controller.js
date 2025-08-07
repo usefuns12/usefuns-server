@@ -2324,7 +2324,7 @@ const blockUser = async (req, res) => {
   const { userId, targetUserId } = req.body;
 
   try {
-    if (userId.equals(targetUserId)) {
+    if (userId.toString() === targetUserId.toString()) {
       return res.status(400).json({ message: "You can't block yourself." });
     }
 
