@@ -1122,8 +1122,8 @@ const shop = async (req, res) => {
         vehicles: 1,
         relationship: 1,
         specialId: 1,
-        lockRoom: 1,
-        extraSeat: 1,
+        lockRooms: 1,
+        extraSeats: 1,
       }
     );
 
