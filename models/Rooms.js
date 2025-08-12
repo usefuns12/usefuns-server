@@ -9,6 +9,7 @@ const RoomSchema = new mongoose.Schema(
     },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
+      ref: "customers", // linking to your customers collection
       required: true,
       unique: true,
     },
@@ -86,6 +87,7 @@ const RoomSchema = new mongoose.Schema(
       },
     ],
     seatLockedUserList: [{ type: Number }], // Array of seat numbers
+
     // Room Details
     roomImage: {
       type: String,
@@ -154,10 +156,39 @@ const RoomSchema = new mongoose.Schema(
         ref: "customers",
       },
     ],
+
+    // 🔹 Additional fields for integration with host/agency ranking system
+    hostId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Host", // from Host schema
+    },
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Agency",
+    },
+    visitorsCount: {
+      type: Number,
+      default: 0,
+    },
+    selfHostingCount: {
+      type: Number,
+      default: 0,
+    },
+    totalGifts: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+// ✅ Useful indexes for performance
+RoomSchema.index({ roomId: 1 });
+RoomSchema.index({ ownerId: 1 });
+RoomSchema.index({ agencyId: 1 });
+RoomSchema.index({ hostId: 1 });
+RoomSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model("room", RoomSchema);
