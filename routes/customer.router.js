@@ -85,4 +85,6 @@ router.route("/block").post(controller.blockUser);
 router.route("/unblock").post(controller.unblockUser);
 router.route("/blocked-users/:userId").get(controller.getBlockedUsers);
 
+router.route("/top-referrers").get(controller.getTopReferrers);
+
 module.exports = router;

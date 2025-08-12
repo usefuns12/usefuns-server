@@ -250,6 +250,28 @@ const customerSchema = new mongoose.Schema(
     subAdmin: [],
     special_id: [],
     */
+
+    referralCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "customers",
+      default: null,
+    },
+    referrals: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "customers",
+      },
+    ],
+
+    referralBeansEarned: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

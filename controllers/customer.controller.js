@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const constants = require("../utils/constants.json");
 const moment = require("moment");
 const { cleanupS3Files } = require("../utils/s3FileManager");
+const crypto = require("crypto");
 
 const login = async (req, res) => {
   try {
@@ -75,7 +76,9 @@ const register = async (req, res) => {
       language,
       countryCode,
       deviceId,
+      referralCode,
     } = req.body;
+
     //const registerBonus = JSON.parse(await redisClient.get('registerBonus'));
 
     if (deviceId) {
@@ -110,13 +113,25 @@ const register = async (req, res) => {
       gender,
       countryCode,
       diamonds: 0,
+      beans: 0,
       language,
-      profileImage: req.body.image ? req.body.image : null,
+      profileImage: req.body.image || null,
       frames: [registerBonus.frame],
       themes: [registerBonus.theme],
       chatBubbles: [registerBonus.chatBubble],
       deviceId,
     };
+
+    // ✅ Referral Code Handling
+    if (referralCode) {
+      const referrer = await models.Customer.findOne({ referralCode });
+      if (!referrer) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid referral code" });
+      }
+      customerData.referredBy = referrer._id;
+    }
 
     if (mobile) {
       const ismobile = await models.Customer.findOne({ mobile: mobile });
@@ -169,7 +184,20 @@ const register = async (req, res) => {
 
     customerData.userId = await getUserId(lastUserId);
 
+    // ✅ Generate unique referral code for this user
+    customerData.referralCode = crypto
+      .randomBytes(4)
+      .toString("hex")
+      .toUpperCase();
+
     const customer = await models.Customer.create(customerData);
+
+    // ✅ If referred, update referrer's list
+    if (customer.referredBy) {
+      await models.Customer.findByIdAndUpdate(customer.referredBy, {
+        $push: { referrals: customer._id },
+      });
+    }
 
     const token = await customer.generateAuthToken();
     const response = {
@@ -962,6 +990,7 @@ const addWallet = async (req, res) => {
     });
 
     if (status === "success") {
+      // Update user's diamond balance
       const userData = await models.Customer.findOneAndUpdate(
         { userId },
         {
@@ -973,6 +1002,7 @@ const addWallet = async (req, res) => {
         { new: true }
       );
 
+      // Add diamond recharge history
       await models.UserDiamondHistory.create({
         userId,
         diamonds,
@@ -980,7 +1010,33 @@ const addWallet = async (req, res) => {
         uses: "Recharge",
       });
 
+      // ✅ Referral bonus check
+      if (price > 500) {
+        const buyer = await models.Customer.findOne({ userId }).lean();
+        if (buyer && buyer.referredBy) {
+          const bonusBeans = Math.floor(diamonds * 0.1); // 10% of purchased diamonds
+
+          // Give beans to referrer + track earned total
+          await models.Customer.findByIdAndUpdate(buyer.referredBy, {
+            $inc: {
+              beans: bonusBeans,
+              referralBeansEarned: bonusBeans,
+            },
+          });
+
+          // Add referral bonus history
+          await models.UserDiamondHistory.create({
+            userId: buyer.referredBy,
+            diamonds: bonusBeans,
+            type: 4, // custom type for referral bonus
+            uses: `Referral Bonus from ${buyer.userId}`,
+          });
+        }
+      }
+
+      // Emit update to socket
       io.to(userId).emit("userDataUpdate", userData);
+
       res.status(200).json({
         success: true,
         message: "added successfully.",
@@ -2422,6 +2478,31 @@ const getBlockedUsers = async (req, res) => {
   }
 };
 
+const getTopReferrers = async (req, res) => {
+  try {
+    const topReferrers = await models.Customer.find(
+      { referralBeansEarned: { $gt: 0 } }, // only those who earned
+      {
+        name: 1,
+        profileImage: 1,
+        referralCode: 1,
+        referralBeansEarned: 1,
+      }
+    )
+      .sort({ referralBeansEarned: -1 })
+      .limit(10)
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      data: topReferrers,
+    });
+  } catch (error) {
+    logger.error(error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   login,
   register,
@@ -2474,4 +2555,5 @@ module.exports = {
   blockUser,
   unblockUser,
   getBlockedUsers,
+  getTopReferrers,
 };
