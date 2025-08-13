@@ -967,7 +967,7 @@ const getRoomJoinedUsers = async (req, res) => {
 
     // Fetch full user details
     const users = await models.Customer.find({ _id: { $in: userIds } }).select(
-      "name profileImage email level isLive userId"
+      "name profileImage email level isLive userId oldUserId"
     );
 
     res.status(200).json({
