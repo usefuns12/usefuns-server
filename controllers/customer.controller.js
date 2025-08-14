@@ -2560,7 +2560,7 @@ const getTopReferrers = async (req, res) => {
 
 const getReferralDetails = async (req, res) => {
   try {
-    const { userId } = req.query; // Or req.user._id if using auth middleware
+    const { userId } = req.params; // Or req.user._id if using auth middleware
 
     if (!userId) {
       return res
