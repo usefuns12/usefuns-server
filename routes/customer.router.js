@@ -86,5 +86,6 @@ router.route("/unblock").post(controller.unblockUser);
 router.route("/blocked-users/:userId").get(controller.getBlockedUsers);
 
 router.route("/top-referrers").get(controller.getTopReferrers);
+router.route("/referrals/:userId").get(controller.getReferralDetails);
 
 module.exports = router;

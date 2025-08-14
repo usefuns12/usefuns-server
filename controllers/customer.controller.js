@@ -2558,6 +2558,45 @@ const getTopReferrers = async (req, res) => {
   }
 };
 
+const getReferralDetails = async (req, res) => {
+  try {
+    const { userId } = req.query; // Or req.user._id if using auth middleware
+
+    if (!userId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Please provide userId" });
+    }
+
+    const user = await models.Customer.findById(userId)
+      .populate({
+        path: "referrals",
+        select: "name userId profileImage diamonds totalPurchasedDiamonds",
+      })
+      .select("referralBeansEarned referrals referralCode");
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Referral details fetched successfully",
+      data: {
+        referralCode: user.referralCode,
+        referralBeansEarned: user.referralBeansEarned,
+        totalReferrals: user.referrals.length,
+        referrals: user.referrals,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   login,
   register,
@@ -2611,4 +2650,5 @@ module.exports = {
   unblockUser,
   getBlockedUsers,
   getTopReferrers,
+  getReferralDetails,
 };
