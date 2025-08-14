@@ -157,9 +157,16 @@ const getRoomById = async (req, res) => {
       });
     }
 
+    // Fetch owner user data
+    const ownerUserData = await models.Customer.findById(room.ownerId);
+
+    // Convert to plain object so we can append a new field
+    const roomObj = room.toObject();
+    roomObj.ownerUserData = ownerUserData || null;
+
     res
       .status(200)
-      .send({ success: true, message: "Find successful.", data: room });
+      .send({ success: true, message: "Find successful.", data: roomObj });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
     logger.error(error);
@@ -384,7 +391,14 @@ const updateRoom = async (req, res) => {
       });
     }
 
-    io.to(id).emit("roomDataUpdate", roomData);
+    // Fetch owner user data
+    const ownerUserData = await models.Customer.findById(roomData.ownerId);
+
+    // Convert to plain object so we can append a new field
+    const roomObj = roomData.toObject();
+    roomObj.ownerUserData = ownerUserData || null;
+
+    io.to(id).emit("roomDataUpdate", roomObj);
     res.status(200).json({ success: true, message: "Updated successfully." });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
