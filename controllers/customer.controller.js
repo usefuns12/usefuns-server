@@ -2146,6 +2146,14 @@ const banDevice = async (req, res) => {
   }
 };
 
+// Helper function to update room IDs
+const updateRoomIdForUser = async (oldId, newId) => {
+  await models.Room.updateMany(
+    { roomId: oldId }, // Match rooms with old ID
+    { $set: { roomId: newId } } // Replace with new ID
+  );
+};
+
 const purchaseSpecialId = async (req, res) => {
   try {
     const { userId, specialId, validityDays, price } = req.body;
@@ -2156,6 +2164,19 @@ const purchaseSpecialId = async (req, res) => {
 
     const user = await models.Customer.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found." });
+
+    // 🚫 Check if user already has an active Special ID
+    if (
+      user.isSpecialId &&
+      user.specialIdValidity &&
+      user.specialIdValidity > new Date()
+    ) {
+      return res.status(400).json({
+        message: `You already have a Special ID '${
+          user.userId
+        }' valid until ${user.specialIdValidity.toISOString()}. You can't purchase until it expires.`,
+      });
+    }
 
     if (user.diamonds < price) {
       return res.status(400).json({ message: "Insufficient diamonds." });
@@ -2171,10 +2192,11 @@ const purchaseSpecialId = async (req, res) => {
       itemType: "specialId",
       specialId: specialId,
     });
-    if (!item)
+    if (!item) {
       return res
         .status(404)
         .json({ message: "Special ID not available in shop items." });
+    }
 
     // Remove from shop item
     item.specialId = item.specialId.filter((id) => id !== specialId);
@@ -2192,6 +2214,9 @@ const purchaseSpecialId = async (req, res) => {
     user.isSpecialId = true;
     user.specialIdItemId = item._id;
     await user.save();
+
+    // ✅ Update Room IDs
+    await updateRoomIdForUser(originalUserId, specialId);
 
     // Diamond history
     await models.UserDiamondHistory.create({
@@ -2227,6 +2252,19 @@ const assistSpecialIdItems = async (req, res) => {
       const user = await models.Customer.findById(userIds[0]);
       if (!user) return res.status(404).json({ message: "User not found." });
 
+      // 🚫 Check if user already has an active Special ID
+      if (
+        user.isSpecialId &&
+        user.specialIdValidity &&
+        user.specialIdValidity > new Date()
+      ) {
+        return res.status(400).json({
+          message: `User already has a Special ID '${
+            user.userId
+          }' valid until ${user.specialIdValidity.toISOString()}.`,
+        });
+      }
+
       const existing = await models.Customer.findOne({ userId: specialId });
       if (existing)
         return res
@@ -2254,6 +2292,8 @@ const assistSpecialIdItems = async (req, res) => {
       user.isSpecialId = true;
       user.specialIdItemId = item._id;
       await user.save();
+      // ✅ Update Room IDs
+      await updateRoomIdForUser(originalUserId, specialId);
 
       return res.status(200).json({
         success: true,
@@ -2285,6 +2325,18 @@ const assistSpecialIdItems = async (req, res) => {
         const user = await models.Customer.findById(userId);
         if (!user) continue;
 
+        // 🚫 Check if user already has an active Special ID
+        if (
+          user.isSpecialId &&
+          user.specialIdValidity &&
+          user.specialIdValidity > new Date()
+        ) {
+          console.warn(
+            `User ${user._id} already has active special ID, skipping...`
+          );
+          continue;
+        }
+
         let assigned = false;
         for (const id of availableIds) {
           const isTaken = await models.Customer.exists({ userId: id });
@@ -2303,6 +2355,9 @@ const assistSpecialIdItems = async (req, res) => {
             user.specialIdItemId = item._id;
             await user.save();
 
+            // ✅ Update Room IDs
+            await updateRoomIdForUser(originalUserId, id);
+
             // Remove from pool
             availableMap.delete(id);
             availableIds.splice(availableIds.indexOf(id), 1);
@@ -2313,7 +2368,7 @@ const assistSpecialIdItems = async (req, res) => {
         }
 
         if (!assigned) {
-          console.warn(`Could not assign special ID to user.}`);
+          console.warn(`Could not assign special ID to user.`);
         }
       }
 

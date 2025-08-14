@@ -10,17 +10,32 @@ const revertExpiredSpecialIds = async () => {
     });
 
     for (const user of usersToRevert) {
-      user.userId = user.oldUserId;
+      const prevUserId = user.oldUserId;
+      const newUserId = user.userId;
+
+      // 1️⃣ Revert user data in Customer collection
+      user.userId = prevUserId;
       user.oldUserId = null;
       user.specialIdValidity = null;
       user.isSpecialId = false;
-
       await user.save();
+
       console.log(`Reverted user ${user._id} to original ID: ${user.userId}`);
+
+      // 2️⃣ Update rooms where this user is the owner (or part of roomId fields)
+      const updatedRooms = await models.Room.updateMany(
+        { roomId: newUserId }, // Assuming `roomId` in Room stores the specialId earlier
+        { $set: { roomId: prevUserId } }
+      );
+
+      console.log(
+        `Updated ${updatedRooms.modifiedCount} rooms for user ${user._id}`
+      );
     }
   } catch (error) {
     console.error("Cron job error:", error);
   }
 };
 
-cron.schedule("0 * * * *", revertExpiredSpecialIds); // every hour
+// Run every hour
+cron.schedule("0 * * * *", revertExpiredSpecialIds);
