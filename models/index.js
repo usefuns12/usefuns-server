@@ -24,6 +24,7 @@ const models = {
   UserReport: require("./UserReport"),
   ApiConfig: require("./apiConfig"),
   QuantityCashback: require("./QuantityCashback"),
+  ReferralTransaction: require("./ReferralTransaction"),
 };
 
 module.exports = models;

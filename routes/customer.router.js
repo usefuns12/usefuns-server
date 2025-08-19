@@ -88,4 +88,8 @@ router.route("/blocked-users/:userId").get(controller.getBlockedUsers);
 router.route("/top-referrers").get(controller.getTopReferrers);
 router.route("/referrals/:userId").get(controller.getReferralDetails);
 
+router.route("/withdraw-referral-beans").post(controller.withdrawReferralBeans);
+
+router.route("/referral/transactions").get(controller.getReferralTransactions);
+
 module.exports = router;

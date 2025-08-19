@@ -272,6 +272,11 @@ const customerSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    referralBeansBalance: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

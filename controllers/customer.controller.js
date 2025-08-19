@@ -1014,27 +1014,27 @@ const addWallet = async (req, res) => {
       if (price > 500) {
         const buyer = await models.Customer.findOne({ userId }).lean();
         if (buyer && buyer.referredBy) {
-          const bonusBeans = Math.floor(diamonds * 0.1); // 10% of purchased diamonds
+          const bonusBeans = Math.floor(diamonds * 0.1); // 10% bonus
 
-          // Give beans to referrer + track earned total
+          // Give beans ONLY to referral wallet balance
           await models.Customer.findByIdAndUpdate(buyer.referredBy, {
             $inc: {
-              beans: bonusBeans,
-              referralBeansEarned: bonusBeans,
+              referralBeansBalance: bonusBeans, // withdrawable later
+              referralBeansEarned: bonusBeans, // total earned history
             },
           });
 
-          // Add referral bonus history
-          await models.UserDiamondHistory.create({
-            userId: buyer.referredBy,
-            diamonds: bonusBeans,
-            type: 2, // custom type for referral bonus
-            uses: "Referral Bonus",
+          // Track in referral transaction table
+          await models.ReferralTransaction.create({
+            referrerId: buyer.referredBy,
+            refereeId: buyer._id,
+            amount: bonusBeans,
+            source: "Recharge Bonus",
+            status: "earned",
           });
         }
       }
 
-      // Emit update to socket
       io.to(userId).emit("userDataUpdate", userData);
 
       res.status(200).json({
@@ -2415,17 +2415,27 @@ const setUserOffline = async (req, res) => {
   }
 
   try {
-    await models.Customer.updateOne(
-      { _id: userId },
-      {
-        $set: {
-          isOnline: false,
-          lastActiveAt: new Date(),
-        },
+    // Schedule update after 2 minutes (120000 ms)
+    setTimeout(async () => {
+      try {
+        await models.Customer.updateOne(
+          { _id: userId },
+          {
+            $set: {
+              isOnline: false,
+              lastActiveAt: new Date(),
+            },
+          }
+        );
+        console.log(`User ${userId} marked offline after 2 minutes`);
+      } catch (err) {
+        console.error("Error updating user offline:", err.message);
       }
-    );
+    }, 2 * 60 * 1000);
 
-    res.status(200).json({ success: true, message: "User marked as offline" });
+    res
+      .status(200)
+      .json({ success: true, message: "User will be offline after 2 minutes" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -2597,6 +2607,105 @@ const getReferralDetails = async (req, res) => {
   }
 };
 
+const withdrawReferralBeans = async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res
+      .status(400)
+      .json({ success: false, message: "userId is required" });
+  }
+
+  try {
+    const user = await models.Customer.findById(userId);
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    const amountToWithdraw = user.referralBeansBalance;
+
+    if (amountToWithdraw <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "No referral beans available to withdraw",
+      });
+    }
+
+    // Move entire referral balance to main beans
+    user.referralBeansBalance = 0;
+    user.beans += amountToWithdraw;
+    await user.save();
+
+    // Log withdrawal transaction
+    await models.ReferralTransaction.create({
+      referrerId: user._id,
+      refereeId: null,
+      amount: amountToWithdraw,
+      source: "Referral Wallet Withdraw",
+      status: "withdrawn",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "All referral beans withdrawn successfully",
+      data: {
+        beans: user.beans,
+        referralBeansBalance: user.referralBeansBalance,
+        withdrawnAmount: amountToWithdraw,
+      },
+    });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getReferralTransactions = async (req, res) => {
+  const { userId, type } = req.query;
+
+  if (!userId) {
+    return res
+      .status(400)
+      .json({ success: false, message: "userId is required" });
+  }
+
+  try {
+    const user = await models.Customer.findById(userId);
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // Build filter
+    const filter = {
+      $or: [{ referrerId: user._id }, { refereeId: user._id }],
+    };
+
+    if (type) {
+      filter.status = type; // type can be 'earned' or 'withdrawn'
+    }
+
+    const transactions = await models.ReferralTransaction.find(filter)
+      .populate("referrerId", "userId name") // show referrer basic info
+      .populate("refereeId", "userId name") // show referee basic info
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: transactions.length,
+      data: transactions,
+    });
+  } catch (error) {
+    logger.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   login,
   register,
@@ -2651,4 +2760,6 @@ module.exports = {
   getBlockedUsers,
   getTopReferrers,
   getReferralDetails,
+  withdrawReferralBeans,
+  getReferralTransactions,
 };
