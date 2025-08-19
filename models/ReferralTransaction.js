@@ -4,12 +4,12 @@ const ReferralTransactionSchema = new mongoose.Schema(
   {
     referrerId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Customer",
+      ref: "customers",
       required: true,
     },
     refereeId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Customer",
+      ref: "customers",
       required: true,
     },
     amount: { type: Number, required: true },
