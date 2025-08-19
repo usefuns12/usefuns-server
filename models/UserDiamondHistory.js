@@ -28,6 +28,7 @@ const UserDiamondHistorySchema = new mongoose.Schema(
         "Lucky Wheel",
         "Beans To Diamonds",
         "Cashback Rewards",
+        "Recharge",
       ],
     },
   },
