@@ -1028,8 +1028,8 @@ const addWallet = async (req, res) => {
           await models.UserDiamondHistory.create({
             userId: buyer.referredBy,
             diamonds: bonusBeans,
-            type: 4, // custom type for referral bonus
-            uses: `Referral Bonus from ${buyer.userId}`,
+            type: 2, // custom type for referral bonus
+            uses: "Referral Bonus",
           });
         }
       }

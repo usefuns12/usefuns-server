@@ -29,6 +29,7 @@ const UserDiamondHistorySchema = new mongoose.Schema(
         "Beans To Diamonds",
         "Cashback Rewards",
         "Recharge",
+        "Referral Bonus",
       ],
     },
   },
