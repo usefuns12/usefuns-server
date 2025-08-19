@@ -996,7 +996,7 @@ const addWallet = async (req, res) => {
         {
           $inc: {
             diamonds: diamonds,
-            totalPurchasedDiamonds: diamonds,
+            purchasedDiamonds: diamonds,
           },
         },
         { new: true }
@@ -2545,18 +2545,50 @@ const getBlockedUsers = async (req, res) => {
 
 const getTopReferrers = async (req, res) => {
   try {
-    const topReferrers = await models.Customer.find(
-      { referralBeansEarned: { $gt: 0 } }, // only those who earned
+    // Get current month range
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const endOfMonth = new Date(startOfMonth);
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+
+    // Aggregate transactions for current month
+    const topReferrers = await models.ReferralTransaction.aggregate([
       {
-        name: 1,
-        profileImage: 1,
-        referralCode: 1,
-        referralBeansEarned: 1,
-      }
-    )
-      .sort({ referralBeansEarned: -1 })
-      .limit(10)
-      .lean();
+        $match: {
+          type: "credit", // only earned beans
+          createdAt: { $gte: startOfMonth, $lt: endOfMonth },
+        },
+      },
+      {
+        $group: {
+          _id: "$userId",
+          totalBeans: { $sum: "$beans" },
+        },
+      },
+      { $sort: { totalBeans: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: "customers",
+          localField: "_id",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+      {
+        $project: {
+          _id: 0,
+          userId: "$user._id",
+          name: "$user.name",
+          profileImage: "$user.profileImage",
+          referralCode: "$user.referralCode",
+          monthlyBeansEarned: "$totalBeans",
+        },
+      },
+    ]);
 
     res.status(200).json({
       success: true,
@@ -2581,7 +2613,8 @@ const getReferralDetails = async (req, res) => {
     const user = await models.Customer.findById(userId)
       .populate({
         path: "referrals",
-        select: "name userId profileImage diamonds totalPurchasedDiamonds",
+        select:
+          "name userId profileImage diamonds purchasedDiamonds referralBeansEarned createdAt",
       })
       .select("referralBeansEarned referrals referralCode");
 
