@@ -1,64 +1,32 @@
 const mongoose = require("mongoose");
+
 const AgencySchema = new mongoose.Schema(
-     {
-          userId: {
-               type: String,
-               required: true,
-          },
-          code: {
-               type: String,
-               unique: true,
-
-          },
-          countryCode: {
-               type: String,
-               required: true,
-          },
-          name: {
-               type: String,
-
-          },
-          admin: {
-               type: String,
-
-          },
-          subAdmin: {
-               type: String,
-
-          },
-          mobile: {
-               type: Number,
-               required: true,
-               unique: true
-          },
-          email: {
-               type: String,
-          },
-          image: {
-               type: String,
-               required: true,
-          },
-
-          isActive: { type: Boolean, required: true, default: true },
-     },
-     {
-          timestamps: true,
-     }
+  {
+    agencyId: { type: Number, required: true, unique: true },
+    code: String,
+    name: String,
+    ownerUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    country: String,
+    members: [
+      {
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        role: String,
+        joinedAt: Date,
+      },
+    ],
+    stats: {
+      totalHosts: { type: Number, default: 0 },
+      activeHosts: { type: Number, default: 0 },
+      newHosts: { type: Number, default: 0 },
+    },
+  },
+  { timestamps: true }
 );
 
-AgencySchema.statics.loginMobile = async function (mobile) {
-     const customer = await this.findOne({
-          mobile: mobile,
-     });
-     
-     if (!customer) {
-          throw new Error("Invalid credentials.");
-     }
-     if (!customer.isActive) {
-          throw new Error("Your account has been deactivated.");
-     }
-
-     return customer;
-};
+AgencySchema.index({ agencyId: 1 });
 
 module.exports = mongoose.model("agency", AgencySchema);

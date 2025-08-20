@@ -25,6 +25,18 @@ const models = {
   ApiConfig: require("./apiConfig"),
   QuantityCashback: require("./QuantityCashback"),
   ReferralTransaction: require("./ReferralTransaction"),
+
+  // 🔹 New Models (extended DB design)
+  Role: require("./Role"),
+  Host: require("./Host"),
+  Transaction: require("./Transaction"),
+  Seller: require("./Seller"),
+  WithdrawalRequest: require("./WithdrawalRequest"),
+  HostStat: require("./HostStat"),
+  JoinRequest: require("./JoinRequest"),
+  Policy: require("./Policy"),
+  Audit: require("./Audit"),
+  Ranking: require("./Ranking"),
 };
 
 module.exports = models;

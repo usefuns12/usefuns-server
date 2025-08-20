@@ -12,8 +12,11 @@ const giftRoutes = require("./gift.router");
 const paymentRoutes = require("./payment.router");
 const apiConfigRoutes = require("./apiConfig.router");
 const quantityCashbackRoutes = require("./quantityCashback.route");
+const roleRoutes = require("./role.router");
+const userRoutes = require("./user.router");
 
 const express = require("express");
+const { constants } = require("crypto");
 const router = express.Router();
 
 /** GET /health-check - Check service health */
@@ -32,5 +35,7 @@ router.use("/payment", paymentRoutes);
 router.use("/diamondValue", diamondValueRoutes);
 router.use("/apiConfig", apiConfigRoutes);
 router.use("/quantity", quantityCashbackRoutes);
+router.use("/roles", roleRoutes);
+router.use("/users", userRoutes);
 
 module.exports = router;
