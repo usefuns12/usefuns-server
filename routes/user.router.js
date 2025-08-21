@@ -24,4 +24,7 @@ router.route("/create").post(
   userController.createUser
 );
 
+// Get user details by ID
+router.get("/:id", userController.getUserDetails);
+
 module.exports = router;

@@ -96,4 +96,36 @@ const createUser = async (req, res) => {
   }
 };
 
-module.exports = { createUser };
+const getUserDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User ID is required" });
+    }
+
+    // 🔹 Find user by ID and populate relations
+    const user = await models.User.findById(id)
+      .populate("customerRef") // auto user profile from customers
+      .populate("role") // role details
+      .populate("roleRef"); // agency/seller/merchant ref (optional)
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = { createUser, getUserDetails };
