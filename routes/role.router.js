@@ -10,7 +10,7 @@
  */
 
 const express = require("express");
-const { initRoles, getAllRoles } = require("../controllers/roleController");
+const { initRoles, getAllRoles } = require("../controllers/role.controller");
 const middleware = require("../middlewares");
 
 const router = express.Router();
