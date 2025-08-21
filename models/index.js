@@ -37,6 +37,7 @@ const models = {
   Policy: require("./Policy"),
   Audit: require("./Audit"),
   Ranking: require("./Ranking"),
+  User: require("./User"),
 };
 
 module.exports = models;
