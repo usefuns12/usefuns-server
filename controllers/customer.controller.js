@@ -2618,7 +2618,7 @@ const getTopReferrers = async (req, res) => {
 
 const getReferralDetails = async (req, res) => {
   try {
-    const { userId } = req.params; // Or req.user._id if using auth middleware
+    const { userId } = req.params;
 
     if (!userId) {
       return res
@@ -2626,13 +2626,10 @@ const getReferralDetails = async (req, res) => {
         .json({ success: false, message: "Please provide userId" });
     }
 
-    const user = await models.Customer.findById(userId)
-      .populate({
-        path: "referrals",
-        select:
-          "name userId profileImage diamonds purchasedDiamonds referralBeansEarned createdAt",
-      })
-      .select("referralBeansEarned referrals referralCode");
+    // Find the current user to get their referral code and total earned beans
+    const user = await models.Customer.findById(userId).select(
+      "referralBeansEarned referralCode"
+    );
 
     if (!user) {
       return res
@@ -2640,14 +2637,52 @@ const getReferralDetails = async (req, res) => {
         .json({ success: false, message: "User not found" });
     }
 
+    // Aggregate to calculate beans earned from each referee
+    const referralsData = await models.ReferralTransaction.aggregate([
+      {
+        $match: {
+          referrerId: new mongoose.Types.ObjectId(userId),
+        },
+      },
+      {
+        $group: {
+          _id: "$refereeId",
+          totalBeansEarnedFromThisReferee: { $sum: "$amount" },
+        },
+      },
+      {
+        $lookup: {
+          from: "customers", // The name of your customers collection
+          localField: "_id",
+          foreignField: "_id",
+          as: "refereeDetails",
+        },
+      },
+      {
+        $unwind: "$refereeDetails",
+      },
+      {
+        $project: {
+          _id: "$refereeDetails._id",
+          name: "$refereeDetails.name",
+          userId: "$refereeDetails.userId",
+          profileImage: "$refereeDetails.profileImage",
+          diamonds: "$refereeDetails.diamonds",
+          purchasedDiamonds: "$refereeDetails.purchasedDiamonds",
+          createdAt: "$refereeDetails.createdAt",
+          referralBeansEarned: "$totalBeansEarnedFromThisReferee", // This is the calculated field
+        },
+      },
+    ]);
+
     res.status(200).json({
       success: true,
       message: "Referral details fetched successfully",
       data: {
         referralCode: user.referralCode,
         referralBeansEarned: user.referralBeansEarned,
-        totalReferrals: user.referrals.length,
-        referrals: user.referrals,
+        totalReferrals: referralsData.length,
+        referrals: referralsData,
       },
     });
   } catch (error) {
