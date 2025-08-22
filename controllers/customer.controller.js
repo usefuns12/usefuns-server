@@ -2608,7 +2608,98 @@ const getTopReferrers = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: topReferrers,
+      data: [
+        {
+          monthlyBeansEarned: 25000,
+          _id: "68a0801888cb68e0a5ab618a",
+          userId: "10000",
+          referralCode: "A6548F78",
+          profileImage:
+            "https://usefun-uploads.s3.ap-south-1.amazonaws.com/image_cropper_1755348978105-a578ede6-d92e-4605-be2c-93dc3ee2457f.jpg",
+          name: "shan❤️",
+        },
+        {
+          monthlyBeansEarned: 22000,
+          _id: "68b1234567cb68e0a5ab6123",
+          userId: "10001",
+          referralCode: "B7891G23",
+          profileImage:
+            "https://usefun-uploads.s3.ap-south-1.amazonaws.com/profile-images/user10001.jpg",
+          name: "Alex_V",
+        },
+        {
+          monthlyBeansEarned: 19500,
+          _id: "68c4567890cb68e0a5ab6456",
+          userId: "10002",
+          referralCode: "C9012H45",
+          profileImage:
+            "https://usefun-uploads.s3.ap-south-1.amazonaws.com/profile-images/user10002.jpg",
+          name: "TheKingSlayer",
+        },
+        {
+          monthlyBeansEarned: 18200,
+          _id: "68d7890123cb68e0a5ab6789",
+          userId: "10003",
+          referralCode: "D1234I67",
+          profileImage:
+            "https://usefun-uploads.s3.ap-south-1.amazonaws.com/profile-images/user10003.jpg",
+          name: "Lara Croft",
+        },
+        {
+          monthlyBeansEarned: 17800,
+          _id: "68e12345f0cb68e0a5ab6abc",
+          userId: "10004",
+          referralCode: "E5678J90",
+          profileImage:
+            "https://usefun-uploads.s3.ap-south-1.amazonaws.com/profile-images/user10004.jpg",
+          name: "DreamWeaver",
+        },
+        {
+          monthlyBeansEarned: 16500,
+          _id: "68f5678901cb68e0a5ab6def",
+          userId: "10005",
+          referralCode: "F9012K34",
+          profileImage:
+            "https://usefun-uploads.s3.ap-south-1.amazonaws.com/profile-images/user10005.jpg",
+          name: "ByteMaster",
+        },
+        {
+          monthlyBeansEarned: 15900,
+          _id: "69a1234567cb68e0a5ab6124",
+          userId: "10006",
+          referralCode: "G3456L78",
+          profileImage:
+            "https://usefun-uploads.s3.ap-south-1.amazonaws.com/profile-images/user10006.jpg",
+          name: "Sophia_22",
+        },
+        {
+          monthlyBeansEarned: 14200,
+          _id: "69b4567890cb68e0a5ab6457",
+          userId: "10007",
+          referralCode: "H7890M12",
+          profileImage:
+            "https://usefun-uploads.s3.ap-south-1.amazonaws.com/profile-images/user10007.jpg",
+          name: "CodeMonkey",
+        },
+        {
+          monthlyBeansEarned: 13700,
+          _id: "69c7890123cb68e0a5ab678a",
+          userId: "10008",
+          referralCode: "I1234N56",
+          profileImage:
+            "https://usefun-uploads.s3.ap-south-1.amazonaws.com/profile-images/user10008.jpg",
+          name: "Gamer_Gal",
+        },
+        {
+          monthlyBeansEarned: 12100,
+          _id: "69d12345f0cb68e0a5ab6abd",
+          userId: "10009",
+          referralCode: "J5678O90",
+          profileImage:
+            "https://usefun-uploads.s3.ap-south-1.amazonaws.com/profile-images/user10009.jpg",
+          name: "PhotonPheonix",
+        },
+      ],
     });
   } catch (error) {
     logger.error(error);
