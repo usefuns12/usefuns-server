@@ -14,6 +14,7 @@ const apiConfigRoutes = require("./apiConfig.router");
 const quantityCashbackRoutes = require("./quantityCashback.route");
 const roleRoutes = require("./role.router");
 const userRoutes = require("./user.router");
+const agencyRoutes = require("./agency.router");
 
 const express = require("express");
 const { constants } = require("crypto");
@@ -37,5 +38,6 @@ router.use("/apiConfig", apiConfigRoutes);
 router.use("/quantity", quantityCashbackRoutes);
 router.use("/roles", roleRoutes);
 router.use("/users", userRoutes);
+router.use("/agencies", agencyRoutes);
 
 module.exports = router;
