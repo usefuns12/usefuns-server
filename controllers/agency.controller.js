@@ -15,12 +15,10 @@ const createAgency = async (req, res) => {
     // Check if agencyId already exists
     const existingAgency = await models.Agency.findOne({ agencyId });
     if (existingAgency) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Agency with this agencyId already exists",
-        });
+      return res.status(400).json({
+        success: false,
+        message: "Agency with this agencyId already exists",
+      });
     }
 
     // Check if owner user exists
@@ -81,7 +79,7 @@ const getAgencyById = async (req, res) => {
 // ✅ 3. Get All Agencies by OwnerUserId
 const getAgenciesByOwner = async (req, res) => {
   try {
-    const { ownerUserId } = req.query;
+    const { ownerUserId } = req.params;
 
     if (!ownerUserId) {
       return res
