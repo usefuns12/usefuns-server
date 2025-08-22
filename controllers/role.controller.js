@@ -8,15 +8,7 @@ const initRoles = async (req, res) => {
       {
         name: "CountryManager",
         permissions: ["*"], // full access
-        canCreate: [
-          "CountryAdmin",
-          "Admin",
-          "SubAdmin",
-          "Agency",
-          "Host",
-          "Seller",
-          "Merchant",
-        ],
+        canCreate: ["CountryAdmin", "Admin", "SubAdmin", "Agency"],
       },
       {
         name: "CountryAdmin",
@@ -32,31 +24,6 @@ const initRoles = async (req, res) => {
         name: "SubAdmin",
         permissions: ["manage-subadmin"],
         canCreate: ["Agency", "Host"],
-      },
-      {
-        name: "Agency",
-        permissions: ["manage-agency"],
-        canCreate: ["Host"],
-      },
-      {
-        name: "Host",
-        permissions: ["host-live"],
-        canCreate: [],
-      },
-      {
-        name: "CountryMerchantAuthority",
-        permissions: ["manage-merchants"],
-        canCreate: ["Seller"],
-      },
-      {
-        name: "Seller",
-        permissions: ["manage-seller"],
-        canCreate: ["Merchant"],
-      },
-      {
-        name: "Merchant",
-        permissions: ["merchant-ops"],
-        canCreate: [],
       },
     ];
 

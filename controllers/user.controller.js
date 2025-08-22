@@ -1,16 +1,16 @@
-const models = require("../models");
 const bcrypt = require("bcryptjs");
+const models = require("../models"); // adjust path as per your project
 
-// Create a new User (linked to Customer)
+// ✅ Create a new User (linked to Customer & Role hierarchy)
 const createUser = async (req, res) => {
   try {
-    const { customerId, roleId, roleRef, password, hostId, displayName } =
-      req.body;
+    const { customerId, roleId, parents, password, country } = req.body;
 
-    if (!customerId || !roleId) {
+    // 🔹 Validate required fields
+    if (!customerId || !roleId || !country) {
       return res.status(400).json({
         success: false,
-        message: "customerId and roleId are required",
+        message: "customerId, roleId and country are required",
       });
     }
 
@@ -22,7 +22,7 @@ const createUser = async (req, res) => {
         .json({ success: false, message: "Customer not found" });
     }
 
-    // 🔹 Ensure role exists
+    // 🔹 Ensure role exists & is valid
     const role = await models.Role.findById(roleId);
     if (!role) {
       return res
@@ -39,52 +39,29 @@ const createUser = async (req, res) => {
       });
     }
 
-    // 🔹 Create new user
+    // 🔹 Create new user entry
     const newUser = await models.User.create({
       customerRef: customerId,
       role: roleId,
-      roleRef: roleRef || null,
+      parents: parents || [], // default empty array
       passwordHash: password ? await bcrypt.hash(password, 10) : null,
+      country,
       isActive: true,
     });
 
-    // Auto-populate customerRef
+    // 🔹 Populate customer for response
     await newUser.populate("customerRef");
+    await newUser.populate("role");
+    await newUser.populate("parents");
 
-    // 🔹 If role is Host, also create Host entry
-    if (role.name === "Host") {
-      if (!hostId) {
-        return res.status(400).json({
-          success: false,
-          message: "hostId is required when creating a Host user",
-        });
-      }
-
-      const existingHost = await models.Host.findOne({ hostId });
-      if (existingHost) {
-        return res.status(400).json({
-          success: false,
-          message: "Host with this hostId already exists",
-        });
-      }
-
-      const newHost = await models.Host.create({
-        userId: newUser._id,
-        hostId,
-        displayName: displayName || customer.name,
-        joinDate: new Date(),
-        agencyId: roleRef || null, // if linked to an agency
-        status: "active",
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: "Host user created successfully",
-        data: { user: newUser, host: newHost },
-      });
+    // 🔹 Update parent-child relationships
+    if (parents && parents.length > 0) {
+      await models.User.updateMany(
+        { _id: { $in: parents } },
+        { $push: { children: newUser._id } }
+      );
     }
 
-    // 🔹 Default response for non-host users
     return res.status(201).json({
       success: true,
       message: "User created successfully",
@@ -96,6 +73,7 @@ const createUser = async (req, res) => {
   }
 };
 
+// 🔹 Get user details
 const getUserDetails = async (req, res) => {
   try {
     const { id } = req.params;
@@ -110,7 +88,9 @@ const getUserDetails = async (req, res) => {
     const user = await models.User.findById(id)
       .populate("customerRef") // auto user profile from customers
       .populate("role") // role details
-      .populate("roleRef"); // agency/seller/merchant ref (optional)
+      .populate("parents") // parent users
+      .populate("children") // child users
+      .populate("ownedAgencies"); // owned agencies
 
     if (!user) {
       return res

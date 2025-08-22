@@ -11,13 +11,7 @@ const AgencySchema = new mongoose.Schema(
       required: true,
     },
     country: String,
-    members: [
-      {
-        userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        role: String,
-        joinedAt: Date,
-      },
-    ],
+    hosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Host" }],
     stats: {
       totalHosts: { type: Number, default: 0 },
       activeHosts: { type: Number, default: 0 },
@@ -29,4 +23,4 @@ const AgencySchema = new mongoose.Schema(
 
 AgencySchema.index({ agencyId: 1 });
 
-module.exports = mongoose.model("agency", AgencySchema);
+module.exports = mongoose.model("Agency", AgencySchema);

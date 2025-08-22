@@ -11,23 +11,39 @@ const UserSchema = new mongoose.Schema(
 
     // Role system
     role: { type: mongoose.Schema.Types.ObjectId, ref: "Role", required: true },
-    roleRef: { type: mongoose.Schema.Types.ObjectId }, // link to Agency, Seller, etc.
+
+    // Agency ownership (for Admin and SubAdmin only)
+    ownedAgencies: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Agency",
+      },
+    ],
+
+    // Children users created by this user
+    children: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    // Parents users of this user
+    parents: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
 
     // App-level fields (not present in Customer)
     passwordHash: String,
-    country: String,
 
-    profile: {
-      pan: {
-        name: String,
-        number: String,
-        photoUrl: String,
-        verified: { type: Boolean, default: false },
-      },
-      kycStatus: {
-        type: String,
-        enum: ["pending", "verified", "rejected"],
-        default: "pending",
+    // Country assignment for geographic hierarchy
+    country: {
+      type: String,
+      required: function () {
+        return this.role && this.role.name !== "CountryManager";
       },
     },
 

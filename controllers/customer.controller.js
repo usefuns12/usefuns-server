@@ -2401,6 +2401,10 @@ const setUserOnline = async (req, res) => {
       }
     );
 
+    let userData = await models.Customer.findById(userId);
+
+    io.to(userId).emit("userDataUpdate", userData);
+
     res.status(200).json({ success: true, message: "User marked as online" });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -2427,6 +2431,11 @@ const setUserOffline = async (req, res) => {
             },
           }
         );
+
+        let userData = await models.Customer.findById(userId);
+
+        io.to(userId).emit("userDataUpdate", userData);
+
         console.log(`User ${userId} marked offline after 2 minutes`);
       } catch (err) {
         console.error("Error updating user offline:", err.message);
@@ -2545,47 +2554,54 @@ const getBlockedUsers = async (req, res) => {
 
 const getTopReferrers = async (req, res) => {
   try {
-    // Get current month range
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
 
-    const endOfMonth = new Date(startOfMonth);
-    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-
-    // Aggregate transactions for current month
     const topReferrers = await models.ReferralTransaction.aggregate([
       {
         $match: {
-          type: "credit", // only earned beans
-          createdAt: { $gte: startOfMonth, $lt: endOfMonth },
+          createdAt: {
+            $gte: startOfMonth,
+            $lte: endOfMonth,
+          },
         },
       },
       {
         $group: {
-          _id: "$userId",
-          totalBeans: { $sum: "$beans" },
+          _id: "$referrerId",
+          monthlyBeansEarned: {
+            $sum: "$amount",
+          },
         },
       },
-      { $sort: { totalBeans: -1 } },
-      { $limit: 10 },
+      {
+        $sort: {
+          monthlyBeansEarned: -1,
+        },
+      },
+      {
+        $limit: 10,
+      },
       {
         $lookup: {
           from: "customers",
           localField: "_id",
           foreignField: "_id",
-          as: "user",
+          as: "referrerDetails",
         },
       },
-      { $unwind: "$user" },
+      {
+        $unwind: "$referrerDetails",
+      },
       {
         $project: {
-          _id: 0,
-          userId: "$user._id",
-          name: "$user.name",
-          profileImage: "$user.profileImage",
-          referralCode: "$user.referralCode",
-          monthlyBeansEarned: "$totalBeans",
+          _id: "$referrerDetails._id",
+          userId: "$referrerDetails.userId",
+          referralCode: "$referrerDetails.referralCode",
+          monthlyBeansEarned: 1,
+          profileImage: "$referrerDetails.profileImage",
+          name: "$referrerDetails.name",
         },
       },
     ]);
