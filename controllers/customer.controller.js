@@ -2719,7 +2719,7 @@ const getReferralDetails = async (req, res) => {
 
     // Find the current user to get their referral code and total earned beans
     const user = await models.Customer.findById(userId).select(
-      "referralBeansEarned referralCode"
+      "referralBeansEarned referralCode referralBeansBalance"
     );
 
     if (!user) {
@@ -2773,6 +2773,7 @@ const getReferralDetails = async (req, res) => {
         referralCode: user.referralCode,
         referralBeansEarned: user.referralBeansEarned,
         totalReferrals: referralsData.length,
+        referralBeansBalance: user.referralBeansBalance,
         referrals: referralsData,
       },
     });

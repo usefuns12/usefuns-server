@@ -8,9 +8,10 @@ const HostSchema = new mongoose.Schema(
       ref: "customers",
       required: true, // enforce relation
     },
-    hostId: { type: Number, required: true, unique: true },
-    displayName: String,
-    joinDate: Date,
+    joinDate: {
+      type: Date,
+      default: Date.now,
+    },
     agencyId: { type: mongoose.Schema.Types.ObjectId, ref: "Agency" },
     roomId: { type: mongoose.Schema.Types.ObjectId, ref: "Room" },
     totalHostTimeHours: { type: Number, default: 0 },
