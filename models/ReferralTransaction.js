@@ -15,7 +15,7 @@ const ReferralTransactionSchema = new mongoose.Schema(
     amount: { type: Number, required: true },
     source: {
       type: String,
-      enum: ["Recharge Bonus", "Other"],
+      enum: ["Recharge Bonus", "Referral Wallet Withdraw", "Other"],
       default: "Recharge Bonus",
     },
     status: { type: String, enum: ["earned", "withdrawn"], default: "earned" },
