@@ -1173,8 +1173,8 @@ const sendGift = async (req, res) => {
       roomId,
       giftId,
       quantity,
-      receiverReceivedBeans: actualReceiverBeans,
-      senderReceivedCashbackDiamonds: senderCashback,
+      receiverReceivedBeans: actualReceiverBeans || 0,
+      senderReceivedCashbackDiamonds: senderCashback || 0,
       gift: {
         name: selectedGift.name,
         diamonds: selectedGift.diamonds,
@@ -1186,14 +1186,14 @@ const sendGift = async (req, res) => {
     io.to(senderId).emit("diamondUpdate", {
       userId: senderId,
       totalDiamonds: sender.diamonds,
-      receivedCashbackDiamonds: senderCashback,
+      receivedCashbackDiamonds: senderCashback || 0,
     });
 
     // 3. Emit to Receiver for bean update (rename event if needed)
     io.to(receiverId).emit("beanUpdate", {
       userId: receiverId,
       totalBeans: receiver.beans,
-      receivedBeans: actualReceiverBeans,
+      receivedBeans: actualReceiverBeans || 0,
     });
 
     // ✅ Response
