@@ -37,4 +37,11 @@ router.route("/owner/:ownerUserId").get(
   agencyController.getAgenciesByOwner
 );
 
+// Invite Host to Agency
+router.post(
+  "/invite-host",
+  // middleware.auth.authAgency, // enable later
+  agencyController.inviteHostToAgency
+);
+
 module.exports = router;

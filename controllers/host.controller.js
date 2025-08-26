@@ -141,8 +141,134 @@ const getHostDetails = async (req, res) => {
   }
 };
 
+/**
+ * Get all Join Requests
+ * -------------------------------
+ * Can be filtered by agency or host
+ */
+const getAllRequests = async (req, res) => {
+  try {
+    const { agencyId, hostId, status } = req.query;
+
+    const filter = {};
+    if (agencyId) filter.fromAgencyId = agencyId;
+    if (hostId) filter.toHostId = hostId;
+    if (status) filter.status = status;
+
+    const requests = await models.JoinRequest.find(filter)
+      .populate("fromAgencyId", "name code")
+      .populate("toHostId", "customerRef status")
+      .populate("roomId", "name");
+
+    res.status(200).json({
+      success: true,
+      count: requests.length,
+      data: requests,
+    });
+  } catch (error) {
+    console.error("Error fetching requests:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Accept Invitation
+ * -------------------------------
+ * Updates request status → accepted
+ * Also links Host with Agency
+ */
+const acceptInvitation = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+
+    const request = await models.JoinRequest.findById(requestId);
+    if (!request) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Request not found" });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Request already processed",
+      });
+    }
+
+    // Update request
+    request.status = "accepted";
+    await request.save();
+
+    // Link host to agency
+    const host = await models.Host.findById(request.toHostId);
+    if (!host) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Host not found" });
+    }
+
+    host.agencyId = request.fromAgencyId;
+    await host.save();
+
+    // Update agency stats
+    await models.Agency.findByIdAndUpdate(request.fromAgencyId, {
+      $addToSet: { hosts: host._id },
+      $inc: { "stats.totalHosts": 1, "stats.activeHosts": 1 },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Invitation accepted, host added to agency",
+      data: request,
+    });
+  } catch (error) {
+    console.error("Error accepting invitation:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * Reject Invitation
+ * -------------------------------
+ * Updates request status → rejected
+ */
+const rejectInvitation = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+
+    const request = await models.JoinRequest.findById(requestId);
+    if (!request) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Request not found" });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Request already processed",
+      });
+    }
+
+    request.status = "rejected";
+    await request.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Invitation rejected",
+      data: request,
+    });
+  } catch (error) {
+    console.error("Error rejecting invitation:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createHost,
   getAllHosts,
   getHostDetails,
+  getAllRequests,
+  acceptInvitation,
+  rejectInvitation,
 };

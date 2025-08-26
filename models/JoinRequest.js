@@ -2,13 +2,13 @@ const mongoose = require("mongoose");
 
 const JoinRequestSchema = new mongoose.Schema(
   {
-    type: { type: String, enum: ["joinAgency", "joinHosting"], required: true },
-    fromUserId: {
+    type: { type: String, enum: ["joinAgency"], required: true },
+    fromAgencyId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Agency",
       required: true,
     },
-    toAgencyId: { type: mongoose.Schema.Types.ObjectId, ref: "Agency" },
+    toHostId: { type: mongoose.Schema.Types.ObjectId, ref: "Host" },
     roomId: { type: mongoose.Schema.Types.ObjectId, ref: "Room" },
     message: String,
     status: {

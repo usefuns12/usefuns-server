@@ -1,5 +1,5 @@
 const bcrypt = require("bcryptjs");
-const models = require("../models"); // adjust path as per your project
+const models = require("../models");
 
 // ✅ Create a new User (linked to Customer & Role hierarchy)
 const createUser = async (req, res) => {

@@ -102,8 +102,75 @@ const getAgenciesByOwner = async (req, res) => {
   }
 };
 
+/**
+ * Invite a Host to an Agency
+ * -------------------------------
+ * Creates a join request of type "joinAgency"
+ */
+const inviteHostToAgency = async (req, res) => {
+  try {
+    const { fromAgencyId, toHostId, roomId, message } = req.body;
+
+    if (!fromAgencyId || !toHostId) {
+      return res.status(400).json({
+        success: false,
+        message: "fromAgencyId and toHostId are required",
+      });
+    }
+
+    // Validate agency
+    const agency = await models.Agency.findById(fromAgencyId);
+    if (!agency) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Agency not found" });
+    }
+
+    // Validate host
+    const host = await models.Host.findById(toHostId);
+    if (!host) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Host not found" });
+    }
+
+    // Check for existing pending invite
+    const existing = await models.JoinRequest.findOne({
+      type: "joinAgency",
+      fromAgencyId,
+      toHostId,
+      status: "pending",
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "Pending invitation already exists for this host",
+      });
+    }
+
+    const invite = await models.JoinRequest.create({
+      type: "joinAgency",
+      fromAgencyId,
+      toHostId,
+      roomId: roomId || null,
+      message,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Host invited to agency successfully",
+      data: invite,
+    });
+  } catch (error) {
+    console.error("Error inviting host:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createAgency,
   getAgencyById,
   getAgenciesByOwner,
+  inviteHostToAgency,
 };

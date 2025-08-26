@@ -22,4 +22,13 @@ router.get("/", hostController.getAllHosts);
 // Get Host details by ID (MongoDB _id or hostId)
 router.get("/:id", hostController.getHostDetails);
 
+// Get all requests (agencyId/hostId/status as query params)
+router.get("/requests", hostController.getAllRequests);
+
+// Accept Invitation
+router.put("/request/:requestId/accept", hostController.acceptInvitation);
+
+// Reject Invitation
+router.put("/request/:requestId/reject", hostController.rejectInvitation);
+
 module.exports = router;
