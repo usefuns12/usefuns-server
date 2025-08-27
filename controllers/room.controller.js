@@ -1167,22 +1167,41 @@ const sendGift = async (req, res) => {
         : []),
     ]);
 
-    console.log("Emitting giftSent event to room:", roomId);
+    // // 1. Emit to Room
+    // io.to(roomId).emit("giftSent", {
+    //   senderId,
+    //   receiverId,
+    //   roomId,
+    //   giftId,
+    //   quantity,
+    //   receiverReceivedBeans: actualReceiverBeans,
+    //   senderReceivedCashbackDiamonds: senderCashback,
+    //   gift: {
+    //     name: selectedGift.name,
+    //     diamonds: selectedGift.diamonds,
+    //     category: categoryName,
+    //   },
+    // });
 
-    // 1. Emit to Room
-    io.to(roomId).emit("giftSent", {
-      senderId,
-      receiverId,
-      roomId,
-      giftId,
-      quantity,
-      receiverReceivedBeans: actualReceiverBeans,
-      senderReceivedCashbackDiamonds: senderCashback,
-      gift: {
-        name: selectedGift.name,
-        diamonds: selectedGift.diamonds,
-        category: categoryName,
-      },
+    // 1. Fetch all rooms
+    const rooms = await models.Room.find({}, { _id: 1 }); // only fetch IDs for efficiency
+
+    // 2. Emit to each room
+    rooms.forEach((room) => {
+      io.to(room._id.toString()).emit("giftSent", {
+        senderId,
+        receiverId,
+        roomId: roomId, // now broadcasting to each room
+        giftId,
+        quantity,
+        receiverReceivedBeans: actualReceiverBeans,
+        senderReceivedCashbackDiamonds: senderCashback,
+        gift: {
+          name: selectedGift.name,
+          diamonds: selectedGift.diamonds,
+          category: categoryName,
+        },
+      });
     });
 
     // 2. Emit to Sender for diamond update
