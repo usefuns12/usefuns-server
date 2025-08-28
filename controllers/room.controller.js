@@ -1093,8 +1093,7 @@ const sendGift = async (req, res) => {
 
       // ✅ Sender gets cashback only if it's surprise
       const shouldGiveCashback = Math.random() < 0.3;
-      // if (shouldGiveCashback) {
-      if (true) {
+      if (shouldGiveCashback) {
         const now = new Date();
         const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
