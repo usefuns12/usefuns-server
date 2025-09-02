@@ -20,6 +20,13 @@ const middleware = require("../middlewares");
 
 const router = express.Router();
 
+// ✅ Get all users (with optional filters: role, status, agencyId etc.)
+router.get(
+  "/get-all",
+  // middleware.auth.authAdmin,
+  userController.getAllUsersByRole
+);
+
 // ✅ Create a new User
 router.post(
   "/create",
@@ -43,13 +50,6 @@ router.delete(
   "/:id",
   // middleware.auth.authAdmin,
   userController.deleteUser
-);
-
-// ✅ Get all users (with optional filters: role, status, agencyId etc.)
-router.get(
-  "/",
-  // middleware.auth.authAdmin,
-  userController.getAllUsersByRole
 );
 
 module.exports = router;

@@ -167,8 +167,8 @@ const customerSchema = new mongoose.Schema(
       min: 0,
       // non negative
       validate: {
-        validator: Number.isInteger,
-        message: "{VALUE} is not an integer value",
+        validator: (value) => Number.isInteger(value) && value >= 0,
+        message: "{VALUE} must be a non-negative integer",
       },
     },
 
@@ -182,8 +182,8 @@ const customerSchema = new mongoose.Schema(
       min: 0,
       // non negative
       validate: {
-        validator: Number.isInteger,
-        message: "{VALUE} is not an integer value",
+        validator: (value) => Number.isInteger(value) && value >= 0,
+        message: "{VALUE} must be a non-negative integer",
       },
     },
     likes: {
