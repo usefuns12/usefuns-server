@@ -237,6 +237,19 @@ const configure = async (app, server) => {
           }
 
           const giftDiamonds = gift.diamonds * count;
+
+          // ✅ Check if sender has enough diamonds
+          if (senderC.diamonds < giftDiamonds) {
+            logger.warn(
+              `Not enough diamonds: sender=${senderC._id}, diamonds=${senderC.diamonds}, required=${giftDiamonds}`
+            );
+            io.to(sender).emit("errorMessage", {
+              success: false,
+              message: "Not enough diamonds to send this gift",
+            });
+            return;
+          }
+
           let senderCoin = senderC.diamonds - giftDiamonds;
           let usedDiamonds = senderC.usedDiamonds + giftDiamonds;
           let xp = BigInt(senderC.xp) + BigInt(giftDiamonds);

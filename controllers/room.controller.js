@@ -1080,6 +1080,15 @@ const sendGift = async (req, res) => {
       return res.status(404).json({ message: "Sender not found." });
     }
 
+    // ✅ Diamond balance check before proceeding
+    if (sender.diamonds < totalGiftDiamonds) {
+      return res.status(400).json({
+        message: "Not enough diamonds to send this gift.",
+        availableDiamonds: sender.diamonds,
+        requiredDiamonds: totalGiftDiamonds,
+      });
+    }
+
     let actualReceiverBeans = totalGiftDiamonds; // Default: beans = diamonds
     let senderCashback = 0;
 
