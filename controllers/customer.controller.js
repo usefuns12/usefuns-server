@@ -122,7 +122,7 @@ const register = async (req, res) => {
       deviceId,
     };
 
-    // ✅ Referral Code Handling
+    // ✅ Referral Code Handling validate if referral code holder and this new user both are from same country then and only couuntinue else give an error
     if (referralCode) {
       const referrer = await models.Customer.findOne({ referralCode });
       if (!referrer) {
@@ -130,6 +130,15 @@ const register = async (req, res) => {
           .status(400)
           .json({ success: false, message: "Invalid referral code" });
       }
+
+      if (referrer.countryCode !== countryCode) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Referral code holder and new user must be from the same country.",
+        });
+      }
+
       customerData.referredBy = referrer._id;
     }
 

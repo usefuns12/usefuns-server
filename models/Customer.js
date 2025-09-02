@@ -164,6 +164,12 @@ const customerSchema = new mongoose.Schema(
     diamonds: {
       type: Number,
       default: 0,
+      min: 0,
+      // non negative
+      validate: {
+        validator: Number.isInteger,
+        message: "{VALUE} is not an integer value",
+      },
     },
 
     purchasedDiamonds: {
@@ -173,6 +179,12 @@ const customerSchema = new mongoose.Schema(
     beans: {
       type: Number,
       default: 0,
+      min: 0,
+      // non negative
+      validate: {
+        validator: Number.isInteger,
+        message: "{VALUE} is not an integer value",
+      },
     },
     likes: {
       type: Number,

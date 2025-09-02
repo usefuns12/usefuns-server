@@ -108,4 +108,145 @@ const getUserDetails = async (req, res) => {
   }
 };
 
-module.exports = { createUser, getUserDetails };
+// ✅ Get all users by role name
+const getAllUsersByRole = async (req, res) => {
+  try {
+    const { role } = req.query;
+
+    if (!role) {
+      return res.status(400).json({
+        success: false,
+        message: "Role name is required as query param ?role=",
+      });
+    }
+
+    // 🔹 Find role by name
+    const roleDoc = await models.Role.findOne({ name: role });
+    if (!roleDoc) {
+      return res.status(404).json({
+        success: false,
+        message: `Role '${role}' not found`,
+      });
+    }
+
+    // 🔹 Fetch users with that role
+    const users = await models.User.find({ role: roleDoc._id })
+      .populate("customerRef")
+      .populate("role")
+      .populate("parents")
+      .populate("children")
+      .populate("ownedAgencies");
+
+    return res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    console.error("Error fetching users by role:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ✅ Delete user by ID
+const deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await models.User.findById(id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // 🔹 Remove from parent-child relationships
+    if (user.parents.length > 0) {
+      await models.User.updateMany(
+        { _id: { $in: user.parents } },
+        { $pull: { children: user._id } }
+      );
+    }
+    if (user.children.length > 0) {
+      await models.User.updateMany(
+        { _id: { $in: user.children } },
+        { $pull: { parents: user._id } }
+      );
+    }
+
+    await models.User.findByIdAndDelete(id);
+
+    return res.status(200).json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ✅ Update user by ID
+const updateUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { roleId, parents, password, country, isActive } = req.body;
+
+    const user = await models.User.findById(id);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    if (roleId) {
+      const role = await models.Role.findById(roleId);
+      if (!role) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Role not found" });
+      }
+      user.role = roleId;
+    }
+
+    if (country) user.country = country;
+    if (typeof isActive !== "undefined") user.isActive = isActive;
+    if (password) user.passwordHash = await bcrypt.hash(password, 10);
+
+    // 🔹 Reset and update parents (if provided)
+    if (parents) {
+      // remove from old parents
+      await models.User.updateMany(
+        { _id: { $in: user.parents } },
+        { $pull: { children: user._id } }
+      );
+
+      user.parents = parents;
+
+      // add to new parents
+      await models.User.updateMany(
+        { _id: { $in: parents } },
+        { $addToSet: { children: user._id } }
+      );
+    }
+
+    await user.save();
+    await user.populate("customerRef role parents children ownedAgencies");
+
+    return res.status(200).json({
+      success: true,
+      message: "User updated successfully",
+      data: user,
+    });
+  } catch (error) {
+    console.error("Error updating user:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+module.exports = {
+  createUser,
+  getUserDetails,
+  updateUser,
+  deleteUser,
+  getAllUsersByRole,
+};

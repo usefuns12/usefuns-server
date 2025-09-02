@@ -1086,10 +1086,10 @@ const sendGift = async (req, res) => {
     // 🎁 Surprise gift logic
     if (categoryName === "surprise") {
       // 🟡 Old logic: Receiver gets half diamonds
-      // actualReceiverDiamonds = Math.floor(totalGiftDiamonds / 2);
+      actualReceiverDiamonds = Math.floor(totalGiftDiamonds / 2);
 
       // ✅ New logic: Receiver gets 60 beans
-      actualReceiverBeans = 60;
+      // actualReceiverBeans = 60;
 
       // ✅ Sender gets cashback only if it's surprise
       const shouldGiveCashback = Math.random() < 0.3;
