@@ -1192,7 +1192,10 @@ const sendGift = async (req, res) => {
     // });
 
     // 1. Fetch all rooms
-    const rooms = await models.Room.find({}, { _id: 1 }); // only fetch IDs for efficiency
+    const rooms = await models.Room.find(
+      { countryCode: sender.countryCode },
+      { _id: 1 }
+    ); // only fetch IDs for efficiency
 
     // 2. Emit to each room
     rooms.forEach((room) => {
