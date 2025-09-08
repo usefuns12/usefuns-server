@@ -147,6 +147,93 @@ const getAllUsersByRole = async (req, res) => {
   }
 };
 
+// ✅ Get all Country Admin users by countryManagerId
+const getAllCountryAdminsByManager = async (req, res) => {
+  try {
+    const { countryManagerId } = req.query;
+
+    if (!countryManagerId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "countryManagerId is required as query param ?countryManagerId=",
+      });
+    }
+
+    // 🔹 Find Country Admin role
+    const countryAdminRole = await models.Role.findOne({
+      name: "CountryAdmin",
+    });
+    if (!countryAdminRole) {
+      return res.status(404).json({
+        success: false,
+        message: "Role 'CountryAdmin' not found",
+      });
+    }
+
+    // 🔹 Fetch users who are countryAdmin AND have the given manager in their parents array
+    const users = await models.User.find({
+      role: countryAdminRole._id,
+      parents: countryManagerId, // check if exists in array
+    })
+      .populate("customerRef")
+      .populate("role")
+      .populate("parents")
+      .populate("children")
+      .populate("ownedAgencies");
+
+    return res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    console.error("Error fetching country admins by manager:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ✅ Get all Admin users by countryAdminId
+const getAllAdminsByCountryAdmin = async (req, res) => {
+  try {
+    const { countryAdminId } = req.query;
+
+    if (!countryAdminId) {
+      return res.status(400).json({
+        success: false,
+        message: "countryAdminId is required as query param ?countryAdminId=",
+      });
+    }
+
+    // 🔹 Find Admin role
+    const adminRole = await models.Role.findOne({ name: "Admin" });
+    if (!adminRole) {
+      return res.status(404).json({
+        success: false,
+        message: "Role 'Admin' not found",
+      });
+    }
+
+    // 🔹 Fetch users who are admin AND have the given countryAdmin in their parents array
+    const users = await models.User.find({
+      role: adminRole._id,
+      parents: countryAdminId, // check if countryAdminId exists in parents array
+    })
+      .populate("customerRef")
+      .populate("role")
+      .populate("parents")
+      .populate("children")
+      .populate("ownedAgencies");
+
+    return res.status(200).json({
+      success: true,
+      data: users,
+    });
+  } catch (error) {
+    console.error("Error fetching admins by countryAdmin:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ✅ Delete user by ID
 const deleteUser = async (req, res) => {
   try {
@@ -249,4 +336,6 @@ module.exports = {
   updateUser,
   deleteUser,
   getAllUsersByRole,
+  getAllCountryAdminsByManager,
+  getAllAdminsByCountryAdmin,
 };

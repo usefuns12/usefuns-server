@@ -27,6 +27,20 @@ router.get(
   userController.getAllUsersByRole
 );
 
+// ✅ Get all Country Admins by countryManagerId
+router.get(
+  "/get-country-admins",
+  // middleware.auth.authAdmin,
+  userController.getAllCountryAdminsByManager
+);
+
+// ✅ Get all Admins by countryAdminId
+router.get(
+  "/get-admins-by-country-admin",
+  // middleware.auth.authAdmin,
+  userController.getAllAdminsByCountryAdmin
+);
+
 // ✅ Create a new User
 router.post(
   "/create",
