@@ -109,6 +109,38 @@ const configure = async (app, server) => {
       }
     });
 
+    /******************** Seat On/Off Events ********************/
+    socket.on("seatOn", async () => {
+      try {
+        const userId = socket.data.userId;
+
+        const userData = await models.Customer.findByIdAndUpdate(userId, {
+          $set: { onSeat: true },
+        });
+
+        io.to(userId).emit("userDataUpdate", userData);
+
+        logger.info(`User ${userId} sat on seat in room`);
+      } catch (error) {
+        logger.error(`Error in seatOn: ${error.message}`);
+      }
+    });
+
+    socket.on("seatOff", async () => {
+      try {
+        const userId = socket.data.userId;
+        const userData = await models.Customer.findByIdAndUpdate(userId, {
+          $set: { onSeat: false },
+        });
+
+        io.to(userId).emit("userDataUpdate", userData);
+
+        logger.info(`User ${userId} left seat in room`);
+      } catch (error) {
+        logger.error(`Error in seatOff: ${error.message}`);
+      }
+    });
+
     socket.on("disconnect", async () => {
       // Retrieve userId and roomId from socket object
       const userId = socket.data.userId;

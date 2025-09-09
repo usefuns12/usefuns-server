@@ -6,6 +6,7 @@ const router = express.Router();
 
 router.route("/getRooms").get(controller.getRooms);
 router.route("/getAll").get(controller.getRoomsPagination);
+router.route("/getRandom").get(controller.getRandomRooms);
 router.route("/search/:roomId").get(controller.searchRoom);
 router.route("/getLatest/:countryCode").get(controller.getLatestRooms);
 router.route("/getPopular/:countryCode").get(controller.getPopularRooms);

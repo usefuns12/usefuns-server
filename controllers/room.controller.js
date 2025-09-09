@@ -17,6 +17,23 @@ const getRooms = async (req, res) => {
   }
 };
 
+const getRandomRooms = async (req, res) => {
+  try {
+    const rooms = await models.Room.aggregate([
+      { $sample: { size: 10 } }, // 🔹 Pick 10 random docs
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Random rooms fetched successfully.",
+      data: rooms,
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+    logger.error(error);
+  }
+};
+
 const getRoomsPagination = async (req, res) => {
   const page = parseInt(req.query.page) || 1; // Default to page 1 if not specified
   const limit = parseInt(req.query.limit) || 10; // Default to limit 10 if not specified
@@ -1361,4 +1378,5 @@ module.exports = {
   unbanChatUser,
   updateSeatLocks,
   updateRoomSeatCount,
+  getRandomRooms,
 };

@@ -216,6 +216,11 @@ const customerSchema = new mongoose.Schema(
       type: String,
     },
 
+    onSeat: {
+      type: Boolean,
+      default: false,
+    },
+
     // Other Collections and Features
     tags: [],
     vehicles: [userItemSchema],
