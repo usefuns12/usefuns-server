@@ -359,7 +359,7 @@ const configure = async (app, server) => {
             giftId,
             count,
             sender,
-            points: giftDiamonds * 3,
+            points: giftDiamonds,
           });
           io.to(roomId).emit("treasureBoxUpdate", resp);
         } catch (error) {

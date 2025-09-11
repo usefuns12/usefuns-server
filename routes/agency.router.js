@@ -25,6 +25,12 @@ router.route("/create").post(
   agencyController.createAgency
 );
 
+// Get All Agencies
+router.route("/").get(
+  // middleware.auth.authAdmin,
+  agencyController.getAllAgencies
+);
+
 // Get Agency details by ID
 router.route("/:id").get(
   // middleware.auth.authAdmin,
@@ -42,6 +48,18 @@ router.post(
   "/invite-host",
   // middleware.auth.authAgency, // enable later
   agencyController.inviteHostToAgency
+);
+
+// Update Agency by ID
+router.route("/:id").put(
+  // middleware.auth.authAdmin,
+  agencyController.updateAgency
+);
+
+// Delete Agency by ID
+router.route("/:id").delete(
+  // middleware.auth.authAdmin,
+  agencyController.deleteAgency
 );
 
 module.exports = router;

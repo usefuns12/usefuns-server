@@ -113,29 +113,34 @@ const getAllUsersByRole = async (req, res) => {
   try {
     const { role } = req.query;
 
+    let users;
+
     if (!role) {
-      return res.status(400).json({
-        success: false,
-        message: "Role name is required as query param ?role=",
-      });
-    }
+      // 🔹 No role provided → return all users
+      users = await models.User.find({})
+        .populate("customerRef")
+        .populate("role")
+        .populate("parents")
+        .populate("children")
+        .populate("ownedAgencies");
+    } else {
+      // 🔹 Find role by name
+      const roleDoc = await models.Role.findOne({ name: role });
+      if (!roleDoc) {
+        return res.status(404).json({
+          success: false,
+          message: `Role '${role}' not found`,
+        });
+      }
 
-    // 🔹 Find role by name
-    const roleDoc = await models.Role.findOne({ name: role });
-    if (!roleDoc) {
-      return res.status(404).json({
-        success: false,
-        message: `Role '${role}' not found`,
-      });
+      // 🔹 Fetch users with that role
+      users = await models.User.find({ role: roleDoc._id })
+        .populate("customerRef")
+        .populate("role")
+        .populate("parents")
+        .populate("children")
+        .populate("ownedAgencies");
     }
-
-    // 🔹 Fetch users with that role
-    const users = await models.User.find({ role: roleDoc._id })
-      .populate("customerRef")
-      .populate("role")
-      .populate("parents")
-      .populate("children")
-      .populate("ownedAgencies");
 
     return res.status(200).json({
       success: true,

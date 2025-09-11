@@ -51,6 +51,24 @@ const createAgency = async (req, res) => {
   }
 };
 
+// Get All Agencies
+const getAllAgencies = async (req, res) => {
+  try {
+    const agencies = await models.Agency.find()
+      .populate("ownerUserId", "customerRef role") // show basic owner info
+      .populate("hosts"); // show hosts linked to agency
+
+    return res.status(200).json({
+      success: true,
+      count: agencies.length,
+      data: agencies,
+    });
+  } catch (error) {
+    console.error("Error fetching all agencies:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ✅ 2. Get Agency Details by ID
 const getAgencyById = async (req, res) => {
   try {
@@ -168,9 +186,61 @@ const inviteHostToAgency = async (req, res) => {
   }
 };
 
+// Update Agency
+const updateAgency = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+
+    const agency = await models.Agency.findByIdAndUpdate(id, updates, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!agency) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Agency not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: agency,
+    });
+  } catch (error) {
+    console.error("Error updating agency:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Delete Agency
+const deleteAgency = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const agency = await models.Agency.findByIdAndDelete(id);
+    if (!agency) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Agency not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Agency deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting agency:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createAgency,
+  getAllAgencies,
   getAgencyById,
   getAgenciesByOwner,
+  updateAgency,
+  deleteAgency,
+  deleteAgency,
   inviteHostToAgency,
 };
