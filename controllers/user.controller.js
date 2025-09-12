@@ -7,10 +7,10 @@ const createUser = async (req, res) => {
     const { customerId, roleId, parents, password, country } = req.body;
 
     // 🔹 Validate required fields
-    if (!customerId || !roleId || !country) {
+    if (!customerId || !roleId) {
       return res.status(400).json({
         success: false,
-        message: "customerId, roleId and country are required",
+        message: "customerId and roleId are required",
       });
     }
 
@@ -39,13 +39,26 @@ const createUser = async (req, res) => {
       });
     }
 
+    // 🔹 Determine country
+    let finalCountry = country;
+    if (parents && parents.length > 0) {
+      const parentUser = await models.User.findById(parents[0]);
+      if (!parentUser) {
+        return res.status(400).json({
+          success: false,
+          message: `Parent user with id ${parents[0]} not found`,
+        });
+      }
+      finalCountry = parentUser.country;
+    }
+
     // 🔹 Create new user entry
     const newUser = await models.User.create({
       customerRef: customerId,
       role: roleId,
-      parents: parents || [], // default empty array
+      parents: parents || [],
       passwordHash: password ? await bcrypt.hash(password, 10) : null,
-      country,
+      country: finalCountry,
       isActive: true,
     });
 
