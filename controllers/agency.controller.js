@@ -3,12 +3,12 @@ const models = require("../models"); // adjust path
 // ✅ 1. Create Agency
 const createAgency = async (req, res) => {
   try {
-    const { agencyId, code, name, ownerUserId, country } = req.body;
+    const { agencyId, code, name, ownerUserId } = req.body;
 
-    if (!agencyId || !name || !ownerUserId || !country) {
+    if (!agencyId || !name || !ownerUserId) {
       return res.status(400).json({
         success: false,
-        message: "agencyId, name, ownerUserId and country are required",
+        message: "agencyId, name, and ownerUserId are required",
       });
     }
 
@@ -22,11 +22,22 @@ const createAgency = async (req, res) => {
     }
 
     // Check if owner user exists
-    const owner = await models.User.findById(ownerUserId);
+    const owner = await models.User.findById(ownerUserId).populate(
+      "customerRef"
+    );
     if (!owner) {
       return res
         .status(404)
         .json({ success: false, message: "Owner user not found" });
+    }
+
+    // ✅ Extract country from owner’s customerRef
+    const country = owner.customerRef?.countryCode;
+    if (!country) {
+      return res.status(400).json({
+        success: false,
+        message: "Owner user does not have a valid countryCode in customerRef",
+      });
     }
 
     // Create agency
@@ -35,7 +46,7 @@ const createAgency = async (req, res) => {
       code,
       name,
       ownerUserId,
-      country,
+      country, // from owner.customerRef.countryCode
       hosts: [],
       stats: { totalHosts: 0, activeHosts: 0, newHosts: 0 },
     });
