@@ -7,6 +7,7 @@ const models = require("../models");
  * Takes:
  *   - customerRef (ObjectId of Customer)
  *   - password (plain text, will be hashed)
+ *  - agencyId (ObjectId of Agency)
  *
  * Generates:
  *   - unique hostId (auto-increment style)
@@ -14,12 +15,12 @@ const models = require("../models");
  */
 const createHost = async (req, res) => {
   try {
-    const { customerRef, password } = req.body;
+    const { customerRef, password, agencyId } = req.body;
 
-    if (!customerRef || !password) {
+    if (!customerRef || !password || !agencyId) {
       return res.status(400).json({
         success: false,
-        message: "customerRef and password are required",
+        message: "customerRef, password, and agencyId are required",
       });
     }
 
@@ -29,6 +30,24 @@ const createHost = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Customer not found",
+      });
+    }
+
+    // 🔹 Ensure Customer is not already a Host
+    const existingHost = await models.Host.findOne({ customerRef });
+    if (existingHost) {
+      return res.status(400).json({
+        success: false,
+        message: "Customer is already a host",
+      });
+    }
+
+    // 🔹Ensure Agency exists
+    const agency = await models.Agency.findById(agencyId);
+    if (!agency) {
+      return res.status(404).json({
+        success: false,
+        message: "Agency not found",
       });
     }
 
@@ -44,7 +63,7 @@ const createHost = async (req, res) => {
       customerRef,
       hostId: newHostId,
       joinDate: new Date(),
-      agencyId: null,
+      agencyId: agencyId || null,
       status: "active",
       passwordHash,
     });
