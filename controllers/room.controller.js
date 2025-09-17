@@ -1214,12 +1214,22 @@ const sendGift = async (req, res) => {
       { _id: 1 }
     ); // only fetch IDs for efficiency
 
+    const roomData = await models.Room.findById(roomId);
+    const senderData = await models.Customer.findById(senderId);
+    const receiverData = await models.Customer.findById(receiverId);
+
     // 2. Emit to each room
     rooms.forEach((room) => {
       io.to(room._id.toString()).emit("giftSent", {
         senderId,
         receiverId,
         roomId: roomId, // now broadcasting to each room
+        roomName: roomData?.name || "",
+        roomImage: roomData?.roomImage || "",
+        senderName: senderData?.name || "",
+        senderProfileImage: senderData?.profileImage || "",
+        receiverName: receiverData?.name || "",
+        receiverProfileImage: receiverData?.profileImage || "",
         giftId,
         quantity,
         receiverReceivedBeans: actualReceiverBeans,
