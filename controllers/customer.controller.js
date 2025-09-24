@@ -319,6 +319,52 @@ const getCustomers = async (req, res) => {
   }
 };
 
+// ✅ Get unassigned customers (not User, not Host)
+const getUnassignedUsers = async (req, res) => {
+  try {
+    // 1. Fetch customerRefs from User and Host
+    const assignedUsers = await models.User.find({}, "customerRef");
+    const userCustomerIds = assignedUsers
+      .map((u) => u.customerRef)
+      .filter((id) => id); // remove null/undefined
+
+    const assignedHosts = await models.Host.find({}, "customerRef");
+    const hostCustomerIds = assignedHosts
+      .map((h) => h.customerRef)
+      .filter((id) => id);
+
+    // 2. Combine into exclusion list of ObjectIds
+    const excludedCustomerIds = [
+      ...new Set([...userCustomerIds, ...hostCustomerIds]),
+    ];
+
+    // 3. Query only by _id, not whole objects
+    const unassignedCustomers = await models.Customer.find({
+      _id: { $nin: excludedCustomerIds },
+    });
+
+    // 4. Map data for response
+    const customerData = unassignedCustomers.map((customer) => ({
+      _id: customer._id,
+      userId: customer.userId,
+      name: customer.name,
+      mobile: customer.mobile,
+      countryCode: customer.countryCode,
+      diamonds: customer.diamonds,
+      isActiveUser: customer.isActiveUser,
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: "Unassigned customers fetched successfully.",
+      data: customerData,
+    });
+  } catch (error) {
+    console.error("Error fetching unassigned users:", error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 const getCustomersById = async (req, res) => {
   const id = req.params.id;
   let customer;
@@ -2883,4 +2929,5 @@ module.exports = {
   getReferralDetails,
   withdrawReferralBeans,
   getReferralTransactions,
+  getUnassignedUsers,
 };
