@@ -3,7 +3,7 @@ const models = require("../models"); // adjust path
 // ✅ 1. Create Agency
 const createAgency = async (req, res) => {
   try {
-    const { agencyId, code, name, ownerUserId } = req.body;
+    const { agencyId, name, ownerUserId } = req.body;
 
     if (!agencyId || !name || !ownerUserId) {
       return res.status(400).json({
@@ -40,10 +40,19 @@ const createAgency = async (req, res) => {
       });
     }
 
+    // ✅ Auto-generate a 4-digit unique numeric code
+    let code;
+    let isUnique = false;
+    while (!isUnique) {
+      code = Math.floor(1000 + Math.random() * 9000); // 1000–9999
+      const existingCode = await models.Agency.findOne({ code });
+      if (!existingCode) isUnique = true;
+    }
+
     // Create agency
     const newAgency = await models.Agency.create({
       agencyId,
-      code,
+      code, // auto-generated 4 digit unique
       name,
       ownerUserId,
       country, // from owner.customerRef.countryCode

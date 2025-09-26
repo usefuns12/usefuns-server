@@ -6,7 +6,6 @@ const models = require("../models");
  * -------------------------------
  * Takes:
  *   - customerRef (ObjectId of Customer)
- *   - password (plain text, will be hashed)
  *  - agencyId (ObjectId of Agency)
  *
  * Generates:
@@ -15,12 +14,12 @@ const models = require("../models");
  */
 const createHost = async (req, res) => {
   try {
-    const { customerRef, password, agencyId } = req.body;
+    const { customerRef, agencyId } = req.body;
 
-    if (!customerRef || !password || !agencyId) {
+    if (!customerRef || !agencyId) {
       return res.status(400).json({
         success: false,
-        message: "customerRef, password, and agencyId are required",
+        message: "customerRef and agencyId are required",
       });
     }
 
@@ -55,9 +54,6 @@ const createHost = async (req, res) => {
     const lastHost = await models.Host.findOne().sort({ hostId: -1 });
     const newHostId = lastHost ? lastHost.hostId + 1 : 10001;
 
-    // 🔹 Hash password
-    const passwordHash = await bcrypt.hash(password, 10);
-
     // 🔹 Create Host
     const newHost = await models.Host.create({
       customerRef,
@@ -65,7 +61,6 @@ const createHost = async (req, res) => {
       joinDate: new Date(),
       agencyId: agencyId || null,
       status: "active",
-      passwordHash,
     });
 
     await newHost.populate("customerRef");

@@ -29,9 +29,6 @@ const HostSchema = new mongoose.Schema(
       enum: ["active", "inactive", "left"],
       default: "active",
     },
-
-    // App-level fields (not present in Customer)
-    passwordHash: String,
   },
   { timestamps: true }
 );
