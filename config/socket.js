@@ -372,306 +372,297 @@ const configure = async (app, server) => {
     socket.on("sendGift", async (data) => {
       const { sender, receiver, giftId, count, qtyId } = data;
 
-      try {
-        console.log("📩 [sendGift] Incoming data:", data);
+      console.log(
+        "📩 [sendGift] Incoming data:",
+        data,
+        socket.data.userId,
+        socket.data.roomId
+      );
 
-        if (
-          socket.data.userId &&
-          socket.data.roomId &&
-          sender &&
-          receiver &&
-          giftId &&
-          qtyId
-        ) {
-          try {
-            const roomId = socket.data.roomId;
-            console.log("➡️ Using roomId:", roomId);
+      if (
+        socket.data.userId &&
+        socket.data.roomId &&
+        sender &&
+        receiver &&
+        giftId &&
+        qtyId
+      ) {
+        try {
+          const roomId = socket.data.roomId;
+          console.log("➡️ Using roomId:", roomId);
 
-            // ✅ Fetch quantity cashback
-            console.log("🔍 Fetching QuantityCashback by ID:", qtyId);
-            const quantityData = await models.QuantityCashback.findById(qtyId);
-            if (!quantityData) {
-              console.warn("❌ Invalid quantity ID:", qtyId);
-              io.to(sender).emit("errorMessage", {
-                success: false,
-                message: "Invalid quantity ID",
-              });
-              return;
-            }
-            const { quantity, cashbackAmount } = quantityData;
-            console.log("✅ Found QuantityCashback:", quantityData);
-
-            // ✅ Fetch gift
-            console.log("🔍 Fetching Gift by ID:", giftId);
-            const selectedGift = await models.Gift.findById(giftId).populate(
-              "categoryId"
-            );
-            if (!selectedGift) {
-              console.warn("❌ Gift not found:", giftId);
-              io.to(sender).emit("errorMessage", {
-                success: false,
-                message: "Gift not found",
-              });
-              return;
-            }
-            console.log("✅ Found Gift:", selectedGift.name);
-
-            const categoryName =
-              selectedGift.categoryId?.name?.toLowerCase() ||
-              selectedGift.categoryId?.toLowerCase();
-            const totalGiftDiamonds = selectedGift.diamonds * quantity;
-            console.log(
-              `🎁 Gift category: ${categoryName}, total diamonds required: ${totalGiftDiamonds}`
-            );
-
-            // ✅ Fetch customers (sender + receiver)
-            console.log("🔍 Fetching sender & receiver...");
-            const [senderC, receiverC] = await Promise.all([
-              models.Customer.findById(sender),
-              models.Customer.findById(receiver),
-            ]);
-
-            if (!senderC || !receiverC) {
-              console.warn("❌ Sender or receiver not found:", {
-                sender,
-                receiver,
-              });
-              io.to(sender).emit("errorMessage", {
-                success: false,
-                message: "Sender or receiver not found",
-              });
-              return;
-            }
-            console.log(
-              "✅ Sender:",
-              senderC.name,
-              "| Receiver:",
-              receiverC.name
-            );
-
-            // ✅ Diamond balance check
-            console.log("💎 Sender diamonds:", senderC.diamonds);
-            if (senderC.diamonds < totalGiftDiamonds) {
-              console.warn("❌ Not enough diamonds", {
-                available: senderC.diamonds,
-                required: totalGiftDiamonds,
-              });
-              io.to(sender).emit("errorMessage", {
-                success: false,
-                message: "Not enough diamonds to send this gift",
-                availableDiamonds: senderC.diamonds,
-                requiredDiamonds: totalGiftDiamonds,
-              });
-              return;
-            }
-
-            // 🎁 Surprise Gift Logic
-            let actualReceiverBeans = totalGiftDiamonds;
-            let senderCashback = 0;
-
-            if (categoryName === "surprise") {
-              console.log(
-                "🎲 Surprise gift detected, applying special logic..."
-              );
-              actualReceiverBeans = Math.floor(totalGiftDiamonds / 2);
-
-              const shouldGiveCashback = Math.random() < 0.3;
-              console.log(
-                `🎲 Cashback chance triggered: ${
-                  shouldGiveCashback ? "YES" : "NO"
-                }`
-              );
-
-              if (shouldGiveCashback) {
-                const now = new Date();
-                const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-
-                console.log(
-                  "📊 Aggregating GiftTransactions in last 5 mins..."
-                );
-                const transactions = await models.GiftTransaction.aggregate([
-                  {
-                    $match: {
-                      countryCode: senderC.countryCode,
-                      giftTime: { $gte: fiveMinutesAgo, $lte: now },
-                    },
-                  },
-                  {
-                    $group: {
-                      _id: null,
-                      totalDiamonds: { $sum: "$totalDiamonds" },
-                    },
-                  },
-                ]);
-
-                const recentTotal = transactions?.[0]?.totalDiamonds || 0;
-                const maxCashback = Math.floor(recentTotal * 0.1);
-                senderCashback = Math.floor(Math.random() * (maxCashback + 1));
-
-                console.log(
-                  `💰 Cashback granted: ${senderCashback} (Recent total: ${recentTotal}, Max: ${maxCashback})`
-                );
-              }
-            }
-
-            // ✅ Update sender balance
-            console.log("✏️ Updating sender balance...");
-            senderC.diamonds += senderCashback - totalGiftDiamonds;
-            senderC.usedDiamonds += totalGiftDiamonds;
-            senderC.xp = (
-              BigInt(senderC.xp) + BigInt(totalGiftDiamonds)
-            ).toString();
-            senderC.level = getUserLevel(BigInt(senderC.xp));
-            await senderC.save();
-            console.log("✅ Sender balance updated:", senderC.diamonds);
-
-            // ✅ Update receiver beans
-            console.log("✏️ Updating receiver beans...");
-            receiverC.beans += actualReceiverBeans;
-            await receiverC.save();
-            console.log("✅ Receiver beans updated:", receiverC.beans);
-
-            // ✅ Save SendGift + GiftTransaction + History
-            console.log("📝 Saving SendGift, GiftTransaction, and History...");
-            await Promise.all([
-              models.SendGift.create({
-                roomId,
-                sender,
-                receiver,
-                count: quantity,
-                gift: selectedGift,
-              }),
-              models.GiftTransaction.create({
-                sender,
-                receiver,
-                gift: selectedGift._id,
-                totalDiamonds: actualReceiverBeans,
-                countryCode: senderC.countryCode,
-                giftTime: new Date(),
-              }),
-              models.UserDiamondHistory.create([
-                {
-                  userId: sender,
-                  diamonds: totalGiftDiamonds,
-                  type: 1,
-                  uses: "Gift",
-                },
-                ...(senderCashback > 0
-                  ? [
-                      {
-                        userId: sender,
-                        diamonds: senderCashback,
-                        type: 2,
-                        uses: "Cashback Rewards",
-                      },
-                    ]
-                  : []),
-              ]),
-            ]);
-            console.log("✅ Transactions saved to DB");
-
-            // ✅ Update TreasureBox (room stats)
-            console.log("📦 Updating room treasure box stats...");
-            const room = await models.Room.findById(roomId);
-            const totalDiamondsUsed =
-              room.totalDiamondsUsed + totalGiftDiamonds;
-            room.diamondsUsedToday += totalGiftDiamonds;
-            room.diamondsUsedCurrentSeason += totalGiftDiamonds;
-            room.totalDiamondsUsed = totalDiamondsUsed;
-            room.treasureBoxLevel = getTreasureBoxLevel(room.diamondsUsedToday);
-            await room.save();
-            console.log("✅ Room updated:", {
-              treasureBoxLevel: room.treasureBoxLevel,
-              diamondsUsedToday: room.diamondsUsedToday,
-            });
-
-            // ✅ Emit sender updated data
-            console.log("📡 Emitting updated user data to sender...");
-            const userData = await models.Customer.findById(sender);
-            io.to(sender).emit("userDataUpdate", userData);
-
-            // ✅ Emit giftSent to all rooms in sender’s country
-            console.log("📡 Broadcasting giftSent to all country rooms...");
-            const allRooms = await models.Room.find(
-              { countryCode: senderC.countryCode },
-              { _id: 1 }
-            );
-
-            allRooms.forEach((r) => {
-              io.to(r._id.toString()).emit("giftSent", {
-                senderId: sender,
-                receiverId: receiver,
-                roomId,
-                roomName: room?.name || "",
-                roomImage: room?.roomImage || "",
-                senderName: senderC?.name || "",
-                senderProfileImage: senderC?.profileImage || "",
-                receiverName: receiverC?.name || "",
-                receiverProfileImage: receiverC?.profileImage || "",
-                giftId,
-                quantity,
-                receiverReceivedBeans: actualReceiverBeans,
-                senderReceivedCashbackDiamonds: senderCashback,
-                gift: {
-                  name: selectedGift.name,
-                  diamonds: selectedGift.diamonds,
-                  category: categoryName,
-                },
-              });
-            });
-
-            // ✅ Emit diamond update
-            console.log("📡 Emitting diamondUpdate to sender...");
-            io.to(sender).emit("diamondUpdate", {
-              userId: sender,
-              totalDiamonds: senderC.diamonds,
-              receivedCashbackDiamonds: senderCashback,
-            });
-
-            // ✅ Emit bean update
-            console.log("📡 Emitting beanUpdate to receiver...");
-            io.to(receiver).emit("beanUpdate", {
-              userId: receiver,
-              totalBeans: receiverC.beans,
-              receivedBeans: actualReceiverBeans,
-            });
-
-            // ✅ Emit treasure box update
-            console.log("📡 Emitting treasureBoxUpdate to room...");
-            io.to(roomId).emit("treasureBoxUpdate", {
-              diamondsUsedToday: room.diamondsUsedToday,
-              treasureBoxLevel: room.treasureBoxLevel,
-              totalDiamondsUsed: room.totalDiamondsUsed,
-              diamondsUsedCurrentSeason: room.diamondsUsedCurrentSeason,
-            });
-
-            // ✅ Emit giftUpdate
-            console.log("📡 Emitting giftUpdate to room...");
-            io.to(roomId).emit("giftUpdate", {
-              receiver,
-              giftId,
-              count,
-              sender,
-              points: selectedGift.diamonds,
-            });
-
-            console.log("✅ [sendGift] Event completed successfully!");
-          } catch (error) {
-            console.error("❌ Error in sendGift socket:", error);
+          // ✅ Fetch quantity cashback
+          console.log("🔍 Fetching QuantityCashback by ID:", qtyId);
+          const quantityData = await models.QuantityCashback.findById(qtyId);
+          if (!quantityData) {
+            console.warn("❌ Invalid quantity ID:", qtyId);
             io.to(sender).emit("errorMessage", {
               success: false,
-              message: "Internal server error",
-              error: error.message,
+              message: "Invalid quantity ID",
             });
+            return;
           }
+          const { quantity, cashbackAmount } = quantityData;
+          console.log("✅ Found QuantityCashback:", quantityData);
+
+          // ✅ Fetch gift
+          console.log("🔍 Fetching Gift by ID:", giftId);
+          const selectedGift = await models.Gift.findById(giftId).populate(
+            "categoryId"
+          );
+          if (!selectedGift) {
+            console.warn("❌ Gift not found:", giftId);
+            io.to(sender).emit("errorMessage", {
+              success: false,
+              message: "Gift not found",
+            });
+            return;
+          }
+          console.log("✅ Found Gift:", selectedGift.name);
+
+          const categoryName =
+            selectedGift.categoryId?.name?.toLowerCase() ||
+            selectedGift.categoryId?.toLowerCase();
+          const totalGiftDiamonds = selectedGift.diamonds * quantity;
+          console.log(
+            `🎁 Gift category: ${categoryName}, total diamonds required: ${totalGiftDiamonds}`
+          );
+
+          // ✅ Fetch customers (sender + receiver)
+          console.log("🔍 Fetching sender & receiver...");
+          const [senderC, receiverC] = await Promise.all([
+            models.Customer.findById(sender),
+            models.Customer.findById(receiver),
+          ]);
+
+          if (!senderC || !receiverC) {
+            console.warn("❌ Sender or receiver not found:", {
+              sender,
+              receiver,
+            });
+            io.to(sender).emit("errorMessage", {
+              success: false,
+              message: "Sender or receiver not found",
+            });
+            return;
+          }
+          console.log(
+            "✅ Sender:",
+            senderC.name,
+            "| Receiver:",
+            receiverC.name
+          );
+
+          // ✅ Diamond balance check
+          console.log("💎 Sender diamonds:", senderC.diamonds);
+          if (senderC.diamonds < totalGiftDiamonds) {
+            console.warn("❌ Not enough diamonds", {
+              available: senderC.diamonds,
+              required: totalGiftDiamonds,
+            });
+            io.to(sender).emit("errorMessage", {
+              success: false,
+              message: "Not enough diamonds to send this gift",
+              availableDiamonds: senderC.diamonds,
+              requiredDiamonds: totalGiftDiamonds,
+            });
+            return;
+          }
+
+          // 🎁 Surprise Gift Logic
+          let actualReceiverBeans = totalGiftDiamonds;
+          let senderCashback = 0;
+
+          if (categoryName === "surprise") {
+            console.log("🎲 Surprise gift detected, applying special logic...");
+            actualReceiverBeans = Math.floor(totalGiftDiamonds / 2);
+
+            const shouldGiveCashback = Math.random() < 0.3;
+            console.log(
+              `🎲 Cashback chance triggered: ${
+                shouldGiveCashback ? "YES" : "NO"
+              }`
+            );
+
+            if (shouldGiveCashback) {
+              const now = new Date();
+              const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+              console.log("📊 Aggregating GiftTransactions in last 5 mins...");
+              const transactions = await models.GiftTransaction.aggregate([
+                {
+                  $match: {
+                    countryCode: senderC.countryCode,
+                    giftTime: { $gte: fiveMinutesAgo, $lte: now },
+                  },
+                },
+                {
+                  $group: {
+                    _id: null,
+                    totalDiamonds: { $sum: "$totalDiamonds" },
+                  },
+                },
+              ]);
+
+              const recentTotal = transactions?.[0]?.totalDiamonds || 0;
+              const maxCashback = Math.floor(recentTotal * 0.1);
+              senderCashback = Math.floor(Math.random() * (maxCashback + 1));
+
+              console.log(
+                `💰 Cashback granted: ${senderCashback} (Recent total: ${recentTotal}, Max: ${maxCashback})`
+              );
+            }
+          }
+
+          // ✅ Update sender balance
+          console.log("✏️ Updating sender balance...");
+          senderC.diamonds += senderCashback - totalGiftDiamonds;
+          senderC.usedDiamonds += totalGiftDiamonds;
+          senderC.xp = (
+            BigInt(senderC.xp) + BigInt(totalGiftDiamonds)
+          ).toString();
+          senderC.level = getUserLevel(BigInt(senderC.xp));
+          await senderC.save();
+          console.log("✅ Sender balance updated:", senderC.diamonds);
+
+          // ✅ Update receiver beans
+          console.log("✏️ Updating receiver beans...");
+          receiverC.beans += actualReceiverBeans;
+          await receiverC.save();
+          console.log("✅ Receiver beans updated:", receiverC.beans);
+
+          // ✅ Save SendGift + GiftTransaction + History
+          console.log("📝 Saving SendGift, GiftTransaction, and History...");
+          await Promise.all([
+            models.SendGift.create({
+              roomId,
+              sender,
+              receiver,
+              count: quantity,
+              gift: selectedGift,
+            }),
+            models.GiftTransaction.create({
+              sender,
+              receiver,
+              gift: selectedGift._id,
+              totalDiamonds: actualReceiverBeans,
+              countryCode: senderC.countryCode,
+              giftTime: new Date(),
+            }),
+            models.UserDiamondHistory.create([
+              {
+                userId: sender,
+                diamonds: totalGiftDiamonds,
+                type: 1,
+                uses: "Gift",
+              },
+              ...(senderCashback > 0
+                ? [
+                    {
+                      userId: sender,
+                      diamonds: senderCashback,
+                      type: 2,
+                      uses: "Cashback Rewards",
+                    },
+                  ]
+                : []),
+            ]),
+          ]);
+          console.log("✅ Transactions saved to DB");
+
+          // ✅ Update TreasureBox (room stats)
+          console.log("📦 Updating room treasure box stats...");
+          const room = await models.Room.findById(roomId);
+          const totalDiamondsUsed = room.totalDiamondsUsed + totalGiftDiamonds;
+          room.diamondsUsedToday += totalGiftDiamonds;
+          room.diamondsUsedCurrentSeason += totalGiftDiamonds;
+          room.totalDiamondsUsed = totalDiamondsUsed;
+          room.treasureBoxLevel = getTreasureBoxLevel(room.diamondsUsedToday);
+          await room.save();
+          console.log("✅ Room updated:", {
+            treasureBoxLevel: room.treasureBoxLevel,
+            diamondsUsedToday: room.diamondsUsedToday,
+          });
+
+          // ✅ Emit sender updated data
+          console.log("📡 Emitting updated user data to sender...");
+          const userData = await models.Customer.findById(socket.data.userId);
+          io.to(socket.data.userId).emit("userDataUpdate", userData);
+
+          // ✅ Emit giftSent to all rooms in sender’s country
+          console.log("📡 Broadcasting giftSent to all country rooms...");
+          const allRooms = await models.Room.find(
+            { countryCode: senderC.countryCode },
+            { _id: 1 }
+          );
+
+          allRooms.forEach((r) => {
+            io.to(r._id.toString()).emit("giftSent", {
+              senderId: sender,
+              receiverId: receiver,
+              roomId,
+              roomName: room?.name || "",
+              roomImage: room?.roomImage || "",
+              senderName: senderC?.name || "",
+              senderProfileImage: senderC?.profileImage || "",
+              receiverName: receiverC?.name || "",
+              receiverProfileImage: receiverC?.profileImage || "",
+              giftId,
+              quantity,
+              receiverReceivedBeans: actualReceiverBeans,
+              senderReceivedCashbackDiamonds: senderCashback,
+              gift: {
+                name: selectedGift.name,
+                diamonds: selectedGift.diamonds,
+                category: categoryName,
+              },
+            });
+          });
+
+          // ✅ Emit diamond update
+          console.log("📡 Emitting diamondUpdate to sender...");
+          io.to(sender).emit("diamondUpdate", {
+            userId: sender,
+            totalDiamonds: senderC.diamonds,
+            receivedCashbackDiamonds: senderCashback,
+          });
+
+          // ✅ Emit bean update
+          console.log("📡 Emitting beanUpdate to receiver...");
+          io.to(receiver).emit("beanUpdate", {
+            userId: receiver,
+            totalBeans: receiverC.beans,
+            receivedBeans: actualReceiverBeans,
+          });
+
+          // ✅ Emit treasure box update
+          console.log("📡 Emitting treasureBoxUpdate to room...");
+          io.to(roomId).emit("treasureBoxUpdate", {
+            diamondsUsedToday: room.diamondsUsedToday,
+            treasureBoxLevel: room.treasureBoxLevel,
+            totalDiamondsUsed: room.totalDiamondsUsed,
+            diamondsUsedCurrentSeason: room.diamondsUsedCurrentSeason,
+          });
+
+          // ✅ Emit giftUpdate
+          console.log("📡 Emitting giftUpdate to room...");
+          io.to(roomId).emit("giftUpdate", {
+            receiver,
+            giftId,
+            count,
+            sender,
+            points: selectedGift.diamonds,
+          });
+
+          console.log("✅ [sendGift] Event completed successfully!");
+        } catch (error) {
+          console.error("❌ Error in sendGift socket:", error);
+          io.to(sender).emit("errorMessage", {
+            success: false,
+            message: "Internal server error",
+            error: error.message,
+          });
         }
-      } catch (error) {
-        console.error("❌ Error in sendGift socket:", error);
-        io.to(sender).emit("errorMessage", {
-          success: false,
-          message: "Internal server error",
-          error: error.message,
-        });
       }
     });
   });
