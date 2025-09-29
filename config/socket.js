@@ -532,6 +532,10 @@ const configure = async (app, server) => {
           room.treasureBoxLevel = getTreasureBoxLevel(room.diamondsUsedToday);
           await room.save();
 
+          const userData = await models.Customer.findById(sender);
+
+          io.to(sender).emit("userDataUpdate", userData);
+
           // ✅ Emit Events
           const allRooms = await models.Room.find(
             { countryCode: senderC.countryCode },
@@ -578,6 +582,14 @@ const configure = async (app, server) => {
             treasureBoxLevel: room.treasureBoxLevel,
             totalDiamondsUsed: room.totalDiamondsUsed,
             diamondsUsedCurrentSeason: room.diamondsUsedCurrentSeason,
+          });
+
+          io.to(roomId).emit("giftUpdate", {
+            receiver,
+            giftId,
+            count,
+            sender,
+            points: selectedGift.diamonds,
           });
         } catch (error) {
           console.error("Error in sendGift socket:", error);
