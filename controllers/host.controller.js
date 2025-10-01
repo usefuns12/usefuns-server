@@ -116,7 +116,7 @@ const getAllHosts = async (req, res) => {
  * Get Host Details by ID
  * -------------------------------
  * Params:
- *   - id → MongoDB _id or hostId
+ *   - id → MongoDB _id
  */
 const getHostDetails = async (req, res) => {
   try {
@@ -125,14 +125,12 @@ const getHostDetails = async (req, res) => {
     let host;
     if (mongoose.isValidObjectId(id)) {
       host = await models.Host.findById(id)
-        .populate("customerRef")
-        .populate("agencyId")
-        .populate("roomId");
+        .populate("customerRef", "name") // only fetch 'name' from customer
+        .populate("agencyId", "name"); // only fetch 'name' from agency
     } else {
       host = await models.Host.findOne({ hostId: id })
-        .populate("customerRef")
-        .populate("agencyId")
-        .populate("roomId");
+        .populate("customerRef", "name")
+        .populate("agencyId", "name");
     }
 
     if (!host) {
@@ -142,9 +140,17 @@ const getHostDetails = async (req, res) => {
       });
     }
 
+    // ✅ Format clean response
+    const responseData = {
+      hostName: host.customerRef?.name || null,
+      agencyId: host.agencyId?._id || null,
+      agencyName: host.agencyId?.name || null,
+      joinDate: host.joinDate,
+    };
+
     return res.status(200).json({
       success: true,
-      data: host,
+      data: responseData,
     });
   } catch (error) {
     console.error("Error fetching host details:", error);
