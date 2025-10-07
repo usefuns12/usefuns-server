@@ -25,10 +25,22 @@ router.get("/:id", hostController.getHostDetails);
 // Get all requests (agencyId/hostId/status as query params)
 router.get("/requests", hostController.getAllRequests);
 
-// Accept Invitation
-router.put("/request/:requestId/accept", hostController.acceptInvitation);
+// Customer sends request to agency
+router.post("/request/from-customer", hostController.sendRequestFromCustomer);
 
-// Reject Invitation
-router.put("/request/:requestId/reject", hostController.rejectInvitation);
+// Agency accepts/rejects customer request
+router.put(
+  "/request/:requestId/agency-action",
+  hostController.acceptOrRejectRequestByAgency
+);
+
+// Agency sends request to customer
+router.post("/request/from-agency", hostController.sendRequestFromAgency);
+
+// Customer accepts/rejects agency request
+router.put(
+  "/request/:requestId/customer-action",
+  hostController.acceptOrRejectRequestByCustomer
+);
 
 module.exports = router;

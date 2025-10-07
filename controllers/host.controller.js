@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const models = require("../models");
+const mongoose = require("mongoose");
 
 /**
  * Create a new Host
@@ -192,75 +193,97 @@ const getAllRequests = async (req, res) => {
 };
 
 /**
- * Accept Invitation
- * -------------------------------
- * Updates request status → accepted
- * Also links Host with Agency
+ * 1️⃣ Send Request from Customer → Agency
+ * ----------------------------------------
+ * Body:
+ *   - customerId
+ *   - agencyId
+ *   - message (optional)
  */
-const acceptInvitation = async (req, res) => {
+const sendRequestFromCustomer = async (req, res) => {
   try {
-    const { requestId } = req.params;
+    const { customerId, agencyId, message } = req.body;
 
-    const request = await models.JoinRequest.findById(requestId);
-    if (!request) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Request not found" });
-    }
-
-    if (request.status !== "pending") {
+    if (!customerId || !agencyId) {
       return res.status(400).json({
         success: false,
-        message: "Request already processed",
+        message: "customerId and agencyId are required",
       });
     }
 
-    // Update request
-    request.status = "accepted";
-    await request.save();
-
-    // Link host to agency
-    const host = await models.Host.findById(request.toHostId);
-    if (!host) {
+    // 🔹 Validate Customer & Agency
+    const customer = await models.Customer.findById(customerId);
+    if (!customer)
       return res
         .status(404)
-        .json({ success: false, message: "Host not found" });
+        .json({ success: false, message: "Customer not found" });
+
+    const agency = await models.Agency.findById(agencyId);
+    if (!agency)
+      return res
+        .status(404)
+        .json({ success: false, message: "Agency not found" });
+
+    // 🔹 Check if existing pending/accepted request exists
+    const existing = await models.JoinRequest.findOne({
+      type: "fromCustomer",
+      customerId,
+      agencyId,
+      status: { $in: ["pending", "accepted"] },
+    });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "Request already sent or approved",
+      });
     }
 
-    host.agencyId = request.fromAgencyId;
-    await host.save();
-
-    // Update agency stats
-    await models.Agency.findByIdAndUpdate(request.fromAgencyId, {
-      $addToSet: { hosts: host._id },
-      $inc: { "stats.totalHosts": 1, "stats.activeHosts": 1 },
+    // 🔹 Create Join Request
+    const joinRequest = await models.JoinRequest.create({
+      type: "fromCustomer",
+      customerId,
+      agencyId,
+      message,
+      status: "pending",
     });
 
-    res.status(200).json({
+    res.status(201).json({
       success: true,
-      message: "Invitation accepted, host added to agency",
-      data: request,
+      message: "Request sent successfully",
+      data: joinRequest,
     });
   } catch (error) {
-    console.error("Error accepting invitation:", error);
+    console.error("Error sending request:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
 
 /**
- * Reject Invitation
- * -------------------------------
- * Updates request status → rejected
+ * 2️⃣ Accept / Reject Request by Agency
+ * ----------------------------------------
+ * Params:
+ *   - requestId
+ * Body:
+ *   - status: 'accepted' | 'rejected'
  */
-const rejectInvitation = async (req, res) => {
+const acceptOrRejectRequestByAgency = async (req, res) => {
   try {
     const { requestId } = req.params;
+    const { status } = req.body;
+
+    if (!["accepted", "rejected"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status. Must be 'accepted' or 'rejected'",
+      });
+    }
 
     const request = await models.JoinRequest.findById(requestId);
     if (!request) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Request not found" });
+      return res.status(404).json({
+        success: false,
+        message: "Join request not found",
+      });
     }
 
     if (request.status !== "pending") {
@@ -270,16 +293,174 @@ const rejectInvitation = async (req, res) => {
       });
     }
 
-    request.status = "rejected";
+    // 🔹 Update request status
+    request.status = status;
     await request.save();
+
+    // ✅ If accepted, create Host entry
+    if (status === "accepted") {
+      const existingHost = await models.Host.findOne({
+        customerRef: request.customerId,
+      });
+      if (!existingHost) {
+        const lastHost = await models.Host.findOne().sort({ hostId: -1 });
+        const newHostId = lastHost ? lastHost.hostId + 1 : 10001;
+
+        const newHost = await models.Host.create({
+          customerRef: request.customerId,
+          hostId: newHostId,
+          agencyId: request.agencyId,
+          joinDate: new Date(),
+          status: "active",
+        });
+
+        await newHost.populate("customerRef", "name");
+      }
+    }
 
     res.status(200).json({
       success: true,
-      message: "Invitation rejected",
+      message: `Request ${status} successfully`,
       data: request,
     });
   } catch (error) {
-    console.error("Error rejecting invitation:", error);
+    console.error("Error updating request:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * 3️⃣ Send Request from Agency → Customer
+ * ----------------------------------------
+ * Body:
+ *   - agencyId
+ *   - customerId
+ *   - message (optional)
+ */
+const sendRequestFromAgency = async (req, res) => {
+  try {
+    const { agencyId, customerId, message } = req.body;
+
+    if (!agencyId || !customerId) {
+      return res.status(400).json({
+        success: false,
+        message: "agencyId and customerId are required",
+      });
+    }
+
+    // 🔹 Validate Agency & Customer
+    const agency = await models.Agency.findById(agencyId);
+    if (!agency)
+      return res
+        .status(404)
+        .json({ success: false, message: "Agency not found" });
+
+    const customer = await models.Customer.findById(customerId);
+    if (!customer)
+      return res
+        .status(404)
+        .json({ success: false, message: "Customer not found" });
+
+    // 🔹 Prevent duplicate/pending requests
+    const existing = await models.JoinRequest.findOne({
+      type: "fromAgency",
+      agencyId,
+      customerId,
+      status: { $in: ["pending", "accepted"] },
+    });
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "Request already sent or approved",
+      });
+    }
+
+    // 🔹 Create new join request
+    const joinRequest = await models.JoinRequest.create({
+      type: "fromAgency",
+      agencyId,
+      customerId,
+      message,
+      status: "pending",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Request sent successfully",
+      data: joinRequest,
+    });
+  } catch (error) {
+    console.error("Error sending request:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * 4️⃣ Accept / Reject Request by Customer
+ * ----------------------------------------
+ * Params:
+ *   - requestId
+ * Body:
+ *   - status: 'accepted' | 'rejected'
+ */
+const acceptOrRejectRequestByCustomer = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { status } = req.body;
+
+    if (!["accepted", "rejected"].includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status. Must be 'accepted' or 'rejected'",
+      });
+    }
+
+    const request = await models.JoinRequest.findById(requestId);
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Join request not found",
+      });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Request already processed",
+      });
+    }
+
+    request.status = status;
+    await request.save();
+
+    // ✅ If accepted, create Host
+    if (status === "accepted") {
+      const existingHost = await models.Host.findOne({
+        customerRef: request.customerId,
+      });
+      if (!existingHost) {
+        const lastHost = await models.Host.findOne().sort({ hostId: -1 });
+        const newHostId = lastHost ? lastHost.hostId + 1 : 10001;
+
+        const newHost = await models.Host.create({
+          customerRef: request.customerId,
+          hostId: newHostId,
+          agencyId: request.agencyId,
+          joinDate: new Date(),
+          status: "active",
+        });
+
+        await newHost.populate("customerRef", "name");
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Request ${status} successfully`,
+      data: request,
+    });
+  } catch (error) {
+    console.error("Error updating request:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -289,6 +470,8 @@ module.exports = {
   getAllHosts,
   getHostDetails,
   getAllRequests,
-  acceptInvitation,
-  rejectInvitation,
+  sendRequestFromCustomer,
+  acceptOrRejectRequestByAgency,
+  sendRequestFromAgency,
+  acceptOrRejectRequestByCustomer,
 };
