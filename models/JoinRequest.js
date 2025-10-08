@@ -4,7 +4,7 @@ const JoinRequestSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["fromAgency", "fromCustomer"],
+      enum: ["fromAgency", "fromCustomer", "leftRequest"],
       required: true,
     },
     agencyId: {

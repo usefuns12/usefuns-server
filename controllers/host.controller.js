@@ -465,13 +465,157 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
   }
 };
 
+const sendLeftAgencyRequest = async (req, res) => {
+  try {
+    const { hostId, message } = req.body;
+
+    if (!hostId) {
+      return res.status(400).json({
+        success: false,
+        message: "hostId is required",
+      });
+    }
+
+    // ✅ Find host
+    const host = await models.Host.findById(hostId).populate("agencyId");
+    if (!host) {
+      return res.status(404).json({
+        success: false,
+        message: "Host not found",
+      });
+    }
+
+    if (!host.agencyId) {
+      return res.status(400).json({
+        success: false,
+        message: "Host is not assigned to any agency",
+      });
+    }
+
+    // ✅ Prevent duplicate left requests
+    const existing = await models.JoinRequest.findOne({
+      type: "leftRequest",
+      toHostId: host._id,
+      fromAgencyId: host.agencyId._id,
+      status: "pending",
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: "A leave request is already pending for this host",
+      });
+    }
+
+    // ✅ Create new left request
+    const newReq = await models.JoinRequest.create({
+      type: "leftRequest",
+      fromAgencyId: host.agencyId._id,
+      toHostId: host._id,
+      status: "pending",
+      message: message || "Request to leave the agency",
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Left agency request sent successfully",
+      data: newReq,
+    });
+  } catch (error) {
+    console.error("Error creating left agency request:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const respondToLeftRequest = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { action } = req.body; // 'accept' or 'reject'
+
+    if (!["accept", "reject"].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid action, must be 'accept' or 'reject'",
+      });
+    }
+
+    // ✅ Find request
+    const request = await models.JoinRequest.findById(requestId)
+      .populate("toHostId")
+      .populate("fromAgencyId");
+
+    if (!request) {
+      return res.status(404).json({
+        success: false,
+        message: "Request not found",
+      });
+    }
+
+    if (request.type !== "leftRequest") {
+      return res.status(400).json({
+        success: false,
+        message: "This request is not a left agency request",
+      });
+    }
+
+    if (request.status !== "pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Request has already been processed",
+      });
+    }
+
+    if (action === "reject") {
+      request.status = "rejected";
+      await request.save();
+
+      return res.status(200).json({
+        success: true,
+        message: "Left agency request rejected",
+      });
+    }
+
+    // ✅ Accept: Delete host and unassign from agency
+    const host = await models.Host.findById(request.toHostId._id);
+    if (!host) {
+      return res.status(404).json({
+        success: false,
+        message: "Host not found",
+      });
+    }
+
+    // Delete host record
+    await models.Host.findByIdAndDelete(host._id);
+
+    // Update request status
+    request.status = "accepted";
+    await request.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Left agency request accepted, host unassigned and removed",
+    });
+  } catch (error) {
+    console.error("Error responding to left agency request:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createHost,
   getAllHosts,
   getHostDetails,
+  sendLeftAgencyRequest,
   getAllRequests,
   sendRequestFromCustomer,
   acceptOrRejectRequestByAgency,
   sendRequestFromAgency,
   acceptOrRejectRequestByCustomer,
+  respondToLeftRequest,
 };

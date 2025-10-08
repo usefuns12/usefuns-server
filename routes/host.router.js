@@ -43,4 +43,7 @@ router.put(
   hostController.acceptOrRejectRequestByCustomer
 );
 
+router.post("/leave-agency", hostController.sendLeftAgencyRequest);
+router.put("/left-request/:requestId", hostController.respondToLeftRequest);
+
 module.exports = router;
