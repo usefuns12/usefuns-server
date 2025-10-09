@@ -640,9 +640,7 @@ const deleteHost = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Host ${
-        host.customerRef || hostId
-      } deleted and unassigned from agency.`,
+      message: `Host deleted and unassigned from agency.`,
     });
   } catch (error) {
     console.error("Error deleting host:", error);
