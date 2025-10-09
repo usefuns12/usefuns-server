@@ -46,4 +46,6 @@ router.put(
 router.post("/leave-agency", hostController.sendLeftAgencyRequest);
 router.put("/left-request/:requestId", hostController.respondToLeftRequest);
 
+router.delete("/:hostId", hostController.deleteHost);
+
 module.exports = router;

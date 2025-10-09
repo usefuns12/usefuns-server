@@ -607,6 +607,52 @@ const respondToLeftRequest = async (req, res) => {
   }
 };
 
+const deleteHost = async (req, res) => {
+  try {
+    const { hostId } = req.params;
+
+    if (!hostId) {
+      return res.status(400).json({
+        success: false,
+        message: "hostId is required",
+      });
+    }
+
+    // ✅ Check if host exists
+    const host = await models.Host.findById(hostId).populate("agencyId");
+    if (!host) {
+      return res.status(404).json({
+        success: false,
+        message: "Host not found",
+      });
+    }
+
+    // ✅ Delete the host
+    await models.Host.findByIdAndDelete(hostId);
+
+    // ✅ (Optional) Unassign logic — if you store host references in Agency model
+    if (host.agencyId) {
+      await models.Agency.updateOne(
+        { _id: host.agencyId },
+        { $pull: { hosts: host._id } } // remove reference if stored
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `Host ${
+        host.customerRef || hostId
+      } deleted and unassigned from agency.`,
+    });
+  } catch (error) {
+    console.error("Error deleting host:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createHost,
   getAllHosts,
@@ -618,4 +664,5 @@ module.exports = {
   sendRequestFromAgency,
   acceptOrRejectRequestByCustomer,
   respondToLeftRequest,
+  deleteHost,
 };
