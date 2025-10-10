@@ -16,6 +16,7 @@ const roleRoutes = require("./role.router");
 const userRoutes = require("./user.router");
 const agencyRoutes = require("./agency.router");
 const hostRoutes = require("./host.router");
+const userAuthRoutes = require("./auth.router");
 
 const express = require("express");
 const { constants } = require("crypto");
@@ -41,5 +42,6 @@ router.use("/roles", roleRoutes);
 router.use("/users", userRoutes);
 router.use("/agencies", agencyRoutes);
 router.use("/hosts", hostRoutes);
+router.use("/auth", userAuthRoutes);
 
 module.exports = router;
