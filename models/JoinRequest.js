@@ -12,7 +12,14 @@ const JoinRequestSchema = new mongoose.Schema(
       ref: "Agency",
       required: true,
     },
-    customerId: { type: mongoose.Schema.Types.ObjectId, ref: "customers" },
+    customerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "customers",
+    },
+    hostId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Host",
+    },
     message: String,
     status: {
       type: String,

@@ -476,7 +476,7 @@ const sendLeftAgencyRequest = async (req, res) => {
       });
     }
 
-    // ✅ Find host
+    // 🔹 Find host and its agency
     const host = await models.Host.findById(hostId).populate("agencyId");
     if (!host) {
       return res.status(404).json({
@@ -492,11 +492,11 @@ const sendLeftAgencyRequest = async (req, res) => {
       });
     }
 
-    // ✅ Prevent duplicate left requests
+    // 🔹 Prevent duplicate left requests
     const existing = await models.JoinRequest.findOne({
       type: "leftRequest",
-      toHostId: host._id,
-      fromAgencyId: host.agencyId._id,
+      hostId: host._id,
+      agencyId: host.agencyId._id,
       status: "pending",
     });
 
@@ -507,12 +507,11 @@ const sendLeftAgencyRequest = async (req, res) => {
       });
     }
 
-    // ✅ Create new left request
+    // 🔹 Create new left request
     const newReq = await models.JoinRequest.create({
       type: "leftRequest",
-      fromAgencyId: host.agencyId._id,
-      toHostId: host._id,
-      status: "pending",
+      agencyId: host.agencyId._id,
+      hostId: host._id,
       message: message || "Request to leave the agency",
     });
 
