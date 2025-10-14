@@ -504,6 +504,7 @@ const sendLeftAgencyRequest = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "A leave request is already pending for this host",
+        status: existing.status,
       });
     }
 
