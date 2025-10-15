@@ -141,12 +141,26 @@ const getHostDetails = async (req, res) => {
       });
     }
 
+    const leftRequest = await models.JoinRequest.findOne({
+      type: "leftRequest",
+      hostId: host._id,
+      status: "pending",
+    });
+
+    if (leftRequest) {
+      host = host.toObject();
+      host.leftRequestStatus = leftRequest.status;
+      host.leftRequestId = leftRequest._id;
+    }
+
     // ✅ Format clean response
     const responseData = {
       hostName: host.customerRef?.name || null,
       agencyId: host.agencyId?._id || null,
       agencyName: host.agencyId?.name || null,
       joinDate: host.joinDate,
+      leftRequestStatus: host.leftRequestStatus || null,
+      leftRequestId: host.leftRequestId || null,
     };
 
     return res.status(200).json({
