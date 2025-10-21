@@ -5,9 +5,9 @@ const { generateToken } = require("../utils/jwt");
 // 🔹 User Login
 const login = async (req, res) => {
   try {
-    const { customerEmail, password } = req.body;
+    const { email, password } = req.body;
 
-    if (!customerEmail || !password) {
+    if (!email || !password) {
       return res.status(400).json({
         success: false,
         message: "Email and password are required",
@@ -15,7 +15,7 @@ const login = async (req, res) => {
     }
 
     // 🔹 Find customer by email
-    const customer = await models.Customer.findOne({ email: customerEmail });
+    const customer = await models.Customer.findOne({ email: email });
     if (!customer) {
       return res.status(404).json({
         success: false,
