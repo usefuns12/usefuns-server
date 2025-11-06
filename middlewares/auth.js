@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const models = require("../models");
+const { verifyToken } = require("../utils/jwt");
 const logger = require("../classes").Logger(__filename);
 
 const authCustomer = async (req, res, next) => {
