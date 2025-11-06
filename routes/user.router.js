@@ -17,6 +17,7 @@
 const express = require("express");
 const userController = require("../controllers/user.controller");
 const middleware = require("../middlewares");
+const { userAuth } = require("../middlewares/auth");
 
 const router = express.Router();
 
@@ -51,6 +52,9 @@ router.post(
 
 // ✅ Get user details by ID
 router.get("/:id", userController.getUserDetails);
+
+// ✅ Get user details by token
+router.get("/", userAuth, userController.getUserDetailsByToken);
 
 // ✅ Update user details
 router.put(

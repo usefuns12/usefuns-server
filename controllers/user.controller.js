@@ -121,6 +121,41 @@ const getUserDetails = async (req, res) => {
   }
 };
 
+// Get User Details by token
+const getUserDetailsByToken = async (req, res) => {
+  try {
+    const id = req.user._id;
+
+    if (!id) {
+      return res
+        .status(400)
+        .json({ success: false, message: "User ID is required" });
+    }
+
+    // 🔹 Find user by ID and populate relations
+    const user = await models.User.findById(id)
+      .populate("customerRef") // auto user profile from customers
+      .populate("role") // role details
+      .populate("parents") // parent users
+      .populate("children") // child users
+      .populate("ownedAgencies"); // owned agencies
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: user,
+    });
+  } catch (error) {
+    console.error("Error fetching user details:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ✅ Get all users by role name
 const getAllUsersByRole = async (req, res) => {
   try {
@@ -356,4 +391,5 @@ module.exports = {
   getAllUsersByRole,
   getAllCountryAdminsByManager,
   getAllAdminsByCountryAdmin,
+  getUserDetailsByToken,
 };
