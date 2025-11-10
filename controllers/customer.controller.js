@@ -1000,7 +1000,7 @@ const deletePost = async (req, res) => {
       { projection: { image: 1 } }
     );
 
-    if (result) {
+    if (!result) {
       res.status(400).json({ success: false, message: "Post not found." });
       if (result.image) {
         cleanupS3Files(result.image);
