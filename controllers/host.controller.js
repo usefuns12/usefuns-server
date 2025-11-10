@@ -64,7 +64,14 @@ const createHost = async (req, res) => {
       status: "active",
     });
 
+    const agencyUpdate = await models.Agency.findByIdAndUpdate(
+      agencyId,
+      { $push: { hosts: newHost._id } },
+      { new: true }
+    );
+
     await newHost.populate("customerRef");
+    await newHost.populate("agencyId");
 
     return res.status(201).json({
       success: true,

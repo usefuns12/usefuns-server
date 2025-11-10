@@ -8,6 +8,11 @@ const HostSchema = new mongoose.Schema(
       ref: "customers",
       required: true, // enforce relation
     },
+    hostId: {
+      type: String,
+      required: true,
+      unique: true,
+    },
     joinDate: {
       type: Date,
       default: Date.now,
