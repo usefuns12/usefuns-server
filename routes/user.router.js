@@ -28,6 +28,12 @@ router.get(
   userController.getAllUsersByRole
 );
 
+router.get(
+  "/get-by-role-and-parent",
+  userAuth,
+  userController.getAllUsersByRoleAndParentId
+);
+
 // ✅ Get all Country Admins by countryManagerId
 router.get(
   "/get-country-admins",

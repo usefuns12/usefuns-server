@@ -200,6 +200,63 @@ const getAllUsersByRole = async (req, res) => {
   }
 };
 
+// ✅ Get all users by role AND parent user ID
+const getAllUsersByRoleAndParentId = async (req, res) => {
+  try {
+    let { role, parentId } = req.query;
+
+    if (!parentId) {
+      parentId = req.user?._id; // assumes userAuth middleware populates req.user
+    }
+
+    if (!parentId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: Parent user not found in token.",
+      });
+    }
+
+    if (!role) {
+      return res.status(400).json({
+        success: false,
+        message: "Role is required in query parameters.",
+      });
+    }
+
+    // 🔹 Find role by name
+    const roleDoc = await models.Role.findOne({ name: role });
+    if (!roleDoc) {
+      return res.status(404).json({
+        success: false,
+        message: `Role '${role}' not found.`,
+      });
+    }
+
+    // 🔹 Find users with given role AND where 'parents' array contains parentId
+    const users = await models.User.find({
+      role: roleDoc._id,
+      parents: parentId,
+    })
+      .populate("customerRef")
+      .populate("role")
+      .populate("parents")
+      .populate("children")
+      .populate("ownedAgencies");
+
+    return res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users,
+    });
+  } catch (error) {
+    console.error("Error fetching users by role and parentId:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 // ✅ Get all Country Admin users by countryManagerId
 const getAllCountryAdminsByManager = async (req, res) => {
   try {
@@ -392,4 +449,5 @@ module.exports = {
   getAllCountryAdminsByManager,
   getAllAdminsByCountryAdmin,
   getUserDetailsByToken,
+  getAllUsersByRoleAndParentId,
 };

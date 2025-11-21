@@ -854,65 +854,92 @@ const getPostsPagination = async (req, res) => {
 
   try {
     const pipeline = [
+      { $match: {} },
+
+      // 1️⃣ Populate createdBy → new field: customers
       {
-        $match: {},
+        $lookup: {
+          from: "customers",
+          localField: "createdBy",
+          foreignField: "_id",
+          as: "customers",
+        },
       },
+
+      // Convert to single object instead of array
+      {
+        $unwind: {
+          path: "$customers",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // 2️⃣ Populate comments
       {
         $lookup: {
           from: "comments",
-          foreignField: "postId",
           localField: "_id",
+          foreignField: "postId",
           as: "comments",
         },
       },
+
+      // 3️⃣ Populate users who commented
       {
         $lookup: {
           from: "customers",
-          foreignField: "_id",
           localField: "comments.userId",
-          as: "commented.userDetails",
+          foreignField: "_id",
+          as: "commentedUserDetails",
         },
       },
+
+      // 4️⃣ Populate likes
       {
         $lookup: {
           from: "likes",
-          foreignField: "postId",
           localField: "_id",
+          foreignField: "postId",
           as: "likes",
         },
       },
+
+      // 5️⃣ Populate users who liked
       {
         $lookup: {
           from: "customers",
-          foreignField: "_id",
           localField: "likes.userId",
-          as: "like.userDetails",
+          foreignField: "_id",
+          as: "likedUserDetails",
         },
       },
+
+      // 6️⃣ Clean unwanted keys
       {
         $project: {
           commented: 0,
           like: 0,
         },
       },
-      {
-        $sort: { createdAt: -1 }, // Sort by createdAt field in descending order (latest first)
-      },
-      {
-        $skip: skip,
-      },
-      {
-        $limit: limit,
-      },
+
+      { $sort: { createdAt: -1 } },
+      { $skip: skip },
+      { $limit: limit },
     ];
 
-    const posts = await models.Posts.aggregate(pipeline).limit(20);
-    return res
-      .status(200)
-      .json({ success: true, message: `user post details`, data: posts });
+    const posts = await models.Posts.aggregate(pipeline);
+
+    return res.status(200).json({
+      success: true,
+      message: "user post details",
+      data: posts,
+    });
   } catch (error) {
     logger.error(error);
-    return res.status(400).json({ success: false, message: error.message });
+    return res.status(400).json({
+      success: false,
+      message: error.message,
+    });
   }
 };
 
@@ -1783,6 +1810,24 @@ const getFollowingUsers = async (req, res) => {
       {
         $match: { createdBy: { $in: followingUserIds } },
       },
+
+      // 1️⃣ Populate createdBy → "customers"
+      {
+        $lookup: {
+          from: "customers",
+          localField: "createdBy",
+          foreignField: "_id",
+          as: "customers",
+        },
+      },
+      {
+        $unwind: {
+          path: "$customers",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+
+      // 2️⃣ Fetch comments
       {
         $lookup: {
           from: "comments",
@@ -1791,14 +1836,18 @@ const getFollowingUsers = async (req, res) => {
           as: "comments",
         },
       },
+
+      // 3️⃣ Fetch user details for comments
       {
         $lookup: {
           from: "customers",
           localField: "comments.userId",
           foreignField: "_id",
-          as: "commented.userDetails",
+          as: "commentedUserDetails",
         },
       },
+
+      // 4️⃣ Fetch likes
       {
         $lookup: {
           from: "likes",
@@ -1807,34 +1856,40 @@ const getFollowingUsers = async (req, res) => {
           as: "likes",
         },
       },
+
+      // 5️⃣ Fetch user details for likes
       {
         $lookup: {
           from: "customers",
           localField: "likes.userId",
           foreignField: "_id",
-          as: "like.userDetails",
+          as: "likedUserDetails",
         },
       },
+
+      // Clean unwanted internals
       {
         $project: {
           commented: 0,
           like: 0,
         },
       },
-      {
-        $sort: { createdAt: -1 }, // Sort in descending order
-      },
+
+      { $sort: { createdAt: -1 } },
       { $skip: skip },
       { $limit: limit },
     ];
 
     const posts = await models.Posts.aggregate(pipeline);
-    return res
-      .status(200)
-      .json({ success: true, message: "User post details", data: posts });
+
+    return res.status(200).json({
+      success: true,
+      message: "User post details",
+      data: posts,
+    });
   } catch (error) {
     logger.error(error);
-    res.status(400).json({ success: false, message: error.message });
+    return res.status(400).json({ success: false, message: error.message });
   }
 };
 
