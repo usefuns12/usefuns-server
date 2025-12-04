@@ -332,49 +332,61 @@ customerSchema.methods.generateAuthToken = async function () {
 };
 
 customerSchema.statics.loginMobile = async function (mobile) {
-  const customer = await this.findOne({
-    mobile: mobile,
-  });
+  try {
+    const customer = await this.findOne({
+      mobile: mobile,
+    });
 
-  if (!customer) {
-    throw new Error("Invalid credentials.");
+    if (!customer) {
+      throw new Error("Invalid credentials.");
+    }
+
+    if (!customer.isActiveUser) {
+      throw new Error("Your account has been banned.");
+    }
+
+    return customer;
+  } catch (error) {
+    return Promise.reject(error);
   }
-
-  if (!customer.isActiveUser) {
-    throw new Error("Your account has been banned.");
-  }
-
-  return customer;
 };
 
 customerSchema.statics.loginEmail = async function (email) {
-  const customer = await this.findOne({
-    email: email,
-  });
+  try {
+    const customer = await this.findOne({
+      email: email,
+    });
 
-  if (!customer) {
-    throw new Error("Invalid credentials.");
+    if (!customer) {
+      throw new Error("Invalid credentials.");
+    }
+
+    if (!customer.isActiveUser) {
+      throw new Error("Your account has been banned.");
+    }
+
+    return customer;
+  } catch (error) {
+    return Promise.reject(error);
   }
-
-  if (!customer.isActiveUser) {
-    throw new Error("Your account has been banned.");
-  }
-
-  return customer;
 };
 
 customerSchema.statics.logingoogle = async function (google_id) {
-  const user = await this.findOne({
-    google_id,
-  });
-  if (!user) {
-    throw new Error("Invalid credentials.");
-  }
-  if (!user.isActiveUser) {
-    throw new Error("Your account has been deactivated.");
-  }
+  try {
+    const user = await this.findOne({
+      google_id,
+    });
+    if (!user) {
+      throw new Error("Invalid credentials.");
+    }
+    if (!user.isActiveUser) {
+      throw new Error("Your account has been deactivated.");
+    }
 
-  return user;
+    return user;
+  } catch (error) {
+    return Promise.reject(error);
+  }
 };
 
 customerSchema.statics.changepassword = async function (email, oldpwd, newpwd) {
