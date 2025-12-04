@@ -192,8 +192,10 @@ const register = async (req, res) => {
       const existingCustomer = await models.Customer.findOne({
         userId: newUserId.toString(),
       });
-      while (existingCustomer) {
-        ++newUserId;
+
+      if (existingCustomer) {
+        newUserId += 1;
+        return getUserId(newUserId.toString());
       }
 
       return newUserId.toString();
