@@ -10,6 +10,12 @@ const AgencySchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    // 🔹 Link Host with existing Customer collection
+    customerRef: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "customers",
+      required: true, // enforce relation
+    },
     country: String,
     hosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Host" }],
     stats: {

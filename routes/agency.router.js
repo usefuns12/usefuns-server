@@ -15,6 +15,7 @@
 const express = require("express");
 const agencyController = require("../controllers/agency.controller");
 const middleware = require("../middlewares");
+const { userAuth } = require("../middlewares/auth");
 
 const router = express.Router();
 
@@ -25,6 +26,11 @@ router.route("/create").post(
   agencyController.createAgency
 );
 
+// Create a new Agency
+router
+  .route("/create-by-authenticated-user")
+  .post(userAuth, agencyController.createAgencyByAuthenticatedUser);
+
 // Get All Agencies
 router.route("/").get(
   // middleware.auth.authAdmin,
@@ -32,7 +38,7 @@ router.route("/").get(
 );
 
 // Get Agency details by ID
-router.route("/:id").get(
+router.route("/getAgencyDetails/:id").get(
   // middleware.auth.authAdmin,
   agencyController.getAgencyById
 );
@@ -42,6 +48,11 @@ router.route("/owner/:ownerUserId").get(
   // middleware.auth.authAdmin,
   agencyController.getAgenciesByOwner
 );
+
+// Alternative route without URL param
+router
+  .route("/getByOwner")
+  .get(userAuth, agencyController.getAgenciesByOwnerIdFromMiddlware);
 
 // Invite Host to Agency
 router.post(

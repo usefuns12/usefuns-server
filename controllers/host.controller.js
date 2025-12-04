@@ -53,7 +53,7 @@ const createHost = async (req, res) => {
 
     // 🔹 Generate unique hostId (max existing hostId + 1)
     const lastHost = await models.Host.findOne().sort({ hostId: -1 });
-    const newHostId = lastHost ? lastHost.hostId + 1 : 10001;
+    const newHostId = lastHost ? Number(lastHost.hostId) + 1 : 10001;
 
     // 🔹 Create Host
     const newHost = await models.Host.create({
@@ -63,6 +63,11 @@ const createHost = async (req, res) => {
       agencyId: agencyId || null,
       status: "active",
     });
+
+    // Update Customer to link to Host (if needed)
+    customer.isHost = true;
+    customer.hostRef = newHost._id;
+    await customer.save();
 
     const agencyUpdate = await models.Agency.findByIdAndUpdate(
       agencyId,
@@ -101,6 +106,37 @@ const getAllHosts = async (req, res) => {
     const filter = {};
     if (agencyId) filter.agencyId = agencyId;
     if (status) filter.status = status;
+
+    const hosts = await models.Host.find(filter)
+      .populate("customerRef")
+      .populate("agencyId");
+
+    return res.status(200).json({
+      success: true,
+      count: hosts.length,
+      data: hosts,
+    });
+  } catch (error) {
+    console.error("Error fetching hosts:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const getHostsByAgencyOwner = async (req, res) => {
+  try {
+    const { status } = req.query;
+    const ownerUserId = req.user._id;
+
+    const filter = {};
+    if (status) filter.status = status;
+
+    // 🔹 Find agencies owned by the user
+    const agencies = await models.Agency.find({ ownerUserId });
+    const agencyIds = agencies.map((agency) => agency._id);
+    filter.agencyId = { $in: agencyIds };
 
     const hosts = await models.Host.find(filter)
       .populate("customerRef")
@@ -684,4 +720,5 @@ module.exports = {
   acceptOrRejectRequestByCustomer,
   respondToLeftRequest,
   deleteHost,
+  getHostsByAgencyOwner,
 };

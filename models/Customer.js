@@ -64,7 +64,19 @@ const customerSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
+    agencyId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Agency",
+    },
+    isHost: {
+      type: Boolean,
+      default: false,
+    },
+    hostRef: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Host",
+      default: null,
+    },
     lastActiveAt: {
       type: Date,
       default: null,

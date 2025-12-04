@@ -40,6 +40,7 @@ const HostSchema = new mongoose.Schema(
 
 HostSchema.index({ agencyId: 1 });
 HostSchema.index({ hostId: 1 });
+HostSchema.index({ customerRef: 1 });
 
 // ✅ Auto-populate middleware for customerRef
 function autoPopulateCustomerRef(next) {

@@ -188,6 +188,14 @@ const register = async (req, res) => {
         ++newUserId;
       }
 
+      // also check in customers collection
+      const existingCustomer = await models.Customer.findOne({
+        userId: newUserId.toString(),
+      });
+      while (existingCustomer) {
+        ++newUserId;
+      }
+
       return newUserId.toString();
     };
 
@@ -337,6 +345,14 @@ const getUnassignedUsers = async (req, res) => {
     const excludedCustomerIds = [
       ...new Set([...userCustomerIds, ...hostCustomerIds]),
     ];
+
+    // get all customer id which are assigned to the agency
+    const assignedAgencies = await models.Agency.find({}, "customerRef");
+    const agencyCustomerIds = assignedAgencies
+      .map((a) => a.customerRef)
+      .filter((id) => id);
+
+    excludedCustomerIds.push(...agencyCustomerIds);
 
     // 3. Query only by _id, not whole objects
     const unassignedCustomers = await models.Customer.find({
@@ -2422,6 +2438,8 @@ const assistSpecialIdItems = async (req, res) => {
       item.specialId = item.specialId.filter((id) => id !== specialId);
       await item.save();
 
+      const originalUserId = user.userId;
+
       // Assign to user
       user.oldUserId = user.userId;
       user.userId = specialId;
@@ -2483,6 +2501,8 @@ const assistSpecialIdItems = async (req, res) => {
             // Remove specialId from the item
             item.specialId = item.specialId.filter((sid) => sid !== id);
             await item.save();
+
+            const originalUserId = user.userId;
 
             // Assign to user
             user.oldUserId = user.userId;
