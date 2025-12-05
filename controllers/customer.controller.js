@@ -1037,7 +1037,7 @@ const getPostsByUserId = async (req, res) => {
 };
 
 const getPostById = async (req, res) => {
-  const id = req.params.id;
+  const id = req.params.postId;
   try {
     const post = await models.Posts.findOne({ _id: id });
     if (!post) {
@@ -1047,7 +1047,7 @@ const getPostById = async (req, res) => {
     }
 
     const postWithDetails = await models.Posts.aggregate([
-      { $match: { _id: mongoose.Types.ObjectId(id) } },
+      { $match: { _id: new mongoose.Types.ObjectId(id) } },
 
       // Join with customers to get post creator details
       {
