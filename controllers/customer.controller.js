@@ -1036,6 +1036,120 @@ const getPostsByUserId = async (req, res) => {
   }
 };
 
+const getPostById = async (req, res) => {
+  const id = req.params.id;
+  try {
+    const post = await models.Posts.findOne({ _id: id });
+    if (!post) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Post not found." });
+    }
+
+    const postWithDetails = await models.Posts.aggregate([
+      { $match: { _id: mongoose.Types.ObjectId(id) } },
+
+      // Join with customers to get post creator details
+      {
+        $lookup: {
+          from: "customers",
+          foreignField: "_id",
+          localField: "createdBy",
+          as: "userDetails",
+        },
+      },
+      // Join with comments and their respective user details
+      {
+        $lookup: {
+          from: "comments",
+          localField: "_id",
+          foreignField: "postId",
+          as: "comments",
+        },
+      },
+      {
+        $unwind: {
+          path: "$comments",
+          preserveNullAndEmptyArrays: true, // Allow posts with no comments
+        },
+      },
+      {
+        $lookup: {
+          from: "customers",
+          foreignField: "_id",
+          localField: "comments.userId",
+          as: "comments.userDetails",
+        },
+      },
+      {
+        $unwind: {
+          path: "$comments.userDetails",
+          preserveNullAndEmptyArrays: true, // Handle cases where no user found
+        },
+      },
+      {
+        $group: {
+          _id: "$_id", // Re-group posts back together after unwind
+          postDetails: { $first: "$$ROOT" }, // Get post details for each post
+          comments: { $push: "$comments" }, // Aggregate all comments
+        },
+      },
+      // Join with likes and their respective user details
+      {
+        $lookup: {
+          from: "likes",
+          localField: "_id",
+          foreignField: "postId",
+          as: "likes",
+        },
+      },
+      {
+        $unwind: {
+          path: "$likes",
+          preserveNullAndEmptyArrays: true, // Allow posts with no likes
+        },
+      },
+      {
+        $lookup: {
+          from: "customers",
+          foreignField: "_id",
+          localField: "likes.userId",
+          as: "likes.userDetails",
+        },
+      },
+      {
+        $unwind: {
+          path: "$likes.userDetails",
+          preserveNullAndEmptyArrays: true, // Handle cases where no user found
+        },
+      },
+      {
+        $group: {
+          _id: "$_id",
+          postDetails: { $first: "$postDetails" }, // Re-group post details
+          comments: { $first: "$comments" }, // Group comments back
+          likes: { $push: "$likes" }, // Group likes back
+        },
+      },
+      {
+        $project: {
+          "postDetails.commented": 0,
+          "postDetails.like": 0,
+        },
+      },
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      message: "Post details fetched.",
+      data: postWithDetails,
+    });
+  } catch (error) {
+    logger.error(error);
+    return res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 const deletePost = async (req, res) => {
   const id = req.params.id;
 
@@ -3007,4 +3121,5 @@ module.exports = {
   withdrawReferralBeans,
   getReferralTransactions,
   getUnassignedUsers,
+  getPostById,
 };
