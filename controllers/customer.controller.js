@@ -1139,10 +1139,16 @@ const getPostById = async (req, res) => {
       },
     ]);
 
+    if (postWithDetails.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Post details not found." });
+    }
+
     return res.status(200).json({
       success: true,
       message: "Post details fetched.",
-      data: postWithDetails,
+      data: postWithDetails[0],
     });
   } catch (error) {
     logger.error(error);
