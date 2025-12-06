@@ -1798,15 +1798,17 @@ const addPostComment = async (req, res) => {
       });
     }
 
-    await models.Comment.create({
+    const commentData = await models.Comment.create({
       postId: postId,
       userId: userId,
       comment: comment,
     });
 
-    res
-      .status(200)
-      .json({ success: true, message: "comment added for the post" });
+    res.status(200).json({
+      success: true,
+      message: "comment added for the post",
+      data: commentData,
+    });
   } catch (error) {
     logger.error(error);
     res.status(400).json({ success: false, message: error.message });
