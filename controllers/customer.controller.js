@@ -332,6 +332,8 @@ const getCustomers = async (req, res) => {
 // ✅ Get unassigned customers (not User, not Host)
 const getUnassignedUsers = async (req, res) => {
   try {
+    const query = req.query.q;
+
     // 1. Fetch customerRefs from User and Host
     const assignedUsers = await models.User.find({}, "customerRef");
     const userCustomerIds = assignedUsers
