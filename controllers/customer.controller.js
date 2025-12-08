@@ -1748,11 +1748,45 @@ const likePost = async (req, res) => {
     const like = await models.Like.findOne({ postId, userId });
     if (!like) {
       await models.Like.create({ postId, userId });
+
+      const allPostsByUser = await models.Posts.find({
+        createdBy: isPostExist.createdBy,
+      });
+      let totalLikes = 0;
+      for (const post of allPostsByUser) {
+        const likeCount = await models.Like.countDocuments({
+          postId: post._id,
+        });
+        totalLikes += likeCount;
+      }
+
+      await models.Customer.updateOne(
+        { _id: isPostExist.createdBy },
+        { $set: { likes: totalLikes } }
+      );
+
       res
         .status(200)
         .json({ success: true, message: "Like added for the post" });
     } else {
       await models.Like.deleteOne({ postId, userId });
+
+      const allPostsByUser = await models.Posts.find({
+        createdBy: isPostExist.createdBy,
+      });
+      let totalLikes = 0;
+      for (const post of allPostsByUser) {
+        const likeCount = await models.Like.countDocuments({
+          postId: post._id,
+        });
+        totalLikes += likeCount;
+      }
+
+      await models.Customer.updateOne(
+        { _id: isPostExist.createdBy },
+        { $set: { likes: totalLikes } }
+      );
+
       res
         .status(200)
         .json({ success: true, message: "like deleted successfully" });
