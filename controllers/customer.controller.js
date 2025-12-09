@@ -372,6 +372,7 @@ const getUnassignedUsers = async (req, res) => {
       countryCode: customer.countryCode,
       diamonds: customer.diamonds,
       isActiveUser: customer.isActiveUser,
+      profileImage: customer.profileImage,
     }));
 
     if (query && query.trim()) {
