@@ -377,7 +377,7 @@ const getUnassignedUsers = async (req, res) => {
 
     if (query && query.trim()) {
       const filteredCustomers = customerData.filter((customer) =>
-        customer.name.toLowerCase().includes(query.trim().toLowerCase())
+        customer.userId.toLowerCase().includes(query.trim().toLowerCase())
       );
       return res.status(200).json({
         success: true,
