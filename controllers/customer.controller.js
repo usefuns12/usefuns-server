@@ -374,6 +374,17 @@ const getUnassignedUsers = async (req, res) => {
       isActiveUser: customer.isActiveUser,
     }));
 
+    if (query && query.trim()) {
+      const filteredCustomers = customerData.filter((customer) =>
+        customer.name.toLowerCase().includes(query.trim().toLowerCase())
+      );
+      return res.status(200).json({
+        success: true,
+        message: "Unassigned customers fetched successfully.",
+        data: filteredCustomers,
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: "Unassigned customers fetched successfully.",
