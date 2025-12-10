@@ -226,17 +226,18 @@ const getHostDetails = async (req, res) => {
  */
 const getAllRequests = async (req, res) => {
   try {
-    const { agencyId, hostId, status } = req.query;
+    const { agencyId, hostId, customerId, status } = req.query;
 
     const filter = {};
-    if (agencyId) filter.fromAgencyId = agencyId;
-    if (hostId) filter.toHostId = hostId;
+    if (agencyId) filter.agencyId = agencyId;
+    if (hostId) filter.hostId = hostId;
+    if (customerId) filter.customerId = customerId;
     if (status) filter.status = status;
 
     const requests = await models.JoinRequest.find(filter)
-      .populate("fromAgencyId", "name code")
-      .populate("toHostId", "customerRef status")
-      .populate("roomId", "name");
+      .populate("agencyId")
+      .populate("customerId")
+      .populate("hostId");
 
     res.status(200).json({
       success: true,
