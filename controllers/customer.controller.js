@@ -397,6 +397,101 @@ const getUnassignedUsers = async (req, res) => {
   }
 };
 
+// ✅ Get unassigned customers + join request status for a specific agency
+const getUnassignedUsersWithJoinStatus = async (req, res) => {
+  try {
+    const { agencyId } = req.params; // e.g. /agencies/:agencyId/unassigned-users
+    const query = req.query.q;
+
+    if (!agencyId || !mongoose.Types.ObjectId.isValid(agencyId)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Valid agencyId is required" });
+    }
+
+    // 1. Fetch customerRefs from User and Host
+    const assignedUsers = await models.User.find({}, "customerRef");
+    const userCustomerIds = assignedUsers
+      .map((u) => u.customerRef)
+      .filter((id) => id);
+
+    const assignedHosts = await models.Host.find({}, "customerRef");
+    const hostCustomerIds = assignedHosts
+      .map((h) => h.customerRef)
+      .filter((id) => id);
+
+    // 2. Customers already assigned to any Agency
+    const assignedAgencies = await models.Agency.find({}, "customerRef");
+    const agencyCustomerIds = assignedAgencies
+      .map((a) => a.customerRef)
+      .filter((id) => id);
+
+    // 3. Combine exclusion list
+    const excludedCustomerIds = [
+      ...new Set([
+        ...userCustomerIds,
+        ...hostCustomerIds,
+        ...agencyCustomerIds,
+      ]),
+    ];
+
+    // 4. Find unassigned customers
+    const unassignedCustomers = await models.Customer.find({
+      _id: { $nin: excludedCustomerIds },
+    });
+
+    // 5. Fetch join requests from this agency to these customers
+    const unassignedCustomerIds = unassignedCustomers.map((c) => c._id);
+
+    const joinRequests = await models.JoinRequest.find(
+      {
+        agencyId: agencyId,
+        type: "fromAgency", // request initiated by Agency
+        customerId: { $in: unassignedCustomerIds },
+      },
+      { customerId: 1, status: 1 }
+    );
+
+    // Map: customerId -> status
+    const joinStatusMap = new Map();
+    joinRequests.forEach((jr) => {
+      joinStatusMap.set(String(jr.customerId), jr.status);
+    });
+
+    // 6. Shape response data
+    let customerData = unassignedCustomers.map((customer) => ({
+      _id: customer._id,
+      userId: customer.userId,
+      name: customer.name,
+      mobile: customer.mobile,
+      countryCode: customer.countryCode,
+      diamonds: customer.diamonds,
+      isActiveUser: customer.isActiveUser,
+      profileImage: customer.profileImage,
+      // ✅ NEW status field
+      status: joinStatusMap.get(String(customer._id)) || "notRequested",
+    }));
+
+    // 7. Apply search filter (by userId) if query present
+    if (query && query.trim()) {
+      const q = query.trim().toLowerCase();
+      customerData = customerData.filter((customer) =>
+        (customer.userId || "").toLowerCase().includes(q)
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Unassigned customers with join request status fetched successfully.",
+      data: customerData,
+    });
+  } catch (error) {
+    console.error("Error fetching unassigned users with status:", error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 const getCustomersById = async (req, res) => {
   const id = req.params.id;
   let customer;
@@ -3178,4 +3273,5 @@ module.exports = {
   getReferralTransactions,
   getUnassignedUsers,
   getPostById,
+  getUnassignedUsersWithJoinStatus,
 };

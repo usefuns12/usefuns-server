@@ -11,6 +11,9 @@ router
 router.route("/getAll/limitedData").get(controller.getPagination); // For Admin
 router.route("/getAll").get(controller.getCustomers);
 router.route("/getUnassignedUsers").get(controller.getUnassignedUsers);
+router
+  .route("/getUnassignedUsersWithJoinStatus/:agencyId")
+  .get(controller.getUnassignedUsersWithJoinStatus);
 router.route("/getPostById/:postId").get(controller.getPostById);
 router.route("/getById/:id").get(controller.getCustomersById);
 router.route("/viewCount/:id").get(controller.getViewCount);
