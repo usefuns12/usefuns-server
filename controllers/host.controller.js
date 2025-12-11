@@ -518,7 +518,7 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
         customer.hostRef = newHost._id;
         await customer.save();
         const agencyUpdate = await models.Agency.findByIdAndUpdate(
-          agencyId,
+          request.agencyId,
           { $push: { hosts: newHost._id } },
           { new: true }
         );
