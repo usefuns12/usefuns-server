@@ -226,13 +226,14 @@ const getHostDetails = async (req, res) => {
  */
 const getAllRequests = async (req, res) => {
   try {
-    const { agencyId, hostId, customerId, status } = req.query;
+    const { agencyId, hostId, customerId, status, type } = req.query;
 
     const filter = {};
     if (agencyId) filter.agencyId = agencyId;
     if (hostId) filter.hostId = hostId;
     if (customerId) filter.customerId = customerId;
     if (status) filter.status = status;
+    if (type) filter.type = type;
 
     const requests = await models.JoinRequest.find(filter)
       .populate("agencyId")
