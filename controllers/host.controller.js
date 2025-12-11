@@ -511,7 +511,7 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
 
         await newHost.populate("customerRef", "name");
 
-        const customer = await models.Customer.findById(customerRef);
+        const customer = await models.Customer.findById(request.customerId);
 
         // Update Customer to link to Host (if needed)
         customer.isHost = true;
