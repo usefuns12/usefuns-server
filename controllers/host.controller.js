@@ -509,6 +509,21 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
         });
 
         await newHost.populate("customerRef", "name");
+
+        const customer = await models.Customer.findById(customerRef);
+
+        // Update Customer to link to Host (if needed)
+        customer.isHost = true;
+        customer.hostRef = newHost._id;
+        await customer.save();
+        const agencyUpdate = await models.Agency.findByIdAndUpdate(
+          agencyId,
+          { $push: { hosts: newHost._id } },
+          { new: true }
+        );
+
+        await newHost.populate("customerRef");
+        await newHost.populate("agencyId");
       }
     }
 
