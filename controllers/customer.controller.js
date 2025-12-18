@@ -10,7 +10,7 @@ const crypto = require("crypto");
 
 const login = async (req, res) => {
   try {
-    const { email, mobile, deviceId } = req.body;
+    const { email, mobile, deviceId, deviceToken } = req.body;
 
     if (deviceId) {
       const isBanned = await models.BannedDevice.findOne({ deviceId });
@@ -54,6 +54,12 @@ const login = async (req, res) => {
       token: token,
       countryCode: customer.countryCode,
     };
+
+    // Update deviceToken if provided
+    if (deviceToken) {
+      customer.deviceToken = deviceToken;
+      await customer.save();
+    }
 
     res
       .status(200)

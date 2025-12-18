@@ -32,3 +32,7 @@ logs
 # System files
 usefuns-front.ppk
 usefuns-server.ppk
+
+# Firebase secrets
+firebase-service-account.json
+

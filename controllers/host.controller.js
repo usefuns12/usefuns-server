@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const models = require("../models");
 const mongoose = require("mongoose");
+const notificationService = require("../utils/notificationService");
 
 /**
  * Create a new Host
@@ -441,6 +442,33 @@ const sendRequestFromAgency = async (req, res) => {
       customerId,
       message,
       status: "pending",
+    });
+
+    // Add request to notification module
+
+    const notification = await models.Notification.create({
+      sentTo: [customer._id],
+      notificationType: "agency",
+      title: "New Host Request",
+      message: `You have a new host request from agency ${agency.name}.`,
+      data: {
+        requestId: joinRequest._id.toString(),
+        agencyName: agency.name,
+        agencyId: agency._id.toString(),
+      },
+      image: agency.logo || null,
+    });
+
+    // push notification
+    await notificationService.sendNotificationToCustomer({
+      customerId: customer._id,
+      title: "New Host Request",
+      body: `You have a new host request from agency ${agency.name}.`,
+      data: {
+        requestId: joinRequest._id.toString(),
+        agencyName: agency.name,
+        agencyId: agency._id.toString(),
+      },
     });
 
     res.status(201).json({

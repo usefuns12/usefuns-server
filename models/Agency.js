@@ -23,6 +23,9 @@ const AgencySchema = new mongoose.Schema(
       activeHosts: { type: Number, default: 0 },
       newHosts: { type: Number, default: 0 },
     },
+    logo: { type: String, default: null },
+    banner: { type: String, default: null },
+    description: { type: String, default: null },
   },
   { timestamps: true }
 );

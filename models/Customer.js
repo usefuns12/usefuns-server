@@ -224,6 +224,12 @@ const customerSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+
+    // Device Token Info
+    deviceToken: {
+      type: String,
+      default: null,
+    },
     token: {
       type: String,
     },

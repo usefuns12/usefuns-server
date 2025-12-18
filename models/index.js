@@ -38,6 +38,7 @@ const models = {
   Audit: require("./Audit"),
   Ranking: require("./Ranking"),
   User: require("./User"),
+  Notification: require("./Notification"),
 };
 
 module.exports = models;
