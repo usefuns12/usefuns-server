@@ -690,6 +690,22 @@ const respondToLeftRequest = async (req, res) => {
       });
     }
 
+    // Update Customer to remove Host link
+    const customer = await models.Customer.findById(host.customerRef);
+
+    if (customer) {
+      customer.isHost = false;
+      customer.hostRef = null;
+      customer.agencyId = null;
+      await customer.save();
+    }
+
+    // Update Agency to remove host from its list
+    await models.Agency.updateOne(
+      { _id: host.agencyId },
+      { $pull: { hosts: host._id } }
+    );
+
     // Delete host record
     await models.Host.findByIdAndDelete(host._id);
 
