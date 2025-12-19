@@ -646,8 +646,9 @@ const respondToLeftRequest = async (req, res) => {
 
     // ✅ Find request
     const request = await models.JoinRequest.findById(requestId)
-      .populate("toHostId")
-      .populate("fromAgencyId");
+      .populate("agencyId")
+      .populate("customerId")
+      .populate("hostId");
 
     if (!request) {
       return res.status(404).json({
@@ -681,7 +682,7 @@ const respondToLeftRequest = async (req, res) => {
     }
 
     // ✅ Accept: Delete host and unassign from agency
-    const host = await models.Host.findById(request.toHostId._id);
+    const host = await models.Host.findById(request.hostId._id);
     if (!host) {
       return res.status(404).json({
         success: false,
