@@ -471,6 +471,8 @@ const sendRequestFromAgency = async (req, res) => {
       },
     });
 
+    io.to(customer._id.toString()).emit("notificationUpdate", notification);
+
     res.status(201).json({
       success: true,
       message: "Request sent successfully",
