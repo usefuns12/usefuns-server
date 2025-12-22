@@ -473,6 +473,13 @@ const sendRequestFromAgency = async (req, res) => {
 
     io.to(customer._id.toString()).emit("notificationUpdate", notification);
 
+    // remove left requests if any
+    await models.JoinRequest.deleteMany({
+      type: "leftRequest",
+      agencyId,
+      customerId,
+    });
+
     res.status(201).json({
       success: true,
       message: "Request sent successfully",
@@ -714,6 +721,13 @@ const respondToLeftRequest = async (req, res) => {
     // Update request status
     request.status = "accepted";
     await request.save();
+
+    // remove fromAgency requests if any
+    await models.JoinRequest.deleteMany({
+      type: "fromAgency",
+      agencyId: request.agencyId._id,
+      customerId: request.customerId._id,
+    });
 
     res.status(200).json({
       success: true,
