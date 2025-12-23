@@ -473,13 +473,6 @@ const sendRequestFromAgency = async (req, res) => {
 
     io.to(customer._id.toString()).emit("notificationUpdate", notification);
 
-    // remove left requests if any
-    await models.JoinRequest.deleteMany({
-      type: "leftRequest",
-      agencyId,
-      customerId,
-    });
-
     res.status(201).json({
       success: true,
       message: "Request sent successfully",
@@ -563,6 +556,13 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
         await newHost.populate("customerRef");
         await newHost.populate("agencyId");
       }
+
+      // remove left requests if any
+      await models.JoinRequest.deleteMany({
+        type: "leftRequest",
+        agencyId: request.agencyId,
+        customerId: request.customerId,
+      });
     }
 
     res.status(200).json({
@@ -626,6 +626,35 @@ const sendLeftAgencyRequest = async (req, res) => {
       hostId: host._id,
       message: message || "Request to leave the agency",
     });
+
+    // Notify agency customer
+    const agencyOwnerId = host.agencyId.customerRef;
+    const notification = await models.Notification.create({
+      sentTo: [agencyOwnerId],
+      notificationType: "agency",
+      title: "Host Left Agency Request",
+      message: `Host with ID ${host.hostId} has requested to leave your agency.`,
+      data: {
+        requestId: newReq._id.toString(),
+        hostId: host._id.toString(),
+        agencyId: host.agencyId._id.toString(),
+      },
+      image: host.agencyId.logo || null,
+    });
+
+    // push notification
+    await notificationService.sendNotificationToCustomer({
+      customerId: agencyOwnerId,
+      title: "Host Left Agency Request",
+      body: `Host with ID ${host.hostId} has requested to leave your agency.`,
+      data: {
+        requestId: newReq._id.toString(),
+        hostId: host._id.toString(),
+        agencyId: host.agencyId._id.toString(),
+      },
+    });
+
+    io.to(agencyOwnerId.toString()).emit("notificationUpdate", notification);
 
     res.status(201).json({
       success: true,
