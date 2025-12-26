@@ -522,6 +522,37 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
     request.status = status;
     await request.save();
 
+    // send notification to agency about acceptance/rejection
+
+    const notification = await models.Notification.create({
+      sentTo: [request.agencyId.customerRef],
+      notificationType: "agency",
+      title: `Host Request ${status === "accepted" ? "Accepted" : "Rejected"}`,
+      message: `Your host request to customer has been ${status}.`,
+      data: {
+        requestId: request._id.toString(),
+        customerId: request.customerId.toString(),
+        agencyId: request.agencyId.toString(),
+      },
+      image: request.agencyId.logo || null,
+    });
+
+    // push notification
+    await notificationService.sendNotificationToCustomer({
+      customerId: request.agencyId.customerRef,
+      title: `Host Request ${status === "accepted" ? "Accepted" : "Rejected"}`,
+      body: `Your host request to customer has been ${status}.`,
+      data: {
+        requestId: request._id.toString(),
+        customerId: request.customerId.toString(),
+        agencyId: request.agencyId.toString(),
+      },
+    });
+    io.to(request.agencyId.customerRef.toString()).emit(
+      "notificationUpdate",
+      notification
+    );
+
     if (status === "rejected") {
       // remove fromAgency requests if any
       await models.JoinRequest.deleteMany({
@@ -529,10 +560,7 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
         agencyId: request.agencyId._id,
         customerId: request.customerId._id,
       });
-    }
-
-    // ✅ If accepted, create Host
-    else if (status === "accepted") {
+    } else if (status === "accepted") {
       const existingHost = await models.Host.findOne({
         customerRef: request.customerId,
       });
@@ -765,6 +793,32 @@ const respondToLeftRequest = async (req, res) => {
       type: "fromAgency",
       agencyId: request.agencyId._id,
       customerId: request.customerId._id,
+    });
+
+    // notify host customer
+    const notification = await models.Notification.create({
+      sentTo: [customer._id],
+      notificationType: "agency",
+      title: "Left Agency Request Accepted",
+      message: `Your request to leave agency ${request.agencyId.name} has been accepted.`,
+      data: {
+        hostId: host._id.toString(),
+        agencyId: request.agencyId._id.toString(),
+      },
+      image: request.agencyId.logo || null,
+    });
+
+    io.to(customer._id.toString()).emit("notificationUpdate", notification);
+
+    // push notification
+    await notificationService.sendNotificationToCustomer({
+      customerId: customer._id,
+      title: "Left Agency Request Accepted",
+      body: `Your request to leave agency ${request.agencyId.name} has been accepted.`,
+      data: {
+        hostId: host._id.toString(),
+        agencyId: request.agencyId._id.toString(),
+      },
     });
 
     res.status(200).json({
