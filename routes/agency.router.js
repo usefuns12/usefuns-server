@@ -20,11 +20,9 @@ const { userAuth } = require("../middlewares/auth");
 const router = express.Router();
 
 // Create a new Agency
-router.route("/create").post(
-  // Example: restrict to Admin/SubAdmin
-  // middleware.auth.authAdmin,
-  agencyController.createAgency
-);
+router
+  .route("/create")
+  .post(middleware.uploads.single("file"), agencyController.createAgency);
 
 // Create a new Agency
 router

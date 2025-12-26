@@ -3,7 +3,9 @@ const models = require("../models"); // adjust path
 // ✅ 1. Create Agency
 const createAgency = async (req, res) => {
   try {
-    const { agencyId, name, ownerUserId, customerRef } = req.body;
+    const { agencyId, name, ownerUserId, customerRef, image } = req.body;
+
+    console.log("Req body:", req.body);
 
     if (!agencyId || !name || !ownerUserId || !customerRef) {
       return res.status(400).json({
@@ -59,6 +61,7 @@ const createAgency = async (req, res) => {
       country, // from owner.customerRef.countryCode
       hosts: [],
       stats: { totalHosts: 0, activeHosts: 0, newHosts: 0 },
+      logo: image || (req.file ? req.file.location : null),
     });
 
     // Update Customer to link this Agency

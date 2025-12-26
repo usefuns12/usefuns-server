@@ -13,6 +13,13 @@ const s3 = new S3Client({
 const images = [];
 
 const imageFilter = (req, file, cb) => {
+  console.log(
+    "Uploading file:",
+    file.originalname,
+    "with mimetype:",
+    file.mimetype
+  );
+
   if (
     file.mimetype === "image/jpg" ||
     file.mimetype === "image/jpeg" ||

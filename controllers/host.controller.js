@@ -522,8 +522,17 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
     request.status = status;
     await request.save();
 
+    if (status === "rejected") {
+      // remove fromAgency requests if any
+      await models.JoinRequest.deleteMany({
+        type: "fromAgency",
+        agencyId: request.agencyId._id,
+        customerId: request.customerId._id,
+      });
+    }
+
     // ✅ If accepted, create Host
-    if (status === "accepted") {
+    else if (status === "accepted") {
       const existingHost = await models.Host.findOne({
         customerRef: request.customerId,
       });
