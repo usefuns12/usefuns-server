@@ -11,7 +11,7 @@ const router = express.Router();
  */
 
 // 👉 Get all notifications
-router.route("/getAll").get(controller.getNotifications);
+router.route("/getAll/:customerId").get(controller.getNotifications);
 
 // 👉 Create notification (with image upload)
 router.route("/add").post(

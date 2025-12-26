@@ -8,7 +8,9 @@ const logger = require("../classes").Logger(__filename);
  */
 const getNotifications = async (req, res) => {
   try {
-    const notifications = await models.Notification.find({})
+    const { customerId } = req.params;
+
+    const notifications = await models.Notification.find({ sentTo: customerId })
       .populate("sentBy", "customerRef name email")
       .populate("sentTo", "customerRef name email")
       .sort({ createdAt: -1 });
