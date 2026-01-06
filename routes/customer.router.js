@@ -12,6 +12,9 @@ router.route("/getAll/limitedData").get(controller.getPagination); // For Admin
 router.route("/getAll").get(controller.getCustomers);
 router.route("/getUnassignedUsers").get(controller.getUnassignedUsers);
 router
+  .route("/getUnassignedUsersByCountry/:countryCode")
+  .get(controller.getUnassignedUsersByCountry);
+router
   .route("/getUnassignedUsersWithJoinStatus/:agencyId")
   .get(controller.getUnassignedUsersWithJoinStatus);
 router.route("/getPostById/:postId").get(controller.getPostById);
@@ -96,5 +99,9 @@ router.route("/referrals/:userId").get(controller.getReferralDetails);
 router.route("/withdraw-referral-beans").post(controller.withdrawReferralBeans);
 
 router.route("/referral/transactions").get(controller.getReferralTransactions);
+
+router
+  .route("/upload-image")
+  .post(middleware.uploads.single("file"), controller.uploadImage);
 
 module.exports = router;

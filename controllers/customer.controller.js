@@ -403,6 +403,62 @@ const getUnassignedUsers = async (req, res) => {
   }
 };
 
+const getUnassignedUsersByCountry = async (req, res) => {
+  try {
+    const { countryCode } = req.params; // e.g. /countries/:countryCode/unassigned-users
+    const query = req.query.q;
+    if (!countryCode) {
+      return res
+        .status(400)
+        .json({ success: false, message: "countryCode is required" });
+    }
+    // 1. Fetch customerRefs from User and Host
+    const assignedUsers = await models.User.find({}, "customerRef");
+    const userCustomerIds = assignedUsers
+      .map((u) => u.customerRef)
+      .filter((id) => id);
+    const assignedHosts = await models.Host.find({}, "customerRef");
+    const hostCustomerIds = assignedHosts
+      .map((h) => h.customerRef)
+      .filter((id) => id);
+    // 2. Combine exclusion list
+    const excludedCustomerIds = [
+      ...new Set([...userCustomerIds, ...hostCustomerIds]),
+    ];
+    // 3. Find unassigned customers by countryCode
+    const unassignedCustomers = await models.Customer.find({
+      _id: { $nin: excludedCustomerIds },
+      countryCode: countryCode,
+    });
+    // 4. Shape response data
+    let customerData = unassignedCustomers.map((customer) => ({
+      _id: customer._id,
+      userId: customer.userId,
+      name: customer.name,
+      mobile: customer.mobile,
+      countryCode: customer.countryCode,
+      diamonds: customer.diamonds,
+      isActiveUser: customer.isActiveUser,
+      profileImage: customer.profileImage,
+    }));
+    // 5. Apply search filter (by userId) if query present
+    if (query && query.trim()) {
+      const q = query.trim().toLowerCase();
+      customerData = customerData.filter((customer) =>
+        (customer.userId || "").toLowerCase().includes(q)
+      );
+    }
+    return res.status(200).json({
+      success: true,
+      message: "Unassigned customers fetched successfully.",
+      data: customerData,
+    });
+  } catch (error) {
+    console.error("Error fetching unassigned users by country:", error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 // ✅ Get unassigned customers + join request status for a specific agency
 const getUnassignedUsersWithJoinStatus = async (req, res) => {
   try {
@@ -3221,7 +3277,40 @@ const getReferralTransactions = async (req, res) => {
   }
 };
 
+const uploadImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No file uploaded" });
+    }
+    const imageUrl = req.file.location; // Assuming using multer-s3 or similar
+
+    // delete uploaded file from s3 after 5 days
+    setTimeout(async () => {
+      try {
+        const params = {
+          Bucket: process.env.AWS_S3_BUCKET_NAME,
+          Key: req.file.key,
+        };
+        await s3.deleteObject(params).promise();
+        console.log(`Deleted file ${req.file.key} from S3 after 5 days`);
+      } catch (err) {
+        console.error(`Error deleting file ${req.file.key} from S3:`, err);
+      }
+    }, 5 * 24 * 60 * 60 * 1000); // 5 days in milliseconds
+
+    return res
+      .status(200)
+      .json({ success: true, message: "Image uploaded", data: imageUrl });
+  } catch (error) {
+    logger.error(error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
+  uploadImage,
   login,
   register,
   getPagination,
@@ -3278,6 +3367,7 @@ module.exports = {
   withdrawReferralBeans,
   getReferralTransactions,
   getUnassignedUsers,
+  getUnassignedUsersByCountry,
   getPostById,
   getUnassignedUsersWithJoinStatus,
 };
