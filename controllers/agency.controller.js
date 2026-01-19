@@ -24,9 +24,9 @@ const createAgency = async (req, res) => {
     }
 
     // Check if owner user exists
-    const owner = await models.User.findById(ownerUserId).populate(
-      "customerRef"
-    );
+    const owner = await models.User.findById(ownerUserId)
+      .populate("customerRef")
+      .populate("role");
     if (!owner) {
       return res
         .status(404)
@@ -51,6 +51,11 @@ const createAgency = async (req, res) => {
       if (!existingCode) isUnique = true;
     }
 
+    let isSubAdmin = false;
+    if (owner.role && owner.role.name === "SubAdmin") {
+      isSubAdmin = true;
+    }
+
     // Create agency
     const newAgency = await models.Agency.create({
       agencyId,
@@ -62,12 +67,25 @@ const createAgency = async (req, res) => {
       hosts: [],
       stats: { totalHosts: 0, activeHosts: 0, newHosts: 0 },
       logo: image || (req.file ? req.file.location : null),
+      status: isSubAdmin ? "inactive" : "active", // if SubAdmin, set inactive for review
     });
 
     // Update Customer to link this Agency
     await models.Customer.findByIdAndUpdate(customerRef, {
       agencyId: newAgency._id,
     });
+
+    if (isSubAdmin) {
+      // Create a JoinRequest for Admin review
+      await models.JoinRequest.create({
+        type: "requestForAdminToReviewAgency",
+        fromAgencyId: newAgency._id,
+        toUserId: owner.parents.length
+          ? owner.parents[owner.parents.length - 1] // assuming last parent is Admin
+          : null,
+        message: `New agency "${name}" created by SubAdmin "${owner.customerRef?.name}" requires your review.`,
+      });
+    }
 
     // get new created agency with populated fields
     const populatedAgency = await models.Agency.findById(newAgency._id)

@@ -4,7 +4,13 @@ const JoinRequestSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["fromAgency", "fromCustomer", "leftRequest"],
+      enum: [
+        "fromAgency",
+        "fromCustomer",
+        "leftRequest",
+        "requestForAdminToReviewAgency",
+        "requestForAdminToReviewHost",
+      ],
       required: true,
     },
     agencyId: {
@@ -19,6 +25,11 @@ const JoinRequestSchema = new mongoose.Schema(
     hostId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Host",
+    },
+    toUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
     message: String,
     status: {

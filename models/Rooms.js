@@ -7,6 +7,12 @@ const RoomSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    roomType: {
+      type: String,
+      enum: ["host", "normal", "customer_service"],
+      default: "normal",
+      required: true,
+    },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "customers", // linking to your customers collection

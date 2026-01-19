@@ -3,6 +3,11 @@ const mongoose = require("mongoose");
 const AgencySchema = new mongoose.Schema(
   {
     agencyId: { type: Number, required: true, unique: true },
+    status: {
+      type: String,
+      enum: ["active", "inactive", "suspended"],
+      default: "active",
+    },
     code: String,
     name: String,
     ownerUserId: {

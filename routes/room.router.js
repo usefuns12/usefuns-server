@@ -76,4 +76,13 @@ router.post("/lock-unlock-seat", controller.updateSeatLocks);
 // Update Room Seat Count
 router.post("/update-seat-count", controller.updateRoomSeatCount);
 
+// Get All Country Admin Rooms
+router.get("/country-admin-rooms", controller.getAllRoomOfCountryAdmins);
+
+// Convert a room to Customer Service Room
+router.post(
+  "/convert-customer-service",
+  controller.convertToCountryCustomerServiceRoom
+);
+
 module.exports = router;

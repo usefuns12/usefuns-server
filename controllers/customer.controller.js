@@ -3286,7 +3286,7 @@ const uploadImage = async (req, res) => {
     }
     const imageUrl = req.file.location; // Assuming using multer-s3 or similar
 
-    // delete uploaded file from s3 after 5 days
+    // delete uploaded file from s3 after 1 day
     setTimeout(async () => {
       try {
         const params = {
@@ -3294,11 +3294,11 @@ const uploadImage = async (req, res) => {
           Key: req.file.key,
         };
         await s3.deleteObject(params).promise();
-        console.log(`Deleted file ${req.file.key} from S3 after 5 days`);
+        console.log(`Deleted file ${req.file.key} from S3 after 1 day`);
       } catch (err) {
         console.error(`Error deleting file ${req.file.key} from S3:`, err);
       }
-    }, 5 * 24 * 60 * 60 * 1000); // 5 days in milliseconds
+    }, 1 * 24 * 60 * 60 * 1000); // 1 day in milliseconds
 
     return res
       .status(200)

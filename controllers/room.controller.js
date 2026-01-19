@@ -114,15 +114,19 @@ const getPopularRooms = async (req, res) => {
       condition.countryCode = countryCode;
     }
 
+    // customer_service room of the country will be on top then sorted by active users
     const rooms = await models.Room.aggregate([
       { $match: condition },
       {
         $addFields: {
           activeUsersCount: { $size: "$activeUsers" },
+          isCustomerService: {
+            $cond: [{ $eq: ["$roomType", "customer_service"] }, 1, 0],
+          },
         },
       },
       {
-        $sort: { activeUsersCount: -1 },
+        $sort: { isCustomerService: -1, activeUsersCount: -1 },
       },
       {
         $skip: skip,
@@ -1067,6 +1071,15 @@ const sendGift = async (req, res) => {
       return res.status(400).json({ message: "Missing required fields." });
     }
 
+    // ✅ STEP 5.4: Check for self-gifting (real-time alert)
+    const alertService = require("../services/alert.service");
+    if (await alertService.detectSelfGift(senderId, receiverId)) {
+      return res.status(400).json({
+        message: "Cannot send gift to yourself.",
+        error: "self_gift_blocked",
+      });
+    }
+
     const quantityData = await models.QuantityCashback.findById(qtyId);
     if (!quantityData) {
       return res.status(404).json({ message: "Invalid quantity ID." });
@@ -1163,7 +1176,7 @@ const sendGift = async (req, res) => {
     });
 
     // 🧾 Save GiftTransaction
-    await models.GiftTransaction.create({
+    const giftTransaction = await models.GiftTransaction.create({
       sender: senderId,
       receiver: receiverId,
       gift: selectedGift._id,
@@ -1171,6 +1184,15 @@ const sendGift = async (req, res) => {
       countryCode: sender.countryCode,
       giftTime: new Date(),
     });
+
+    // ✅ STEP 5.4: Check for gift anomalies (fire-and-forget)
+    try {
+      alertService.detectGiftVelocity(); // Check for velocity spike
+      alertService.detectGiftLoop(); // Check for repeated pairs
+    } catch (err) {
+      console.error("Gift alert check failed:", err.message);
+      // Continue - don't block gift on alert failure
+    }
 
     // 📚 Diamond History
     await models.UserDiamondHistory.create([
@@ -1354,7 +1376,90 @@ const updateRoomSeatCount = async (req, res) => {
   }
 };
 
+const convertToCountryCustomerServiceRoom = async (req, res) => {
+  const { roomId } = req.body;
+
+  try {
+    const room = await models.Room.findById(roomId);
+    if (!room) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Room not found." });
+    }
+    room.roomType = "customer_service";
+    await room.save();
+
+    // get all special ids
+
+    // call assistSpecialIdItems function
+
+    res
+      .status(200)
+      .json({ success: true, message: "Room updated successfully." });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+    logger.error(error);
+  }
+};
+
+const getAllRoomOfCountryAdmins = async (req, res) => {
+  try {
+    // 🔹 Find role by name
+    const roleDoc = await models.Role.findOne({ name: "CountryAdmin" });
+    if (!roleDoc) {
+      return res.status(404).json({
+        success: false,
+        message: `Role '${role}' not found`,
+      });
+    }
+
+    // 🔹 Fetch users with that role
+    const countryAdmins = await models.User.find({ role: roleDoc._id })
+      .populate("customerRef")
+      .populate("role")
+      .populate("parents")
+      .populate("children")
+      .populate("ownedAgencies");
+
+    const allCountryAdminRooms = [];
+
+    for (const admin of countryAdmins) {
+      if (admin.customerRef && admin.customerRef.roomId) {
+        const room = await models.Room.findById(admin.customerRef.roomId);
+        if (room) {
+          allCountryAdminRooms.push(room);
+        }
+      }
+    }
+
+    // bind data admins to rooms
+    const roomsWithAdmins = allCountryAdminRooms.map((room) => {
+      const admin = countryAdmins.find(
+        (admin) =>
+          admin.customerRef &&
+          admin.customerRef.roomId &&
+          admin.customerRef.roomId.toString() === room._id.toString()
+      );
+      return {
+        ...room.toObject(),
+        admin: admin || null,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Country admin rooms fetched successfully.",
+      data: roomsWithAdmins,
+    });
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message });
+    logger.error(error);
+  }
+};
+
 module.exports = {
+  convertToCountryCustomerServiceRoom,
+  getAllRoomOfCountryAdmins,
   getRooms,
   getRoomsPagination,
   searchRoom,

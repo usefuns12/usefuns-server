@@ -440,6 +440,88 @@ const updateUser = async (req, res) => {
   }
 };
 
+// get all admin review requests
+const getAllAdminReviewRequests = async (req, res) => {
+  try {
+    const adminId = req.user._id;
+
+    const requests = await models.JoinRequest.find({
+      type: {
+        $in: ["requestForAdminToReviewAgency", "requestForAdminToReviewHost"],
+      },
+      toUserId: adminId,
+      status: "pending",
+    })
+      .populate("agencyId")
+      .populate("hostId")
+      .populate("toUserId")
+      .populate("customerId");
+    return res.status(200).json({
+      success: true,
+      data: requests,
+    });
+  } catch (error) {
+    console.error("Error fetching admin review requests:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Accept/Reject admin review requests
+const acceptAdminReviewRequest = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { action } = req.body; // 'accept' or 'reject'
+    const request = await models.JoinRequest.findById(requestId);
+    if (!request) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Join request not found" });
+    }
+    if (!["accept", "reject"].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        message: "Action must be either 'accept' or 'reject'",
+      });
+    }
+    request.status = action === "accept" ? "accepted" : "rejected";
+    await request.save();
+
+    if (action === "accept") {
+      // If it's an agency review request
+      if (
+        request.type === "requestForAdminToReviewAgency" &&
+        request.agencyId
+      ) {
+        const agency = await models.Agency.findById(request.agencyId);
+        if (agency) {
+          agency.status = "active";
+          await agency.save();
+        }
+      }
+      // If it's a host review request
+      else if (
+        request.type === "requestForAdminToReviewHost" &&
+        request.hostId
+      ) {
+        const host = await models.Host.findById(request.hostId);
+        if (host) {
+          host.status = "active";
+          await host.save();
+        }
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: `Request ${action}ed successfully`,
+      data: request,
+    });
+  } catch (error) {
+    console.error("Error processing admin review request:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createUser,
   getUserDetails,
@@ -450,4 +532,6 @@ module.exports = {
   getAllAdminsByCountryAdmin,
   getUserDetailsByToken,
   getAllUsersByRoleAndParentId,
+  getAllAdminReviewRequests,
+  acceptAdminReviewRequest,
 };

@@ -79,6 +79,12 @@ const createHost = async (req, res) => {
     await newHost.populate("customerRef");
     await newHost.populate("agencyId");
 
+    // update all room owned by customer to roomType 'host'
+    await models.Room.updateMany(
+      { ownerId: customerRef },
+      { roomType: "host" }
+    );
+
     return res.status(201).json({
       success: true,
       message: "Host created successfully",
@@ -564,16 +570,18 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
       const existingHost = await models.Host.findOne({
         customerRef: request.customerId,
       });
+
+      let newHost;
       if (!existingHost) {
         const lastHost = await models.Host.findOne().sort({ hostId: -1 });
         const newHostId = lastHost ? lastHost.hostId + 1 : 10001;
 
-        const newHost = await models.Host.create({
+        newHost = await models.Host.create({
           customerRef: request.customerId,
           hostId: newHostId,
           agencyId: request.agencyId,
           joinDate: new Date(),
-          status: "active",
+          status: "inactive",
         });
 
         await newHost.populate("customerRef", "name");
@@ -592,7 +600,41 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
 
         await newHost.populate("customerRef");
         await newHost.populate("agencyId");
+      } else {
+        // Update existing host to link to agency
+        existingHost.agencyId = request.agencyId;
+        existingHost.status = "inactive";
+        await existingHost.save();
       }
+
+      const ownerUser = await models.User.findById(request.agencyId.ownerUserId)
+        .populate("customerRef")
+        .populate("role");
+
+      // update all room owned by customer to roomType 'host'
+      await models.Room.updateMany(
+        { ownerId: request.customerId },
+        { roomType: "host" }
+      );
+
+      // create request for admin to review host addition
+
+      await models.JoinRequest.create({
+        type: "requestForAdminToReviewHost",
+        agencyId: request.agencyId,
+        customerId: request.customerId,
+        hostId: existingHost ? existingHost._id : newHost._id,
+        toUserId:
+          ownerUser.role && ownerUser.role.name === "SubAdmin"
+            ? ownerUser.parents.length > 0
+              ? ownerUser.parents[ownerUser.parents.length - 1]
+              : null
+            : ownerUser.role && ownerUser.role.name === "Admin"
+            ? ownerUser._id
+            : null,
+        message: "Request for admin to review new host addition",
+        status: "pending",
+      });
 
       // remove left requests if any
       await models.JoinRequest.deleteMany({
@@ -783,6 +825,12 @@ const respondToLeftRequest = async (req, res) => {
 
     // Delete host record
     await models.Host.findByIdAndDelete(host._id);
+
+    // update all room owned by customer to roomType 'normal'
+    await models.Room.updateMany(
+      { ownerId: customer._id },
+      { roomType: "normal" }
+    );
 
     // Update request status
     request.status = "accepted";

@@ -57,10 +57,14 @@ router.post(
 );
 
 // ✅ Get user details by ID
-router.get("/:id", userController.getUserDetails);
+router.get("/getUserDetails/:id", userController.getUserDetails);
 
 // ✅ Get user details by token
-router.get("/", userAuth, userController.getUserDetailsByToken);
+router.get(
+  "/getUserDetailsByToken",
+  userAuth,
+  userController.getUserDetailsByToken
+);
 
 // ✅ Update user details
 router.put(
@@ -74,6 +78,20 @@ router.delete(
   "/:id",
   // middleware.auth.authAdmin,
   userController.deleteUser
+);
+
+// ✅ Get all Admin Review Requests
+router.get(
+  "/admin-review-requests",
+  middleware.auth.userAuth,
+  userController.getAllAdminReviewRequests
+);
+
+// ✅ Accept Admin Review Request
+router.post(
+  "/admin-review-requests/:requestId/accept",
+  // middleware.auth.authAdmin,
+  userController.acceptAdminReviewRequest
 );
 
 module.exports = router;
