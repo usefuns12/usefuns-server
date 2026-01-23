@@ -46,6 +46,18 @@ const WalletSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    // 🔒 STEP 3: Wallet Locking & Safety
+    lockedUcoins: {
+      type: Number,
+      default: 0,
+      description: "U-coins locked pending unlock period (cannot withdraw)",
+    },
+    withdrawableUcoins: {
+      type: Number,
+      default: 0,
+      description: "U-coins available for withdrawal",
+    },
+    // Rule: ucoins = lockedUcoins + withdrawableUcoins (for backward compatibility, ucoins tracks total)
     fiatBalance: {
       type: Number,
       default: 0,

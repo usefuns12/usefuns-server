@@ -104,4 +104,7 @@ router
   .route("/upload-image")
   .post(middleware.uploads.single("file"), controller.uploadImage);
 
+// toggle Mystery Men status
+router.route("/toggle-mystery-men/:userId").post(controller.toggleMysteryMen);
+
 module.exports = router;

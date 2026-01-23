@@ -37,6 +37,11 @@ const customerSchema = new mongoose.Schema(
       trim: true,
     },
 
+    isMysteryMen: {
+      type: Boolean,
+      default: false,
+    },
+
     oldUserId: {
       type: String,
       default: null,
