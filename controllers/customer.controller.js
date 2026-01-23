@@ -279,6 +279,7 @@ const getPagination = async (req, res) => {
           userRole: 1,
           isActiveUser: 1,
           isActiveDevice: 1,
+          isMysteryMen: 1,
         }
       )
         .skip(skip)
@@ -2906,27 +2907,30 @@ const setUserOffline = async (req, res) => {
 
   try {
     // Schedule update after 2 minutes (120000 ms)
-    setTimeout(async () => {
-      try {
-        await models.Customer.updateOne(
-          { _id: userId },
-          {
-            $set: {
-              isOnline: false,
-              lastActiveAt: new Date(),
-            },
-          }
-        );
+    setTimeout(
+      async () => {
+        try {
+          await models.Customer.updateOne(
+            { _id: userId },
+            {
+              $set: {
+                isOnline: false,
+                lastActiveAt: new Date(),
+              },
+            }
+          );
 
-        let userData = await models.Customer.findById(userId);
+          let userData = await models.Customer.findById(userId);
 
-        io.to(userId).emit("userDataUpdate", userData);
+          io.to(userId).emit("userDataUpdate", userData);
 
-        console.log(`User ${userId} marked offline after 2 minutes`);
-      } catch (err) {
-        console.error("Error updating user offline:", err.message);
-      }
-    }, 2 * 60 * 1000);
+          console.log(`User ${userId} marked offline after 2 minutes`);
+        } catch (err) {
+          console.error("Error updating user offline:", err.message);
+        }
+      },
+      2 * 60 * 1000
+    );
 
     res
       .status(200)
@@ -3287,18 +3291,21 @@ const uploadImage = async (req, res) => {
     const imageUrl = req.file.location; // Assuming using multer-s3 or similar
 
     // delete uploaded file from s3 after 1 day
-    setTimeout(async () => {
-      try {
-        const params = {
-          Bucket: process.env.AWS_S3_BUCKET_NAME,
-          Key: req.file.key,
-        };
-        await s3.deleteObject(params).promise();
-        console.log(`Deleted file ${req.file.key} from S3 after 1 day`);
-      } catch (err) {
-        console.error(`Error deleting file ${req.file.key} from S3:`, err);
-      }
-    }, 1 * 24 * 60 * 60 * 1000); // 1 day in milliseconds
+    setTimeout(
+      async () => {
+        try {
+          const params = {
+            Bucket: process.env.AWS_S3_BUCKET_NAME,
+            Key: req.file.key,
+          };
+          await s3.deleteObject(params).promise();
+          console.log(`Deleted file ${req.file.key} from S3 after 1 day`);
+        } catch (err) {
+          console.error(`Error deleting file ${req.file.key} from S3:`, err);
+        }
+      },
+      1 * 24 * 60 * 60 * 1000
+    ); // 1 day in milliseconds
 
     return res
       .status(200)
@@ -3309,7 +3316,37 @@ const uploadImage = async (req, res) => {
   }
 };
 
+const toggleMysteryMen = async (req, res) => {
+  const { userId } = req.params;
+  if (!userId) {
+    return res
+      .status(400)
+      .json({ success: false, message: "userId is required." });
+  }
+  try {
+    const user = await models.Customer.findById(userId);
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Customer not found" });
+    }
+    user.isMysteryMen = !user.isMysteryMen;
+    await user.save();
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Customer not found" });
+    }
+    io.to(user._id).emit("userDataUpdate", user);
+    res.status(200).json({ success: true, message: "Update successful." });
+  } catch (error) {
+    logger.error(error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
+  toggleMysteryMen,
   uploadImage,
   login,
   register,
