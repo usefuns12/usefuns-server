@@ -331,7 +331,7 @@ const addRoom = async (req, res) => {
   try {
     const isUserExist = await models.Customer.findOne(
       { _id: userId },
-      { roomId: 1, userId: 1, countryCode: 1 }
+      { roomId: 1, userId: 1, countryCode: 1 },
     );
     if (!isUserExist) {
       return res.status(400).json({
@@ -402,7 +402,7 @@ const updateRoom = async (req, res) => {
     const roomData = await models.Room.findOneAndUpdate(
       { _id: id },
       { $set: roomParams },
-      { new: true }
+      { new: true },
     );
 
     if (!roomData) {
@@ -478,7 +478,7 @@ const addActiveUser = async (req, res) => {
           $push: {
             activeUsers: userId,
           },
-        }
+        },
       );
 
       user.recentlyJoinedRooms.push(roomId);
@@ -546,7 +546,7 @@ const addLockedRoom = async (req, res) => {
         $push: {
           activeUsers: userId,
         },
-      }
+      },
     );
 
     user.isLive = true;
@@ -596,7 +596,7 @@ const removeActiveUser = async (req, res) => {
         $pull: {
           activeUsers: userId,
         },
-      }
+      },
     );
 
     const userData = await models.Customer.findOneAndUpdate(
@@ -609,7 +609,7 @@ const removeActiveUser = async (req, res) => {
           recentlyJoinedRooms: roomId,
         },
       },
-      { new: true }
+      { new: true },
     );
 
     io.to(userId).emit("userDataUpdate", userData);
@@ -660,7 +660,7 @@ const addGroupActiveUser = async (req, res) => {
         $push: {
           groupMembers: userId,
         },
-      }
+      },
     );
 
     res
@@ -697,7 +697,7 @@ const removeGroupActiveUser = async (req, res) => {
         $pull: {
           groupMembers: userId,
         },
-      }
+      },
     );
 
     res
@@ -785,7 +785,7 @@ const addAdmin = async (req, res) => {
         $push: {
           admin: userId,
         },
-      }
+      },
     );
 
     res
@@ -822,7 +822,7 @@ const removeAdmin = async (req, res) => {
         $pull: {
           admin: userId,
         },
-      }
+      },
     );
 
     res
@@ -841,7 +841,7 @@ const getBlockedUsers = async (req, res) => {
   try {
     const room = await models.Room.findOne(
       { _id: roomId },
-      { blockedList: 1 }
+      { blockedList: 1 },
     ).populate("blockedList", "-pwd -token");
 
     if (!room) {
@@ -884,7 +884,7 @@ const unblockUser = async (req, res) => {
 
     await models.Room.updateOne(
       { _id: roomId },
-      { $pull: { blockedList: userId } }
+      { $pull: { blockedList: userId } },
     );
 
     res
@@ -924,7 +924,7 @@ const kickUser = async (req, res) => {
     // Remove any existing kick entry for this user
     await models.Room.updateOne(
       { _id: roomId },
-      { $pull: { kickHistory: { userId } } }
+      { $pull: { kickHistory: { userId } } },
     );
 
     // Remove from active users and add to kick history
@@ -939,7 +939,7 @@ const kickUser = async (req, res) => {
             expireAt,
           },
         },
-      }
+      },
     );
 
     // Remove from RoomMember
@@ -961,11 +961,11 @@ const getKickHistory = async (req, res) => {
   try {
     const room = await models.Room.findOne(
       { _id: roomId },
-      { kickHistory: 1 }
+      { kickHistory: 1 },
     ).populate("kickHistory.userId", "name profileImage userId oldUserId");
 
     const recentKicks = room.kickHistory.filter(
-      (entry) => new Date(entry.kickedAt) >= since
+      (entry) => new Date(entry.kickedAt) >= since,
     );
 
     res.status(200).json({
@@ -1002,7 +1002,7 @@ const getRoomJoinedUsers = async (req, res) => {
 
     // Fetch full user details
     const users = await models.Customer.find({ _id: { $in: userIds } }).select(
-      "name profileImage email level isLive userId oldUserId"
+      "name profileImage email level isLive userId oldUserId",
     );
 
     res.status(200).json({
@@ -1021,7 +1021,7 @@ const getBlockedUsersDetailed = async (req, res) => {
   try {
     const room = await models.Room.findOne({ _id: roomId }).populate(
       "blockedList",
-      "name profileImage"
+      "name profileImage",
     );
 
     res.status(200).json({
@@ -1054,7 +1054,7 @@ const unmuteUser = async (req, res) => {
   try {
     await models.Room.updateOne(
       { _id: roomId },
-      { $pull: { mutedList: userId } }
+      { $pull: { mutedList: userId } },
     );
 
     res.status(200).json({ success: true, message: "User unmuted." });
@@ -1087,9 +1087,8 @@ const sendGift = async (req, res) => {
 
     const { quantity, cashbackAmount } = quantityData;
 
-    const selectedGift = await models.Gift.findById(giftId).populate(
-      "categoryId"
-    );
+    const selectedGift =
+      await models.Gift.findById(giftId).populate("categoryId");
     if (!selectedGift) {
       return res.status(404).json({ message: "Gift not found." });
     }
@@ -1124,36 +1123,50 @@ const sendGift = async (req, res) => {
 
     // 🎁 Surprise gift logic
     if (categoryName === "surprise") {
-      // 🟡 Old logic: Receiver gets half diamonds
-      actualReceiverDiamonds = Math.floor(totalGiftDiamonds / 2);
+      // // 🟡 Old logic: Receiver gets half diamonds
+      // actualReceiverDiamonds = Math.floor(totalGiftDiamonds / 2);
+      // // ✅ New logic: Receiver gets 60 beans
+      // // actualReceiverBeans = 60;
+      // // ✅ Sender gets cashback only if it's surprise
+      // const shouldGiveCashback = Math.random() < 0.3;
+      // if (shouldGiveCashback) {
+      //   const now = new Date();
+      //   const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+      //   const transactions = await models.GiftTransaction.aggregate([
+      //     {
+      //       $match: {
+      //         countryCode: sender.countryCode,
+      //         giftTime: { $gte: fiveMinutesAgo, $lte: now },
+      //       },
+      //     },
+      //     {
+      //       $group: {
+      //         _id: null,
+      //         totalDiamonds: { $sum: "$totalDiamonds" },
+      //       },
+      //     },
+      //   ]);
+      //   const recentTotal = transactions?.[0]?.totalDiamonds || 0;
+      //   const maxCashback = Math.floor(recentTotal * 0.1);
+      //   senderCashback = Math.floor(Math.random() * (maxCashback + 1));
+      // }
+      // add new logic here
+      if (totalGiftDiamonds >= 199) {
+        let cashbackOptions = [];
 
-      // ✅ New logic: Receiver gets 60 beans
-      // actualReceiverBeans = 60;
+        if (totalGiftDiamonds >= 1000) {
+          cashbackOptions = [
+            Math.floor(totalGiftDiamonds * 0.199),
+            Math.floor(totalGiftDiamonds * 0.399),
+            Math.floor(totalGiftDiamonds * 0.01),
+            0,
+          ];
+        } else {
+          cashbackOptions = [1, 10, 0];
+        }
 
-      // ✅ Sender gets cashback only if it's surprise
-      const shouldGiveCashback = Math.random() < 0.3;
-      if (shouldGiveCashback) {
-        const now = new Date();
-        const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-
-        const transactions = await models.GiftTransaction.aggregate([
-          {
-            $match: {
-              countryCode: sender.countryCode,
-              giftTime: { $gte: fiveMinutesAgo, $lte: now },
-            },
-          },
-          {
-            $group: {
-              _id: null,
-              totalDiamonds: { $sum: "$totalDiamonds" },
-            },
-          },
-        ]);
-
-        const recentTotal = transactions?.[0]?.totalDiamonds || 0;
-        const maxCashback = Math.floor(recentTotal * 0.1);
-        senderCashback = Math.floor(Math.random() * (maxCashback + 1));
+        const randomIndex = Math.floor(Math.random() * cashbackOptions.length);
+        senderCashback = cashbackOptions[randomIndex];
       }
     }
 
@@ -1233,7 +1246,7 @@ const sendGift = async (req, res) => {
     // 1. Fetch all rooms
     const rooms = await models.Room.find(
       { countryCode: sender.countryCode },
-      { _id: 1 }
+      { _id: 1 },
     ); // only fetch IDs for efficiency
 
     const roomData = await models.Room.findById(roomId);
@@ -1301,7 +1314,7 @@ const banChatUser = async (req, res) => {
   try {
     await models.Room.updateOne(
       { _id: roomId },
-      { $addToSet: { chatUserBannedList: userId } }
+      { $addToSet: { chatUserBannedList: userId } },
     );
     res.status(200).json({ success: true, message: "User chat banned." });
   } catch (error) {
@@ -1315,7 +1328,7 @@ const unbanChatUser = async (req, res) => {
   try {
     await models.Room.updateOne(
       { _id: roomId },
-      { $pull: { chatUserBannedList: userId } }
+      { $pull: { chatUserBannedList: userId } },
     );
     res.status(200).json({ success: true, message: "User chat unbanned." });
   } catch (error) {
@@ -1335,7 +1348,7 @@ const updateSeatLocks = async (req, res) => {
   try {
     await models.Room.updateOne(
       { _id: roomId },
-      { $set: { seatLockedUserList: seatIndexes } }
+      { $set: { seatLockedUserList: seatIndexes } },
     );
     res.status(200).json({ success: true, message: "Seat lock list updated." });
   } catch (error) {
@@ -1356,7 +1369,7 @@ const updateRoomSeatCount = async (req, res) => {
     const room = await models.Room.findByIdAndUpdate(
       roomId,
       { noOfSeats: seatCount },
-      { new: true }
+      { new: true },
     );
 
     if (!room) {
@@ -1438,7 +1451,7 @@ const getAllRoomOfCountryAdmins = async (req, res) => {
         (admin) =>
           admin.customerRef &&
           admin.customerRef.roomId &&
-          admin.customerRef.roomId.toString() === room._id.toString()
+          admin.customerRef.roomId.toString() === room._id.toString(),
       );
       return {
         ...room.toObject(),
