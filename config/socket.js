@@ -55,19 +55,19 @@ const configure = async (app, server) => {
 
       if (!userId && !roomId) {
         logger.warn(
-          `leaveRoom event triggered without userId and roomId for socket ${socket.id}`
+          `leaveRoom event triggered without userId and roomId for socket ${socket.id}`,
         );
         console.log(
-          `Warning: leaveRoom event triggered without userId and roomId for socket ${socket.id}`
+          `Warning: leaveRoom event triggered without userId and roomId for socket ${socket.id}`,
         );
         return;
       }
 
       logger.info(
-        `Received leaveRoom event with data: userId=${userId}, roomId=${roomId}`
+        `Received leaveRoom event with data: userId=${userId}, roomId=${roomId}`,
       );
       console.log(
-        `Received leaveRoom event with data: userId=${userId}, roomId=${roomId}`
+        `Received leaveRoom event with data: userId=${userId}, roomId=${roomId}`,
       );
 
       if (userId && !roomId) {
@@ -87,7 +87,7 @@ const configure = async (app, server) => {
           {
             $pull: { activeUsers: userId },
             $push: { lastMembers: userId },
-          }
+          },
         );
 
         await models.Customer.updateOne(
@@ -98,11 +98,11 @@ const configure = async (app, server) => {
               currentJoinedRoomId: null, // <-- Set room reference to null
             },
             $pull: { recentlyJoinedRooms: roomId },
-          }
+          },
         );
 
         console.log(
-          `Client ${socket.id} has been removed from room ${roomId} (${userId})`
+          `Client ${socket.id} has been removed from room ${roomId} (${userId})`,
         );
       } catch (error) {
         logger.error(`Error leaving room ${roomId} (${userId}):`, error);
@@ -148,19 +148,19 @@ const configure = async (app, server) => {
 
       if (!userId && !roomId) {
         logger.warn(
-          `leaveRoom event triggered without userId and roomId for socket ${socket.id}`
+          `leaveRoom event triggered without userId and roomId for socket ${socket.id}`,
         );
         console.log(
-          `Warning: leaveRoom event triggered without userId and roomId for socket ${socket.id}`
+          `Warning: leaveRoom event triggered without userId and roomId for socket ${socket.id}`,
         );
         return;
       }
 
       logger.info(
-        `Received leaveRoom event with data: userId=${userId}, roomId=${roomId}`
+        `Received leaveRoom event with data: userId=${userId}, roomId=${roomId}`,
       );
       console.log(
-        `Received leaveRoom event with data: userId=${userId}, roomId=${roomId}`
+        `Received leaveRoom event with data: userId=${userId}, roomId=${roomId}`,
       );
 
       if (userId && !roomId) {
@@ -191,7 +191,7 @@ const configure = async (app, server) => {
               hostingTimeCurrentSession: 1,
               hostingTimeLastSession: 1,
             },
-          }
+          },
         );
 
         await models.Customer.findOneAndUpdate(
@@ -199,14 +199,14 @@ const configure = async (app, server) => {
           {
             $set: { isLive: false },
             $pull: { recentlyJoinedRooms: roomId },
-          }
+          },
         );
 
         if (room.ownerId === userId) {
           if (room.lastHostJoinedAt !== null) {
             const currentHostTime = moment().diff(
               moment(room.lastHostJoinedAt),
-              "seconds"
+              "seconds",
             );
             await models.Room.updateOne(
               { _id: roomId },
@@ -215,13 +215,13 @@ const configure = async (app, server) => {
                   hostingTimeCurrentSession: currentHostTime,
                   lastHostJoinedAt: null,
                 },
-              }
+              },
             );
           }
         }
 
         console.log(
-          `Client ${socket.id} has been removed from room ${roomId} (${userId})`
+          `Client ${socket.id} has been removed from room ${roomId} (${userId})`,
         );
       } catch (error) {
         logger.error(`Error leaving room ${roomId} (${userId}):`, error);
@@ -376,7 +376,7 @@ const configure = async (app, server) => {
         "📩 [sendGift] Incoming data:",
         data,
         socket.data.userId,
-        socket.data.roomId
+        socket.data.roomId,
       );
 
       if (
@@ -407,9 +407,8 @@ const configure = async (app, server) => {
 
           // ✅ Fetch gift
           console.log("🔍 Fetching Gift by ID:", giftId);
-          const selectedGift = await models.Gift.findById(giftId).populate(
-            "categoryId"
-          );
+          const selectedGift =
+            await models.Gift.findById(giftId).populate("categoryId");
           if (!selectedGift) {
             console.warn("❌ Gift not found:", giftId);
             io.to(sender).emit("errorMessage", {
@@ -425,7 +424,7 @@ const configure = async (app, server) => {
             selectedGift.categoryId?.toLowerCase();
           const totalGiftDiamonds = selectedGift.diamonds * quantity;
           console.log(
-            `🎁 Gift category: ${categoryName}, total diamonds required: ${totalGiftDiamonds}`
+            `🎁 Gift category: ${categoryName}, total diamonds required: ${totalGiftDiamonds}`,
           );
 
           // ✅ Fetch customers (sender + receiver)
@@ -450,7 +449,7 @@ const configure = async (app, server) => {
             "✅ Sender:",
             senderC.name,
             "| Receiver:",
-            receiverC.name
+            receiverC.name,
           );
 
           // ✅ Diamond balance check
@@ -474,43 +473,69 @@ const configure = async (app, server) => {
           let senderCashback = 0;
 
           if (categoryName === "surprise") {
-            console.log("🎲 Surprise gift detected, applying special logic...");
-            actualReceiverBeans = Math.floor(totalGiftDiamonds / 2);
+            // console.log("🎲 Surprise gift detected, applying special logic...");
+            // actualReceiverBeans = Math.floor(totalGiftDiamonds / 2);
 
-            const shouldGiveCashback = Math.random() < 0.3;
-            console.log(
-              `🎲 Cashback chance triggered: ${
-                shouldGiveCashback ? "YES" : "NO"
-              }`
-            );
+            // const shouldGiveCashback = Math.random() < 0.3;
+            // console.log(
+            //   `🎲 Cashback chance triggered: ${
+            //     shouldGiveCashback ? "YES" : "NO"
+            //   }`
+            // );
 
-            if (shouldGiveCashback) {
-              const now = new Date();
-              const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+            // if (shouldGiveCashback) {
+            //   const now = new Date();
+            //   const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
 
-              console.log("📊 Aggregating GiftTransactions in last 5 mins...");
-              const transactions = await models.GiftTransaction.aggregate([
-                {
-                  $match: {
-                    countryCode: senderC.countryCode,
-                    giftTime: { $gte: fiveMinutesAgo, $lte: now },
-                  },
-                },
-                {
-                  $group: {
-                    _id: null,
-                    totalDiamonds: { $sum: "$totalDiamonds" },
-                  },
-                },
-              ]);
+            //   console.log("📊 Aggregating GiftTransactions in last 5 mins...");
+            //   const transactions = await models.GiftTransaction.aggregate([
+            //     {
+            //       $match: {
+            //         countryCode: senderC.countryCode,
+            //         giftTime: { $gte: fiveMinutesAgo, $lte: now },
+            //       },
+            //     },
+            //     {
+            //       $group: {
+            //         _id: null,
+            //         totalDiamonds: { $sum: "$totalDiamonds" },
+            //       },
+            //     },
+            //   ]);
 
-              const recentTotal = transactions?.[0]?.totalDiamonds || 0;
-              const maxCashback = Math.floor(recentTotal * 0.1);
-              senderCashback = Math.floor(Math.random() * (maxCashback + 1));
+            //   const recentTotal = transactions?.[0]?.totalDiamonds || 0;
+            //   const maxCashback = Math.floor(recentTotal * 0.1);
+            //   senderCashback = Math.floor(Math.random() * (maxCashback + 1));
 
-              console.log(
-                `💰 Cashback granted: ${senderCashback} (Recent total: ${recentTotal}, Max: ${maxCashback})`
+            //   console.log(
+            //     `💰 Cashback granted: ${senderCashback} (Recent total: ${recentTotal}, Max: ${maxCashback})`
+            //   );
+            // }
+
+            if (totalGiftDiamonds >= 199) {
+              let cashbackOptions = [];
+
+              if (totalGiftDiamonds >= 1000) {
+                cashbackOptions = [
+                  Math.floor(totalGiftDiamonds * 0.199),
+                  Math.floor(totalGiftDiamonds * 0.399),
+                  Math.floor(totalGiftDiamonds * 0.01),
+                  0,
+                ];
+              } else {
+                cashbackOptions = [1, 10, 0];
+              }
+
+              const randomIndex = Math.floor(
+                Math.random() * cashbackOptions.length,
               );
+              senderCashback = cashbackOptions[randomIndex];
+
+              console.log(`Surprise Gift Logic:
+          Total Gift Diamonds: ${totalGiftDiamonds}
+          Cashback Options: ${cashbackOptions.join(", ")}
+          Selected Cashback: ${senderCashback}
+         `);
             }
           }
 
@@ -593,7 +618,7 @@ const configure = async (app, server) => {
           console.log("📡 Broadcasting giftSent to all country rooms...");
           const allRooms = await models.Room.find(
             { countryCode: senderC.countryCode },
-            { _id: 1 }
+            { _id: 1 },
           );
 
           allRooms.forEach((r) => {
