@@ -372,13 +372,6 @@ const configure = async (app, server) => {
     socket.on("sendGift", async (data) => {
       const { sender, receiver, giftId, count, qtyId } = data;
 
-      console.log(
-        "📩 [sendGift] Incoming data:",
-        data,
-        socket.data.userId,
-        socket.data.roomId,
-      );
-
       if (
         socket.data.userId &&
         socket.data.roomId &&
@@ -389,10 +382,8 @@ const configure = async (app, server) => {
       ) {
         try {
           const roomId = socket.data.roomId;
-          console.log("➡️ Using roomId:", roomId);
 
           // ✅ Fetch quantity cashback
-          console.log("🔍 Fetching QuantityCashback by ID:", qtyId);
           const quantityData = await models.QuantityCashback.findById(qtyId);
           if (!quantityData) {
             console.warn("❌ Invalid quantity ID:", qtyId);
@@ -403,10 +394,8 @@ const configure = async (app, server) => {
             return;
           }
           const { quantity, cashbackAmount } = quantityData;
-          console.log("✅ Found QuantityCashback:", quantityData);
 
           // ✅ Fetch gift
-          console.log("🔍 Fetching Gift by ID:", giftId);
           const selectedGift =
             await models.Gift.findById(giftId).populate("categoryId");
           if (!selectedGift) {
@@ -417,18 +406,13 @@ const configure = async (app, server) => {
             });
             return;
           }
-          console.log("✅ Found Gift:", selectedGift.name);
 
           const categoryName =
             selectedGift.categoryId?.name?.toLowerCase() ||
             selectedGift.categoryId?.toLowerCase();
           const totalGiftDiamonds = selectedGift.diamonds * quantity;
-          console.log(
-            `🎁 Gift category: ${categoryName}, total diamonds required: ${totalGiftDiamonds}`,
-          );
 
           // ✅ Fetch customers (sender + receiver)
-          console.log("🔍 Fetching sender & receiver...");
           const [senderC, receiverC] = await Promise.all([
             models.Customer.findById(sender),
             models.Customer.findById(receiver),
@@ -445,15 +429,8 @@ const configure = async (app, server) => {
             });
             return;
           }
-          console.log(
-            "✅ Sender:",
-            senderC.name,
-            "| Receiver:",
-            receiverC.name,
-          );
 
           // ✅ Diamond balance check
-          console.log("💎 Sender diamonds:", senderC.diamonds);
           if (senderC.diamonds < totalGiftDiamonds) {
             console.warn("❌ Not enough diamonds", {
               available: senderC.diamonds,
@@ -540,7 +517,6 @@ const configure = async (app, server) => {
           }
 
           // ✅ Update sender balance
-          console.log("✏️ Updating sender balance...");
           senderC.diamonds += senderCashback - totalGiftDiamonds;
           senderC.usedDiamonds += totalGiftDiamonds;
           senderC.xp = (
@@ -548,16 +524,12 @@ const configure = async (app, server) => {
           ).toString();
           senderC.level = getUserLevel(BigInt(senderC.xp));
           await senderC.save();
-          console.log("✅ Sender balance updated:", senderC.diamonds);
 
           // ✅ Update receiver beans
-          console.log("✏️ Updating receiver beans...");
           receiverC.beans += actualReceiverBeans;
           await receiverC.save();
-          console.log("✅ Receiver beans updated:", receiverC.beans);
 
           // ✅ Save SendGift + GiftTransaction + History
-          console.log("📝 Saving SendGift, GiftTransaction, and History...");
           await Promise.all([
             models.SendGift.create({
               roomId,
@@ -593,10 +565,8 @@ const configure = async (app, server) => {
                 : []),
             ]),
           ]);
-          console.log("✅ Transactions saved to DB");
 
           // ✅ Update TreasureBox (room stats)
-          console.log("📦 Updating room treasure box stats...");
           const room = await models.Room.findById(roomId);
           const totalDiamondsUsed = room.totalDiamondsUsed + totalGiftDiamonds;
           room.diamondsUsedToday += totalGiftDiamonds;
@@ -604,18 +574,12 @@ const configure = async (app, server) => {
           room.totalDiamondsUsed = totalDiamondsUsed;
           room.treasureBoxLevel = getTreasureBoxLevel(room.diamondsUsedToday);
           await room.save();
-          console.log("✅ Room updated:", {
-            treasureBoxLevel: room.treasureBoxLevel,
-            diamondsUsedToday: room.diamondsUsedToday,
-          });
 
           // ✅ Emit sender updated data
-          console.log("📡 Emitting updated user data to sender...");
           const userData = await models.Customer.findById(socket.data.userId);
           io.to(socket.data.userId).emit("userDataUpdate", userData);
 
           // ✅ Emit giftSent to all rooms in sender’s country
-          console.log("📡 Broadcasting giftSent to all country rooms...");
           const allRooms = await models.Room.find(
             { countryCode: senderC.countryCode },
             { _id: 1 },
@@ -645,7 +609,6 @@ const configure = async (app, server) => {
           });
 
           // ✅ Emit diamond update
-          console.log("📡 Emitting diamondUpdate to sender...");
           io.to(sender).emit("diamondUpdate", {
             userId: sender,
             totalDiamonds: senderC.diamonds,
@@ -653,7 +616,6 @@ const configure = async (app, server) => {
           });
 
           // ✅ Emit bean update
-          console.log("📡 Emitting beanUpdate to receiver...");
           io.to(receiver).emit("beanUpdate", {
             userId: receiver,
             totalBeans: receiverC.beans,
@@ -661,7 +623,6 @@ const configure = async (app, server) => {
           });
 
           // ✅ Emit treasure box update
-          console.log("📡 Emitting treasureBoxUpdate to room...");
           io.to(roomId).emit("treasureBoxUpdate", {
             diamondsUsedToday: room.diamondsUsedToday,
             treasureBoxLevel: room.treasureBoxLevel,
@@ -670,7 +631,6 @@ const configure = async (app, server) => {
           });
 
           // ✅ Emit giftUpdate
-          console.log("📡 Emitting giftUpdate to room...");
           io.to(roomId).emit("giftUpdate", {
             receiver,
             giftId,
@@ -678,8 +638,6 @@ const configure = async (app, server) => {
             sender,
             points: selectedGift.diamonds,
           });
-
-          console.log("✅ [sendGift] Event completed successfully!");
         } catch (error) {
           console.error("❌ Error in sendGift socket:", error);
           io.to(sender).emit("errorMessage", {
