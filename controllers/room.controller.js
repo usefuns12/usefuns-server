@@ -1167,8 +1167,24 @@ const sendGift = async (req, res) => {
 
         const randomIndex = Math.floor(Math.random() * cashbackOptions.length);
         senderCashback = cashbackOptions[randomIndex];
+
+        console.log(`Surprise Gift Logic:
+          Total Gift Diamonds: ${totalGiftDiamonds}
+          Cashback Options: ${cashbackOptions.join(", ")}
+          Selected Cashback: ${senderCashback}
+        `);
       }
     }
+
+    console.log(`Gift Transaction Details:
+      Sender: ${sender.name} (${sender._id})
+      Receiver: ${receiver.name} (${receiver._id})
+      Gift: ${selectedGift.name} (ID: ${selectedGift._id})
+      Quantity: ${quantity}
+      Total Diamonds: ${totalGiftDiamonds}
+      Receiver Beans: ${actualReceiverBeans}
+      Sender Cashback Diamonds: ${senderCashback}
+    `);
 
     // 💎 Update sender
     sender.diamonds += senderCashback - totalGiftDiamonds;
