@@ -179,12 +179,12 @@ const register = async (req, res) => {
       // Get all specialId arrays from items in the DB and flatten them
       const items = await models.ShopItem.find(
         { itemType: "specialId" },
-        { specialId: 1, _id: 0 }
+        { specialId: 1, _id: 0 },
       );
 
       // Flatten all specialId arrays into one
       const specialIdsInUse = new Set(
-        items.flatMap((item) => item.specialId || []).map((id) => parseInt(id))
+        items.flatMap((item) => item.specialId || []).map((id) => parseInt(id)),
       );
 
       let newUserId = parseInt(userId) + 1;
@@ -280,7 +280,7 @@ const getPagination = async (req, res) => {
           isActiveUser: 1,
           isActiveDevice: 1,
           isMysteryMen: 1,
-        }
+        },
       )
         .skip(skip)
         .limit(limit)
@@ -384,7 +384,7 @@ const getUnassignedUsers = async (req, res) => {
 
     if (query && query.trim()) {
       const filteredCustomers = customerData.filter((customer) =>
-        customer.userId.toLowerCase().includes(query.trim().toLowerCase())
+        customer.userId.toLowerCase().includes(query.trim().toLowerCase()),
       );
       return res.status(200).json({
         success: true,
@@ -446,7 +446,7 @@ const getUnassignedUsersByCountry = async (req, res) => {
     if (query && query.trim()) {
       const q = query.trim().toLowerCase();
       customerData = customerData.filter((customer) =>
-        (customer.userId || "").toLowerCase().includes(q)
+        (customer.userId || "").toLowerCase().includes(q),
       );
     }
     return res.status(200).json({
@@ -512,7 +512,7 @@ const getUnassignedUsersWithJoinStatus = async (req, res) => {
         type: "fromAgency", // request initiated by Agency
         customerId: { $in: unassignedCustomerIds },
       },
-      { customerId: 1, status: 1 }
+      { customerId: 1, status: 1 },
     );
 
     // Map: customerId -> status
@@ -539,7 +539,7 @@ const getUnassignedUsersWithJoinStatus = async (req, res) => {
     if (query && query.trim()) {
       const q = query.trim().toLowerCase();
       customerData = customerData.filter((customer) =>
-        (customer.userId || "").toLowerCase().includes(q)
+        (customer.userId || "").toLowerCase().includes(q),
       );
     }
 
@@ -608,7 +608,7 @@ const getViewCount = async (req, res) => {
       {
         $inc: { views: 1 },
       },
-      { new: true }
+      { new: true },
     );
 
     if (!userData) {
@@ -668,7 +668,7 @@ const getOtp = async (req, res) => {
         $set: {
           loginOtp: otp,
         },
-      }
+      },
     );
 
     const url =
@@ -704,7 +704,7 @@ const updateCustomer = async (req, res) => {
     const userData = await models.Customer.findOneAndUpdate(
       { _id: id },
       { $set: userParams },
-      { new: true }
+      { new: true },
     );
 
     if (!userData) {
@@ -772,13 +772,13 @@ const setDefaultItem = async (req, res) => {
     const updateDefaultItem = async (typeField) => {
       await models.Customer.updateOne(
         { _id: userId, [`${typeField}.isDefault`]: true },
-        { $set: { [`${typeField}.$.isDefault`]: false } }
+        { $set: { [`${typeField}.$.isDefault`]: false } },
       );
 
       const userData = await models.Customer.findOneAndUpdate(
         { _id: userId, [`${typeField}._id`]: itemId },
         { $set: { [`${typeField}.$.isDefault`]: true } },
-        { new: true }
+        { new: true },
       );
 
       return userData;
@@ -845,14 +845,14 @@ const followUser = async (req, res) => {
     const updatedUser = await models.Customer.findOneAndUpdate(
       { _id: from },
       { [updateAction]: { following: to } },
-      { new: true }
+      { new: true },
     );
 
     // Update the 'followers' list of the following user
     const updatedFollowingUser = await models.Customer.findOneAndUpdate(
       { _id: to },
       { [updateAction]: { followers: from } },
-      { new: true }
+      { new: true },
     );
 
     io.to(from).emit("userDataUpdate", updatedUser);
@@ -875,7 +875,7 @@ const logout = async (req, res) => {
         $set: {
           tokens: null,
         },
-      }
+      },
     );
 
     if (!user) {
@@ -1334,7 +1334,7 @@ const deletePost = async (req, res) => {
   try {
     const result = await models.Posts.findOneAndDelete(
       { _id: id },
-      { projection: { image: 1 } }
+      { projection: { image: 1 } },
     );
 
     if (!result) {
@@ -1391,7 +1391,7 @@ const addWallet = async (req, res) => {
             purchasedDiamonds: diamonds,
           },
         },
-        { new: true }
+        { new: true },
       );
 
       // Add diamond recharge history
@@ -1516,7 +1516,7 @@ const convertBeansToDiamonds = async (req, res) => {
           beans: -beans,
         },
       },
-      { new: true }
+      { new: true },
     );
 
     if (!userData) {
@@ -1559,7 +1559,7 @@ const addBeans = async (req, res) => {
           beans: beans,
         },
       },
-      { new: true }
+      { new: true },
     );
 
     io.to(userId).emit("userDataUpdate", userData);
@@ -1599,7 +1599,7 @@ const shop = async (req, res) => {
         specialId: 1,
         lockRooms: 1,
         extraSeats: 1,
-      }
+      },
     );
 
     if (!user) {
@@ -1619,7 +1619,7 @@ const shop = async (req, res) => {
 
     const updateUserItem = (field) => {
       const index = user[field]?.findIndex(
-        (f) => f._id.toString() === item._id
+        (f) => f._id.toString() === item._id,
       );
       if (index !== -1) {
         user[field]?.splice(index, 1);
@@ -1710,7 +1710,7 @@ const assistItems = async (req, res) => {
 
         // Filter out the existing item by _id
         const filteredItems = user[itemType].filter(
-          (i) => !i._id.equals(item._id)
+          (i) => !i._id.equals(item._id),
         );
 
         // Add the new item
@@ -1719,7 +1719,7 @@ const assistItems = async (req, res) => {
         // Replace the entire array with filtered + new item
         await models.Customer.updateOne(
           { _id: userId },
-          { $set: { [itemType]: filteredItems } }
+          { $set: { [itemType]: filteredItems } },
         );
       }
     }
@@ -1751,7 +1751,7 @@ const removeItem = async (req, res) => {
       { _id: userId },
       {
         $pull: { [itemType]: { _id: itemId } },
-      }
+      },
     );
 
     if (!user) {
@@ -1801,11 +1801,24 @@ const diamondSubmitFlow = async (req, res) => {
       .json({ success: false, message: "please provide userId" });
   }
 
+  // check if userId is a valid MongoDB ObjectId
+  const isValidObjectId = (id) => {
+    return mongoose.Types.ObjectId.isValid(id);
+  };
+
+  const getUserCondition = (userId) => {
+    if (isValidObjectId(userId)) {
+      return { _id: userId };
+    } else {
+      return { userId: userId };
+    }
+  };
+
   try {
     let condition, updateData;
     if (type === 1) {
       condition = {
-        userId,
+        ...getUserCondition(userId),
         diamonds: { $gte: diamonds },
       };
       updateData = {
@@ -1816,7 +1829,7 @@ const diamondSubmitFlow = async (req, res) => {
       };
     } else if (type === 2) {
       condition = {
-        userId,
+        ...getUserCondition(userId),
       };
       updateData = {
         $inc: {
@@ -1832,7 +1845,7 @@ const diamondSubmitFlow = async (req, res) => {
     const userData = await models.Customer.findOneAndUpdate(
       condition,
       updateData,
-      { new: true }
+      { new: true },
     );
 
     if (type === 1 && !userData) {
@@ -1934,7 +1947,7 @@ const likePost = async (req, res) => {
 
       await models.Customer.updateOne(
         { _id: isPostExist.createdBy },
-        { $set: { likes: totalLikes } }
+        { $set: { likes: totalLikes } },
       );
 
       res
@@ -1956,7 +1969,7 @@ const likePost = async (req, res) => {
 
       await models.Customer.updateOne(
         { _id: isPostExist.createdBy },
-        { $set: { likes: totalLikes } }
+        { $set: { likes: totalLikes } },
       );
 
       res
@@ -2059,7 +2072,7 @@ const updatePostComment = async (req, res) => {
       { _id: commentId },
       {
         $set: { comment: comment },
-      }
+      },
     );
 
     res
@@ -2335,7 +2348,7 @@ const deleteUserDp = async (req, res) => {
           images: constants.banDpLink,
         },
       },
-      { new: true }
+      { new: true },
     );
 
     io.to(userId).emit("userDataUpdate", userData);
@@ -2591,7 +2604,7 @@ const banDevice = async (req, res) => {
     const user = await models.Customer.findOneAndUpdate(
       { _id: userId },
       { $set: { isActiveDevice: isActiveDevice } },
-      { new: true }
+      { new: true },
     );
 
     if (!user) {
@@ -2605,7 +2618,7 @@ const banDevice = async (req, res) => {
         {
           $and: [{ deviceId: user.deviceId }, { deviceId: { $ne: null } }],
         },
-        { $set: { isActiveDevice: isActiveDevice } }
+        { $set: { isActiveDevice: isActiveDevice } },
       );
 
       if (!isActiveDevice) {
@@ -2633,7 +2646,7 @@ const banDevice = async (req, res) => {
 const updateRoomIdForUser = async (oldId, newId) => {
   await models.Room.updateMany(
     { roomId: oldId }, // Match rooms with old ID
-    { $set: { roomId: newId } } // Replace with new ID
+    { $set: { roomId: newId } }, // Replace with new ID
   );
 };
 
@@ -2687,7 +2700,7 @@ const purchaseSpecialId = async (req, res) => {
 
     const originalUserId = user.userId;
     const expiryDate = new Date(
-      Date.now() + validityDays * 24 * 60 * 60 * 1000
+      Date.now() + validityDays * 24 * 60 * 60 * 1000,
     );
 
     user.oldUserId = originalUserId;
@@ -2817,7 +2830,7 @@ const assistSpecialIdItems = async (req, res) => {
           user.specialIdValidity > new Date()
         ) {
           console.warn(
-            `User ${user._id} already has active special ID, skipping...`
+            `User ${user._id} already has active special ID, skipping...`,
           );
           continue;
         }
@@ -2885,7 +2898,7 @@ const setUserOnline = async (req, res) => {
           isOnline: true,
           lastActiveAt: new Date(),
         },
-      }
+      },
     );
 
     let userData = await models.Customer.findById(userId);
@@ -2917,7 +2930,7 @@ const setUserOffline = async (req, res) => {
                 isOnline: false,
                 lastActiveAt: new Date(),
               },
-            }
+            },
           );
 
           let userData = await models.Customer.findById(userId);
@@ -2929,7 +2942,7 @@ const setUserOffline = async (req, res) => {
           console.error("Error updating user offline:", err.message);
         }
       },
-      2 * 60 * 1000
+      2 * 60 * 1000,
     );
 
     res
@@ -2960,21 +2973,21 @@ const blockUser = async (req, res) => {
     if (wasFollower) {
       await models.Customer.updateOne(
         { _id: userId },
-        { $pull: { followers: targetUserId } }
+        { $pull: { followers: targetUserId } },
       );
     }
 
     // 2. Add to blockedUsers (prevent duplicate)
     await models.Customer.updateOne(
       { _id: userId },
-      { $addToSet: { blockedUsers: targetUserId } }
+      { $addToSet: { blockedUsers: targetUserId } },
     );
 
     // 3. Remove target user from rooms where current user is the owner
 
     await models.Room.updateMany(
       { ownerId: userId },
-      { $addToSet: { blockedList: targetUserId } }
+      { $addToSet: { blockedList: targetUserId } },
     );
 
     return res.json({
@@ -3001,13 +3014,13 @@ const unblockUser = async (req, res) => {
     // Step 1: Remove from user's personal blocked list
     await models.Customer.updateOne(
       { _id: userId },
-      { $pull: { blockedUsers: unblockUserId } }
+      { $pull: { blockedUsers: unblockUserId } },
     );
 
     // Step 2: Remove from all rooms owned by the user
     await models.Room.updateMany(
       { ownerId: userId },
-      { $pull: { blockedList: unblockUserId } }
+      { $pull: { blockedList: unblockUserId } },
     );
 
     res.status(200).json({
@@ -3026,7 +3039,7 @@ const getBlockedUsers = async (req, res) => {
   try {
     const user = await models.Customer.findById(userId).populate(
       "blockedUsers",
-      "-pwd"
+      "-pwd",
     );
 
     if (!user) {
@@ -3118,7 +3131,7 @@ const getReferralDetails = async (req, res) => {
 
     // Find the current user to get their referral code and total earned beans
     const user = await models.Customer.findById(userId).select(
-      "referralBeansEarned referralCode referralBeansBalance"
+      "referralBeansEarned referralCode referralBeansBalance",
     );
 
     if (!user) {
@@ -3304,7 +3317,7 @@ const uploadImage = async (req, res) => {
           console.error(`Error deleting file ${req.file.key} from S3:`, err);
         }
       },
-      1 * 24 * 60 * 60 * 1000
+      1 * 24 * 60 * 60 * 1000,
     ); // 1 day in milliseconds
 
     return res
