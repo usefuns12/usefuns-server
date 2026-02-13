@@ -8,14 +8,14 @@ mongoose
     useUnifiedTopology: true,
     useNewUrlParser: true,
   })
-  .then(async () => {
+  .then(() => {
     console.log("mongodb connected");
 
     // Pre cache DB in Redis
     //require('../utils/redisCache').preCacheDB();
 
     // Schedule Used Diamond reset task
-    await scheduleUsedDiamondTask();
+    scheduleUsedDiamondTask();
 
     // 🔓 STEP 3: Schedule wallet unlock job (runs daily at 2:00 AM)
     // scheduleWalletUnlock();
