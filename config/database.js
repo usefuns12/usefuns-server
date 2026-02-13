@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const dburi = process.env.MONGO_URL;
 const { scheduleUsedDiamondTask } = require("../scheduler/scheduler");
-const { scheduleWalletUnlock } = require("../scheduler/walletUnlock.scheduler");
+// const { scheduleWalletUnlock } = require("../scheduler/walletUnlock.scheduler");
 
 mongoose
   .connect(dburi, {
