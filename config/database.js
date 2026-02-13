@@ -1,10 +1,12 @@
 const mongoose = require("mongoose");
 const dburi = process.env.MONGO_URL;
-const { scheduleUsedDiamondTask } = require('../scheduler/scheduler');
+const { scheduleUsedDiamondTask } = require("../scheduler/scheduler");
+const { scheduleWalletUnlock } = require("../scheduler/walletUnlock.scheduler");
 
-mongoose.connect(dburi, {
+mongoose
+  .connect(dburi, {
     useUnifiedTopology: true,
-    useNewUrlParser: true
+    useNewUrlParser: true,
   })
   .then(() => {
     console.log("mongodb connected");
@@ -13,6 +15,9 @@ mongoose.connect(dburi, {
     //require('../utils/redisCache').preCacheDB();
 
     // Schedule Used Diamond reset task
-    //scheduleUsedDiamondTask();
+    scheduleUsedDiamondTask();
+
+    // 🔓 STEP 3: Schedule wallet unlock job (runs daily at 2:00 AM)
+    scheduleWalletUnlock();
   })
   .catch((err) => console.log(err));
