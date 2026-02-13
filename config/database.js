@@ -18,6 +18,6 @@ mongoose
     await scheduleUsedDiamondTask();
 
     // 🔓 STEP 3: Schedule wallet unlock job (runs daily at 2:00 AM)
-    scheduleWalletUnlock();
+    // scheduleWalletUnlock();
   })
   .catch((err) => console.log(err));
