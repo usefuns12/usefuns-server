@@ -1733,6 +1733,117 @@ const assistItems = async (req, res) => {
   }
 };
 
+const giftRandomShopItemInRoom = async (req, res) => {
+  const { roomId } = req.body;
+
+  if (!roomId) {
+    return res.status(400).json({
+      success: false,
+      message: "please provide roomId",
+    });
+  }
+
+  try {
+    const room = await models.Room.findById(roomId).lean();
+    if (!room) {
+      return res.status(400).json({
+        success: false,
+        message: "room not found",
+      });
+    }
+
+    const userIds = room.activeUsers;
+    const currentLevel = room.treasureBoxLevel || 1; // Assuming currentLevel is stored in the room document
+
+    const itemsLevelWise = await models.TreasureBoxLevel.findOne({
+      level: currentLevel,
+    }).lean();
+
+    if (!itemsLevelWise) {
+      return res.status(400).json({
+        success: false,
+        message: "Treasure box items not found for the current level",
+      });
+    }
+
+    const userDiamondsMap = new Map();
+    for (const userId of userIds) {
+      // use models.GiftTransaction to calculate total diamonds gifted by each user in the room by today date.
+      const totalDiamonds = await models.GiftTransaction.aggregate([
+        {
+          $match: {
+            roomId: mongoose.Types.ObjectId(roomId),
+            sender: mongoose.Types.ObjectId(userId),
+            createdAt: {
+              $gte: new Date(new Date().setHours(0, 0, 0, 0)), // Start of today
+              $lte: new Date(new Date().setHours(23, 59, 59, 999)), // End of today
+            },
+          },
+        },
+        { $group: { _id: "$sender", total: { $sum: "$totalDiamonds" } } },
+      ]);
+
+      userDiamondsMap.set(userId, totalDiamonds[0]?.total || 0);
+    }
+
+    // Sort users by diamond amount in descending order
+    const sortedUsers = Array.from(userDiamondsMap.entries()).sort(
+      (a, b) => b[1] - a[1],
+    );
+
+    // Assign levels to users
+    const userLevels = new Map();
+    for (let i = 0; i < sortedUsers.length; i++) {
+      if (i === 0) {
+        userLevels.set(sortedUsers[i][0], 1);
+      } else if (i < 3) {
+        userLevels.set(sortedUsers[i][0], 2);
+      } else {
+        userLevels.set(sortedUsers[i][0], 3);
+      }
+    }
+
+    // Gift items based on levels
+    for (const userId of userIds) {
+      const level = userLevels.get(userId);
+      const items = level
+        ? itemsLevelWise[`person${level}Items`]
+        : itemsLevelWise["otherItems"];
+      if (items && items.length > 0) {
+        const randomItem = items[Math.floor(Math.random() * items.length)];
+        if (randomItem.itemId) {
+          await models.Customer.updateOne(
+            { _id: userId },
+            { $push: { gifts: randomItem } },
+          );
+        } else if (randomItem.diamondAmount) {
+          await models.Customer.updateOne(
+            { _id: userId },
+            { $inc: { diamonds: randomItem.diamondAmount } },
+          );
+        }
+      }
+    }
+
+    // If no items were gifted to any user, send a "Better luck next time" message
+    if (userLevels.size === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "Better luck next time",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message:
+        "Random shop items gifted successfully based on user levels in the room.",
+    });
+  } catch (error) {
+    logger.error(error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 const removeItem = async (req, res) => {
   const { userId, itemType, itemId } = req.body;
 
@@ -3420,4 +3531,5 @@ module.exports = {
   getUnassignedUsersByCountry,
   getPostById,
   getUnassignedUsersWithJoinStatus,
+  giftRandomShopItemInRoom,
 };

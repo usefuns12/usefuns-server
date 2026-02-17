@@ -27,7 +27,7 @@ router
   .put(
     middleware.auth.authCustomer,
     middleware.uploads.single("file"),
-    controller.updateCustomer
+    controller.updateCustomer,
   );
 router
   .route("/setDefaultItem")
@@ -46,7 +46,7 @@ router
   .post(
     middleware.auth.authCustomer,
     middleware.uploads.single("file"),
-    controller.addPost
+    controller.addPost,
   );
 router.route("/post/like").post(controller.likePost);
 router.route("/post/delete/:id").delete(controller.deletePost);
@@ -67,6 +67,9 @@ router
   .post(middleware.auth.authCustomer, controller.addBeans);
 router.route("/shop").post(controller.shop);
 router.route("/assistItems").post(controller.assistItems);
+router
+  .route("/giftRandomShopItemInRoom")
+  .post(controller.giftRandomShopItemInRoom);
 router.route("/removeItem").post(controller.removeItem);
 router.route("/shop/history/:userId").get(controller.getShopHistory);
 router.route("/diamondSubmitFlow").post(controller.diamondSubmitFlow);
