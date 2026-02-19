@@ -3,7 +3,20 @@ const logger = require("../classes").Logger(__filename);
 
 const getAllLevels = async (req, res) => {
   try {
-    const levels = await models.TreasureBoxLevel.find({}).sort({ level: 1 });
+    let levels = await models.TreasureBoxLevel.find({})
+      .sort({ level: 1 })
+      .populate({
+        path: "person1Items.itemId",
+      })
+      .populate({
+        path: "person2Items.itemId",
+      })
+      .populate({
+        path: "person3Items.itemId",
+      })
+      .populate({
+        path: "otherItems.itemId",
+      });
 
     res
       .status(200)

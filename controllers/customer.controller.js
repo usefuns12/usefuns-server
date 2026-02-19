@@ -1841,7 +1841,9 @@ const giftRandomShopItemInRoom = async (req, res) => {
             resource: itemData.resource,
             thumbnail: itemData.thumbnail,
             _id: itemData._id,
-            validTill: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // Assuming the gifted item is valid for 7 days
+            validTill: new Date(
+              Date.now() + randomItem.validTill * 24 * 60 * 60 * 1000,
+            ),
           };
 
           const itemType = `${finalItemdata.itemType}s`;

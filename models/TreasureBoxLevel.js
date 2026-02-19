@@ -3,10 +3,12 @@ const mongoose = require("mongoose");
 const TreasureBoxItemSchema = new mongoose.Schema(
   {
     itemId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+      ref: "shopItem",
     },
     validTill: {
-      type: Date,
+      type: Number,
     },
     diamondAmount: {
       type: Number,
