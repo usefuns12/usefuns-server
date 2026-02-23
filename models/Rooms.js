@@ -36,6 +36,11 @@ const RoomSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+
+    treasureBoxLevelUpdatedAt: {
+      type: Date,
+      default: null,
+    },
     diamondsUsedToday: {
       type: Number,
       default: 0,
@@ -187,7 +192,7 @@ const RoomSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // ✅ Useful indexes for performance

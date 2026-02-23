@@ -572,7 +572,14 @@ const configure = async (app, server) => {
           room.diamondsUsedToday += totalGiftDiamonds;
           room.diamondsUsedCurrentSeason += totalGiftDiamonds;
           room.totalDiamondsUsed = totalDiamondsUsed;
-          room.treasureBoxLevel = getTreasureBoxLevel(room.diamondsUsedToday);
+          const previousLevel = room.treasureBoxLevel;
+          room.treasureBoxLevel = await getTreasureBoxLevel(
+            room.diamondsUsedToday,
+          );
+          // if level up happened, then only update the updatedAt field, otherwise keep it unchanged to preserve the daily reset logic
+          if (previousLevel !== room.treasureBoxLevel) {
+            room.treasureBoxLevelUpdatedAt = new Date();
+          }
           await room.save();
 
           // ✅ Emit sender updated data
@@ -662,16 +669,22 @@ const configure = async (app, server) => {
     return xpSeries.length - 1;
   };
 
-  const getTreasureBoxLevel = (totalDiamonds) => {
-    if (totalDiamonds < constants.diamondsLevel.L0) {
+  const getTreasureBoxLevel = async (totalDiamonds) => {
+    // instead of constants.diamondsLevel.L0, L1, etc., we now use TreasureBoxLevelSchema levels from the database. This allows dynamic configuration of levels and thresholds without code changes.
+
+    const levels = await models.TreasureBoxLevel.find({})
+      .sort({ level: 1 })
+      .lean();
+
+    if (totalDiamonds < levels[0].diamondToOpen) {
       return 0;
-    } else if (totalDiamonds < constants.diamondsLevel.L1) {
+    } else if (totalDiamonds < levels[1].diamondToOpen) {
       return 1;
-    } else if (totalDiamonds < constants.diamondsLevel.L2) {
+    } else if (totalDiamonds < levels[2].diamondToOpen) {
       return 2;
-    } else if (totalDiamonds < constants.diamondsLevel.L3) {
+    } else if (totalDiamonds < levels[3].diamondToOpen) {
       return 3;
-    } else if (totalDiamonds < constants.diamondsLevel.L4) {
+    } else if (totalDiamonds < levels[4].diamondToOpen) {
       return 4;
     } else {
       return 5;

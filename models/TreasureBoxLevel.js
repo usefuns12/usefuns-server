@@ -31,6 +31,12 @@ const TreasureBoxLevelSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    image: {
+      type: String,
+    },
+    diamondToOpen: {
+      type: Number,
+    },
     person1Items: {
       type: [TreasureBoxItemSchema],
       default: [],

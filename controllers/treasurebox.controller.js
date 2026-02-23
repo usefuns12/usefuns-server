@@ -28,13 +28,42 @@ const getAllLevels = async (req, res) => {
 };
 
 const createLevel = async (req, res) => {
+  if (!req.file) {
+    return res
+      .status(400)
+      .json({ success: false, message: "No file uploaded" });
+  }
+
+  const imageUrl = req.file.location; // Assuming using multer-s3 or similar
+  console.log("Received file:", imageUrl, req.body); // Debug log to check the file object
+
   const {
     level,
+    diamondToOpen = 0,
+
     person1Items = [],
     person2Items = [],
     person3Items = [],
     otherItems = [],
   } = req.body;
+
+  // convert stringified arrays back to JSON if they are in string format
+  const parseItems = (items) => {
+    if (typeof items === "string") {
+      try {
+        return JSON.parse(items);
+      } catch (err) {
+        logger.error("Error parsing items JSON:", err);
+        return [];
+      }
+    }
+    return items;
+  };
+
+  const person1ItemsParsed = parseItems(person1Items);
+  const person2ItemsParsed = parseItems(person2Items);
+  const person3ItemsParsed = parseItems(person3Items);
+  const otherItemsParsed = parseItems(otherItems);
 
   if (level === undefined || level === null) {
     return res
@@ -51,11 +80,13 @@ const createLevel = async (req, res) => {
     }
 
     const created = await models.TreasureBoxLevel.create({
-      level,
-      person1Items,
-      person2Items,
-      person3Items,
-      otherItems,
+      level: Number(level),
+      person1Items: person1ItemsParsed,
+      person2Items: person2ItemsParsed,
+      person3Items: person3ItemsParsed,
+      otherItems: otherItemsParsed,
+      diamondToOpen: Number(diamondToOpen) || 0,
+      image: imageUrl,
     });
 
     res.status(200).json({
@@ -70,6 +101,9 @@ const createLevel = async (req, res) => {
 };
 
 const updateLevel = async (req, res) => {
+  if (req.file) {
+    req.body.image = req.file.location; // Assuming using multer-s3 or similar
+  }
   const { level } = req.body;
 
   if (level === undefined || level === null) {
@@ -78,7 +112,29 @@ const updateLevel = async (req, res) => {
       .json({ success: false, message: "Please provide level." });
   }
 
+  // Convert stringified arrays back to JSON if they are in string format
+  const parseItems = (items) => {
+    if (typeof items === "string") {
+      try {
+        return JSON.parse(items);
+      } catch (err) {
+        logger.error("Error parsing items JSON:", err);
+        return [];
+      }
+    }
+    return items;
+  };
+  req.body.person1Items = parseItems(req.body.person1Items);
+  req.body.person2Items = parseItems(req.body.person2Items);
+  req.body.person3Items = parseItems(req.body.person3Items);
+  req.body.otherItems = parseItems(req.body.otherItems);
+  req.body.diamondToOpen = Number(req.body.diamondToOpen) || 0;
+  req.body.level = Number(req.body.level);
+
   const update = { ...req.body };
+  if (req.body.image) {
+    update.image = req.body.image;
+  }
   delete update.level;
 
   if (Object.keys(update).length === 0) {

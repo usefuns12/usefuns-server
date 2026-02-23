@@ -1775,7 +1775,9 @@ const giftRandomShopItemInRoom = async (req, res) => {
             roomId: new mongoose.Types.ObjectId(roomId),
             sender: new mongoose.Types.ObjectId(userId),
             createdAt: {
-              $gte: new Date(new Date().setHours(0, 0, 0, 0)), // Start of today
+              $gte:
+                room.treasureBoxLevelUpdatedAt ||
+                new Date(new Date().setHours(0, 0, 0, 0)), // treasureBoxLevelUpdatedAt
               $lte: new Date(new Date().setHours(23, 59, 59, 999)), // End of today
             },
           },
