@@ -676,15 +676,15 @@ const configure = async (app, server) => {
       .sort({ level: 1 })
       .lean();
 
-    if (totalDiamonds < levels[0].diamondToOpen) {
+    if (totalDiamonds < levels[0]?.diamondToOpen) {
       return 0;
-    } else if (totalDiamonds < levels[1].diamondToOpen) {
+    } else if (totalDiamonds < levels[1]?.diamondToOpen) {
       return 1;
-    } else if (totalDiamonds < levels[2].diamondToOpen) {
+    } else if (totalDiamonds < levels[2]?.diamondToOpen) {
       return 2;
-    } else if (totalDiamonds < levels[3].diamondToOpen) {
+    } else if (totalDiamonds < levels[3]?.diamondToOpen) {
       return 3;
-    } else if (totalDiamonds < levels[4].diamondToOpen) {
+    } else if (totalDiamonds < levels[4]?.diamondToOpen) {
       return 4;
     } else {
       return 5;
