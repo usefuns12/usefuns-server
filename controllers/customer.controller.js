@@ -1887,6 +1887,8 @@ const giftRandomShopItemInRoom = async (req, res) => {
           ////////////////////////////////////////////////////////
           io.to(userId).emit("treasureBoxItem", {
             message: `You have received ${randomItem.diamondAmount} diamonds as a gift!`,
+            image:
+              "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089129-removebg-preview.png",
           });
           ////////////////////////////////////////////////////////
         } else if (randomItem.beansAmount) {
@@ -1901,6 +1903,8 @@ const giftRandomShopItemInRoom = async (req, res) => {
           ////////////////////////////////////////////////////////
           io.to(userId).emit("treasureBoxItem", {
             message: `You have received ${randomItem.beansAmount} beans as a gift!`,
+            image:
+              "https://usefun-uploads.s3.ap-south-1.amazonaws.com/beans.png",
           });
           ////////////////////////////////////////////////////////
         } else if (randomItem.xp) {
@@ -1919,6 +1923,8 @@ const giftRandomShopItemInRoom = async (req, res) => {
           ////////////////////////////////////////////////////////
           io.to(userId).emit("treasureBoxItem", {
             message: `You have received ${randomItem.xp} XP as a gift!`,
+            image:
+              "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089358-removebg-preview.png",
           });
           ////////////////////////////////////////////////////////
         }
