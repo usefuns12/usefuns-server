@@ -469,6 +469,13 @@ const configure = async (app, server) => {
           if (items && items.length > 0) {
             const randomItem = items[Math.floor(Math.random() * items.length)];
 
+            // check is user connected to socket or not
+            const sockets = await io.in(userId.toString()).fetchSockets();
+            if (sockets.length === 0) {
+              console.log(`User ${userId} is not connected to any socket`);
+              
+            }
+
             if (randomItem.itemId) {
               // If it is Shop item
 
