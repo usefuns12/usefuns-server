@@ -20,26 +20,31 @@ const configure = async (app, server) => {
 
     //For emitting events based on userId (_id)
     socket.on("join", (userId) => {
+      const normalizedUserId = userId?.toString();
+
       logger.info("user joined", userId);
       console.log("user joined", userId);
-      socket.data.userId = userId;
-      socket.join(userId);
+      socket.data.userId = normalizedUserId;
+      socket.join(normalizedUserId);
     });
 
     // For joining room
     socket.on("joinRoom", async ({ userId, roomId }) => {
       try {
+        const normalizedUserId = userId?.toString();
+        const normalizedRoomId = roomId?.toString();
+
         logger.info(`user ${userId} joined room ${roomId}`);
 
         // Save to socket data
-        socket.data.userId = userId;
-        socket.data.roomId = roomId;
+        socket.data.userId = normalizedUserId;
+        socket.data.roomId = normalizedRoomId;
 
         // Ensure user also joins their personal room for direct emits
-        socket.join(userId.toString());
+        socket.join(normalizedUserId);
 
         // Join socket.io room
-        socket.join(roomId);
+        socket.join(normalizedRoomId);
 
         // Update currentJoinedRoomId in customer model
         await models.Customer.findByIdAndUpdate(userId, {
@@ -679,7 +684,14 @@ const configure = async (app, server) => {
     const allSockets = await io.fetchSockets();
     const matchedSockets = allSockets.filter((socket) => {
       const socketUserId = socket.data?.userId;
-      return socketUserId && socketUserId.toString() === userRoomId;
+      const handshakeUserId = socket.handshake?.auth?.userId;
+      const queryUserId = socket.handshake?.query?.userId;
+
+      return (
+        (socketUserId && socketUserId.toString() === userRoomId) ||
+        (handshakeUserId && handshakeUserId.toString() === userRoomId) ||
+        (queryUserId && queryUserId.toString() === userRoomId)
+      );
     });
 
     if (!matchedSockets.length) {
