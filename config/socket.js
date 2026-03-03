@@ -569,6 +569,10 @@ const configure = async (app, server) => {
           }
         }
 
+        console.log(
+          `Random shop items gifted to users in room ${roomId} based on their levels`,
+        );
+
         // If no items were gifted to any user, send a "Better luck next time" message
         if (userLevels.size === 0) {
           return {
