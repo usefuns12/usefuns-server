@@ -35,6 +35,9 @@ const configure = async (app, server) => {
         socket.data.userId = userId;
         socket.data.roomId = roomId;
 
+        // Ensure user also joins their personal room for direct emits
+        socket.join(userId.toString());
+
         // Join socket.io room
         socket.join(roomId);
 
@@ -664,6 +667,33 @@ const configure = async (app, server) => {
     });
   });
 
+  const emitTreasureBoxItemToUser = async (userId, payload) => {
+    const userRoomId = userId.toString();
+
+    const socketsInUserRoom = await io.in(userRoomId).fetchSockets();
+    if (socketsInUserRoom.length > 0) {
+      io.to(userRoomId).emit("treasureBoxItem", payload);
+      return true;
+    }
+
+    const allSockets = await io.fetchSockets();
+    const matchedSockets = allSockets.filter((socket) => {
+      const socketUserId = socket.data?.userId;
+      return socketUserId && socketUserId.toString() === userRoomId;
+    });
+
+    if (!matchedSockets.length) {
+      logger.warn(`No active socket found for user ${userRoomId}`);
+      return false;
+    }
+
+    matchedSockets.forEach((matchedSocket) => {
+      io.to(matchedSocket.id).emit("treasureBoxItem", payload);
+    });
+
+    return true;
+  };
+
   const giftRandomShopItemInRoom = async (roomId) => {
     if (!roomId) {
       return {
@@ -743,7 +773,7 @@ const configure = async (app, server) => {
           console.log(`User ${userId} did not receive a gift (random chance)`);
 
           // 30% chance to not gift anything to a user
-          io.to(userId.toString()).emit("treasureBoxItem", {
+          await emitTreasureBoxItemToUser(userId, {
             message: "Better luck next time!",
           });
           continue;
@@ -797,14 +827,9 @@ const configure = async (app, server) => {
               { $set: { [itemType]: filteredItems } },
             );
 
-            console.log("Emitting to:", userId.toString());
-
-            const sockets = await io.in(userId.toString()).fetchSockets();
-            console.log("Sockets found:", sockets.length);
-
             // Hit Socket event in room
             ////////////////////////////////////////////////////////
-            io.to(userId.toString()).emit("treasureBoxItem", {
+            await emitTreasureBoxItemToUser(userId, {
               item: finalItemdata,
               message: `You have received a ${finalItemdata.name} as a gift!`,
             });
@@ -816,14 +841,9 @@ const configure = async (app, server) => {
               { _id: userId },
               { $inc: { diamonds: randomItem.diamondAmount } },
             );
-
-            console.log("Emitting to:", userId.toString());
-
-            const sockets = await io.in(userId.toString()).fetchSockets();
-            console.log("Sockets found:", sockets.length);
             // Hit Socket event in room
             ////////////////////////////////////////////////////////
-            io.to(userId.toString()).emit("treasureBoxItem", {
+            await emitTreasureBoxItemToUser(userId, {
               message: `You have received ${randomItem.diamondAmount} diamonds as a gift!`,
               image:
                 "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089129-removebg-preview.png",
@@ -837,14 +857,9 @@ const configure = async (app, server) => {
               { $inc: { beans: randomItem.beansAmount } },
             );
 
-            console.log("Emitting to:", userId.toString());
-
-            const sockets = await io.in(userId.toString()).fetchSockets();
-            console.log("Sockets found:", sockets.length);
-
             // Hit Socket event in room
             ////////////////////////////////////////////////////////
-            io.to(userId.toString()).emit("treasureBoxItem", {
+            await emitTreasureBoxItemToUser(userId, {
               message: `You have received ${randomItem.beansAmount} beans as a gift!`,
               image:
                 "https://usefun-uploads.s3.ap-south-1.amazonaws.com/beans.png",
@@ -862,14 +877,9 @@ const configure = async (app, server) => {
               { $set: { xp: Number(user.xp || 0) + randomItem.xp } },
             );
 
-            console.log("Emitting to:", userId.toString());
-
-            const sockets = await io.in(userId.toString()).fetchSockets();
-            console.log("Sockets found:", sockets.length);
-
             // Hit Socket event in room
             ////////////////////////////////////////////////////////
-            io.to(userId.toString()).emit("treasureBoxItem", {
+            await emitTreasureBoxItemToUser(userId, {
               message: `You have received ${randomItem.xp} EXP as a gift!`,
               image:
                 "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089358-removebg-preview.png",
@@ -880,11 +890,6 @@ const configure = async (app, server) => {
           console.log(`User ${userId} received a gift:`, randomItem);
         }
       }
-
-      console.log("Emitting to:", userId.toString());
-
-      const sockets = await io.in(userId.toString()).fetchSockets();
-      console.log("Sockets found:", sockets.length);
 
       console.log(
         `Random shop items gifted to users in room ${roomId} based on their levels`,
