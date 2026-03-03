@@ -471,9 +471,14 @@ const configure = async (app, server) => {
 
             // check is user connected to socket or not
             const sockets = await io.in(userId.toString()).fetchSockets();
-            if (sockets.length === 0) {
-              console.log(`User ${userId} is not connected to any socket`);
-              
+            // show user id which are connected to socket
+            const isConnected = sockets.length > 0;
+            if (isConnected) {
+              console.log(
+                `User ${userId} is ${
+                  isConnected ? "connected" : "not connected"
+                } to socket`,
+              );
             }
 
             if (randomItem.itemId) {
