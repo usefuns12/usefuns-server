@@ -801,6 +801,9 @@ const configure = async (app, server) => {
 
             // 123123123
 
+            console.log(
+              `Treasure Box Level Up! Previous: ${previousLevel}, New: ${room.treasureBoxLevel}. Triggering random shop item gifting...`,
+            );
             await giftRandomShopItemInRoom(roomId);
           }
           await room.save();
