@@ -16,7 +16,35 @@ const getAllLevels = async (req, res) => {
       })
       .populate({
         path: "otherItems.itemId",
-      });
+      })
+      .lean();
+
+    // update the list where there EXP, Diamond, Beans count is there so with that return image of that item
+    levels = levels.map((level) => {
+      const updateItems = (items) => {
+        return items.map((item) => {
+          if (item.diamondAmount) {
+            item.image =
+              "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089129-removebg-preview.png";
+          } else if (item.beansAmount) {
+            item.image =
+              "https://usefun-uploads.s3.ap-south-1.amazonaws.com/beans.png";
+          } else if (item.xp) {
+            item.image =
+              "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089358-removebg-preview.png";
+          }
+          return item;
+        });
+      };
+
+      return {
+        ...level,
+        person1Items: updateItems(level.person1Items),
+        person2Items: updateItems(level.person2Items),
+        person3Items: updateItems(level.person3Items),
+        otherItems: updateItems(level.otherItems),
+      };
+    });
 
     res
       .status(200)
