@@ -557,7 +557,7 @@ const configure = async (app, server) => {
 
               // Hit Socket event in room
               ////////////////////////////////////////////////////////
-              io.to(userId).emit("treasureBoxItem", {
+              io.to(userId.toString()).emit("treasureBoxItem", {
                 message: `You have received ${randomItem.xp} EXP as a gift!`,
                 image:
                   "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089358-removebg-preview.png",
