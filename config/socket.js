@@ -582,6 +582,10 @@ const configure = async (app, server) => {
               ////////////////////////////////////////////////////////
             }
 
+            io.to(userId.toString()).emit("test123", {
+              message: `You have received a ${randomItem.name} as a gift!`,
+            });
+
             console.log(`User ${userId} received a gift:`, randomItem);
           }
         }
