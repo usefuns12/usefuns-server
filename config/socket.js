@@ -388,14 +388,18 @@ const configure = async (app, server) => {
 
         // const userIds = room.groupMembers;
         // userIds is combination of activeUsers, lastMembers
+        // Convert ObjectIds to strings, deduplicate, then convert back to ObjectIds
         let userIds = Array.from(
-          new Set([...(room.activeUsers || []), ...(room.lastMembers || [])]),
-        ); // Combine and deduplicate user IDs
+          new Set(
+            [...(room.activeUsers || []), ...(room.lastMembers || [])].map(
+              (id) => id.toString(),
+            ),
+          ),
+        ).map((id) => new mongoose.Types.ObjectId(id)); // Combine and deduplicate user IDs
 
         console.log("userIds===========>", userIds);
 
-        // remove duplicate from userIds
-        userIds = [...new Set(userIds)];
+        // Already deduplicated above, no need to do it again
 
         console.log("userIds after remove duplicates ===========>", userIds);
 
