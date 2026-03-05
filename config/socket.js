@@ -467,7 +467,7 @@ const configure = async (app, server) => {
             ? itemsLevelWise[`person${level}Items`]
             : itemsLevelWise["otherItems"];
           if (items && items.length > 0) {
-            const randomItem = items[Math.floor(Math.random() * items.length)];
+            // const randomItem = items[Math.floor(Math.random() * items.length)];
 
             // check is user connected to socket or not
             const sockets = await io.in(userId.toString()).fetchSockets();
@@ -481,112 +481,225 @@ const configure = async (app, server) => {
               );
             }
 
-            if (randomItem.itemId) {
-              // If it is Shop item
+            if (level) {
+              for (const randomItem of items) {
+                if (randomItem.itemId) {
+                  // If it is Shop item
 
-              const itemData = await models.ShopItem.findById(
-                randomItem.itemId,
-              ).lean();
+                  const itemData = await models.ShopItem.findById(
+                    randomItem.itemId,
+                  ).lean();
 
-              const finalItemdata = {
-                isDefault: false,
-                isOfficial: false,
-                itemType: itemData.itemType,
-                name: itemData.name,
-                resource: itemData.resource,
-                thumbnail: itemData.thumbnail,
-                _id: itemData._id,
-                validTill: new Date(
-                  Date.now() + randomItem.validTill * 24 * 60 * 60 * 1000,
-                ),
-              };
+                  const finalItemdata = {
+                    isDefault: false,
+                    isOfficial: false,
+                    itemType: itemData.itemType,
+                    name: itemData.name,
+                    resource: itemData.resource,
+                    thumbnail: itemData.thumbnail,
+                    _id: itemData._id,
+                    validTill: new Date(
+                      Date.now() + randomItem.validTill * 24 * 60 * 60 * 1000,
+                    ),
+                  };
 
-              const itemType = `${finalItemdata.itemType}s`;
+                  const itemType = `${finalItemdata.itemType}s`;
 
-              const user = await models.Customer.findById(userId)
-                .select(`${itemType}`)
-                .lean();
+                  const user = await models.Customer.findById(userId)
+                    .select(`${itemType}`)
+                    .lean();
 
-              // Filter out the existing item by _id
-              const filteredItems = user[itemType].filter(
-                (i) => !i._id.equals(finalItemdata._id),
-              );
+                  // Filter out the existing item by _id
+                  const filteredItems = user[itemType].filter(
+                    (i) => !i._id.equals(finalItemdata._id),
+                  );
 
-              // Add the new item
-              filteredItems.push(finalItemdata);
+                  // Add the new item
+                  filteredItems.push(finalItemdata);
 
-              // Replace the entire array with filtered + new item
-              await models.Customer.updateOne(
-                { _id: userId },
-                { $set: { [itemType]: filteredItems } },
-              );
+                  // Replace the entire array with filtered + new item
+                  await models.Customer.updateOne(
+                    { _id: userId },
+                    { $set: { [itemType]: filteredItems } },
+                  );
 
-              // Hit Socket event in room
-              ////////////////////////////////////////////////////////
-              io.to(userId.toString()).emit("treasureBoxItem", {
-                item: finalItemdata,
-                message: `You have received a ${finalItemdata.name} as a gift!`,
+                  // Hit Socket event in room
+                  ////////////////////////////////////////////////////////
+                  io.to(userId.toString()).emit("treasureBoxItem", {
+                    item: finalItemdata,
+                    message: `You have received a ${finalItemdata.name} as a gift!`,
+                  });
+                  ////////////////////////////////////////////////////////
+                } else if (randomItem.diamondAmount) {
+                  // If it is diamond gift
+
+                  await models.Customer.updateOne(
+                    { _id: userId },
+                    { $inc: { diamonds: randomItem.diamondAmount } },
+                  );
+
+                  // Hit Socket event in room
+                  ////////////////////////////////////////////////////////
+                  io.to(userId.toString()).emit("treasureBoxItem", {
+                    message: `You have received ${randomItem.diamondAmount} diamonds as a gift!`,
+                    image:
+                      "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089129-removebg-preview.png",
+                  });
+                  ////////////////////////////////////////////////////////
+                } else if (randomItem.beansAmount) {
+                  // If it is bean gift
+
+                  await models.Customer.updateOne(
+                    { _id: userId },
+                    { $inc: { beans: randomItem.beansAmount } },
+                  );
+
+                  // Hit Socket event in room
+                  ////////////////////////////////////////////////////////
+                  io.to(userId.toString()).emit("treasureBoxItem", {
+                    message: `You have received ${randomItem.beansAmount} beans as a gift!`,
+                    image:
+                      "https://usefun-uploads.s3.ap-south-1.amazonaws.com/beans.png",
+                  });
+                  ////////////////////////////////////////////////////////
+                } else if (randomItem.xp) {
+                  // If it is xp gift
+
+                  const user = await models.Customer.findById(userId)
+                    .select("xp")
+                    .lean();
+
+                  await models.Customer.updateOne(
+                    { _id: userId },
+                    { $set: { xp: Number(user.xp || 0) + randomItem.xp } },
+                  );
+
+                  // Hit Socket event in room
+                  ////////////////////////////////////////////////////////
+                  io.to(userId.toString()).emit("treasureBoxItem", {
+                    message: `You have received ${randomItem.xp} EXP as a gift!`,
+                    image:
+                      "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089358-removebg-preview.png",
+                  });
+                  ////////////////////////////////////////////////////////
+                }
+
+                io.to(userId.toString()).emit("test123", {
+                  message: `You have received a ${randomItem.name} as a gift!`,
+                });
+
+                console.log(`User ${userId} received a gift:`, randomItem);
+              }
+            } else {
+              const randomItem =
+                items[Math.floor(Math.random() * items.length)];
+              if (randomItem.itemId) {
+                // If it is Shop item
+
+                const itemData = await models.ShopItem.findById(
+                  randomItem.itemId,
+                ).lean();
+
+                const finalItemdata = {
+                  isDefault: false,
+                  isOfficial: false,
+                  itemType: itemData.itemType,
+                  name: itemData.name,
+                  resource: itemData.resource,
+                  thumbnail: itemData.thumbnail,
+                  _id: itemData._id,
+                  validTill: new Date(
+                    Date.now() + randomItem.validTill * 24 * 60 * 60 * 1000,
+                  ),
+                };
+
+                const itemType = `${finalItemdata.itemType}s`;
+
+                const user = await models.Customer.findById(userId)
+                  .select(`${itemType}`)
+                  .lean();
+
+                // Filter out the existing item by _id
+                const filteredItems = user[itemType].filter(
+                  (i) => !i._id.equals(finalItemdata._id),
+                );
+
+                // Add the new item
+                filteredItems.push(finalItemdata);
+
+                // Replace the entire array with filtered + new item
+                await models.Customer.updateOne(
+                  { _id: userId },
+                  { $set: { [itemType]: filteredItems } },
+                );
+
+                // Hit Socket event in room
+                ////////////////////////////////////////////////////////
+                io.to(userId.toString()).emit("treasureBoxItem", {
+                  item: finalItemdata,
+                  message: `You have received a ${finalItemdata.name} as a gift!`,
+                });
+                ////////////////////////////////////////////////////////
+              } else if (randomItem.diamondAmount) {
+                // If it is diamond gift
+
+                await models.Customer.updateOne(
+                  { _id: userId },
+                  { $inc: { diamonds: randomItem.diamondAmount } },
+                );
+
+                // Hit Socket event in room
+                ////////////////////////////////////////////////////////
+                io.to(userId.toString()).emit("treasureBoxItem", {
+                  message: `You have received ${randomItem.diamondAmount} diamonds as a gift!`,
+                  image:
+                    "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089129-removebg-preview.png",
+                });
+                ////////////////////////////////////////////////////////
+              } else if (randomItem.beansAmount) {
+                // If it is bean gift
+
+                await models.Customer.updateOne(
+                  { _id: userId },
+                  { $inc: { beans: randomItem.beansAmount } },
+                );
+
+                // Hit Socket event in room
+                ////////////////////////////////////////////////////////
+                io.to(userId.toString()).emit("treasureBoxItem", {
+                  message: `You have received ${randomItem.beansAmount} beans as a gift!`,
+                  image:
+                    "https://usefun-uploads.s3.ap-south-1.amazonaws.com/beans.png",
+                });
+                ////////////////////////////////////////////////////////
+              } else if (randomItem.xp) {
+                // If it is xp gift
+
+                const user = await models.Customer.findById(userId)
+                  .select("xp")
+                  .lean();
+
+                await models.Customer.updateOne(
+                  { _id: userId },
+                  { $set: { xp: Number(user.xp || 0) + randomItem.xp } },
+                );
+
+                // Hit Socket event in room
+                ////////////////////////////////////////////////////////
+                io.to(userId.toString()).emit("treasureBoxItem", {
+                  message: `You have received ${randomItem.xp} EXP as a gift!`,
+                  image:
+                    "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089358-removebg-preview.png",
+                });
+                ////////////////////////////////////////////////////////
+              }
+
+              io.to(userId.toString()).emit("test123", {
+                message: `You have received a ${randomItem.name} as a gift!`,
               });
-              ////////////////////////////////////////////////////////
-            } else if (randomItem.diamondAmount) {
-              // If it is diamond gift
 
-              await models.Customer.updateOne(
-                { _id: userId },
-                { $inc: { diamonds: randomItem.diamondAmount } },
-              );
-
-              // Hit Socket event in room
-              ////////////////////////////////////////////////////////
-              io.to(userId.toString()).emit("treasureBoxItem", {
-                message: `You have received ${randomItem.diamondAmount} diamonds as a gift!`,
-                image:
-                  "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089129-removebg-preview.png",
-              });
-              ////////////////////////////////////////////////////////
-            } else if (randomItem.beansAmount) {
-              // If it is bean gift
-
-              await models.Customer.updateOne(
-                { _id: userId },
-                { $inc: { beans: randomItem.beansAmount } },
-              );
-
-              // Hit Socket event in room
-              ////////////////////////////////////////////////////////
-              io.to(userId.toString()).emit("treasureBoxItem", {
-                message: `You have received ${randomItem.beansAmount} beans as a gift!`,
-                image:
-                  "https://usefun-uploads.s3.ap-south-1.amazonaws.com/beans.png",
-              });
-              ////////////////////////////////////////////////////////
-            } else if (randomItem.xp) {
-              // If it is xp gift
-
-              const user = await models.Customer.findById(userId)
-                .select("xp")
-                .lean();
-
-              await models.Customer.updateOne(
-                { _id: userId },
-                { $set: { xp: Number(user.xp || 0) + randomItem.xp } },
-              );
-
-              // Hit Socket event in room
-              ////////////////////////////////////////////////////////
-              io.to(userId.toString()).emit("treasureBoxItem", {
-                message: `You have received ${randomItem.xp} EXP as a gift!`,
-                image:
-                  "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089358-removebg-preview.png",
-              });
-              ////////////////////////////////////////////////////////
+              console.log(`User ${userId} received a gift:`, randomItem);
             }
-
-            io.to(userId.toString()).emit("test123", {
-              message: `You have received a ${randomItem.name} as a gift!`,
-            });
-
-            console.log(`User ${userId} received a gift:`, randomItem);
           }
         }
 
@@ -817,6 +930,9 @@ const configure = async (app, server) => {
           room.diamondsUsedCurrentSeason += totalGiftDiamonds;
           room.totalDiamondsUsed = totalDiamondsUsed;
           const previousLevel = room.treasureBoxLevel;
+          // update treasure box level progress based on diamonds used today
+          room.treasureBoxLevelProgress =
+            await getTreasureBoxLevelProgress(diamondsUsedToday);
           room.treasureBoxLevel = await getTreasureBoxLevel(
             room.diamondsUsedToday,
           );
@@ -940,6 +1056,35 @@ const configure = async (app, server) => {
     } else {
       return 5;
     }
+  };
+
+  const getTreasureBoxLevelProgress = async (totalDiamonds) => {
+    // This function calculates the progress towards the next treasure box level as a percentage. It uses the same TreasureBoxLevel thresholds from the database to determine the current and next levels.
+    // Fetch levels from the database
+    const levels = await models.TreasureBoxLevel.find({})
+      .sort({ level: 1 })
+      .lean();
+
+    let currentLevel = 0;
+    let nextLevelThreshold = levels[0]?.diamondToOpen || 1000; // Default to 1000 if not defined
+
+    for (let i = 0; i < levels.length; i++) {
+      if (totalDiamonds < levels[i].diamondToOpen) {
+        nextLevelThreshold = levels[i].diamondToOpen;
+        break;
+      }
+      currentLevel = levels[i].level;
+    }
+
+    const previousLevelThreshold =
+      currentLevel === 0 ? 0 : levels[currentLevel - 1].diamondToOpen;
+
+    // Calculate progress towards next level
+    const progress =
+      ((totalDiamonds - previousLevelThreshold) /
+        (nextLevelThreshold - previousLevelThreshold)) *
+      100;
+    return Math.min(100, Math.max(0, progress)); // Ensure progress is between 0 and 100
   };
 };
 

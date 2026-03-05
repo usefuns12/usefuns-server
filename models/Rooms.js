@@ -37,6 +37,12 @@ const RoomSchema = new mongoose.Schema(
       default: 0,
     },
 
+    treasureBoxLevelProgress: {
+      type: Number,
+      default: 0,
+      max: 100,
+    },
+
     treasureBoxLevelUpdatedAt: {
       type: Date,
       default: null,
