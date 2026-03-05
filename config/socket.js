@@ -483,7 +483,7 @@ const configure = async (app, server) => {
 
             if (level) {
               io.to(userId.toString()).emit("test123", {
-                message: `You have received a ${randomItem.name} as a gift!`,
+                message: `You have received a as a gift!`,
               });
               for (const randomItem of items) {
                 io.to(userId.toString()).emit("test123", {
