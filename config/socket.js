@@ -482,6 +482,11 @@ const configure = async (app, server) => {
             if (level === 1 || level === 2 || level === 3) {
               const levelItems = itemsLevelWise[`person${level}Items`];
               let giftedItems = [];
+
+              io.to(userId.toString()).emit("test123", {
+                message: "Test123",
+              });
+
               for (let randomItem of levelItems) {
                 if (randomItem.itemId) {
                   // If it is Shop item
@@ -565,6 +570,8 @@ const configure = async (app, server) => {
                 }
               }
 
+              console.log(`Gifted items to user ${userId}:`, giftedItems);
+
               io.to(userId.toString()).emit("treasureBoxItem", {
                 message: `You have received bundle a gift!`,
                 items: giftedItems,
@@ -572,6 +579,11 @@ const configure = async (app, server) => {
             } else {
               const randomItem =
                 items[Math.floor(Math.random() * items.length)];
+
+              io.to(userId.toString()).emit("test123", {
+                message: "Test123",
+              });
+
               if (randomItem.itemId) {
                 // If it is Shop item
 
@@ -672,10 +684,6 @@ const configure = async (app, server) => {
                 });
                 ////////////////////////////////////////////////////////
               }
-
-              io.to(userId.toString()).emit("test123", {
-                message: `You have received a ${randomItem.name} as a gift!`,
-              });
             }
           }
         }
