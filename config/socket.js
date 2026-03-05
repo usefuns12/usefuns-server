@@ -388,9 +388,16 @@ const configure = async (app, server) => {
 
         // const userIds = room.groupMembers;
         // userIds is combination of activeUsers, lastMembers
-        const userIds = Array.from(
+        let userIds = Array.from(
           new Set([...(room.activeUsers || []), ...(room.lastMembers || [])]),
         ); // Combine and deduplicate user IDs
+
+        console.log("userIds===========>", userIds);
+
+        // remove duplicate from userIds
+        userIds = [...new Set(userIds)];
+
+        console.log("userIds===========>", userIds);
 
         const currentLevel = room.treasureBoxLevel || 1; // Assuming currentLevel is stored in the room document
 
@@ -443,8 +450,6 @@ const configure = async (app, server) => {
             userLevels.set(sortedUsers[i][0], 3);
           }
         }
-
-        console.log("userIds===========>", userIds);
 
         // Gift items based on levels
         for (const userId of userIds) {
