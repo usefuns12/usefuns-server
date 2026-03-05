@@ -450,10 +450,6 @@ const configure = async (app, server) => {
 
           const randomUser = Math.random();
           if (randomUser < 0.3) {
-            console.log(
-              `User ${userId} did not receive a gift (random chance)`,
-            );
-
             // 30% chance to not gift anything to a user
             io.to(userId).emit("treasureBoxItem", {
               message: "Better luck next time!",
@@ -486,6 +482,10 @@ const configure = async (app, server) => {
                 message: `You have received a as a gift!`,
               });
               for (const randomItem of items) {
+                console.log(
+                  `Gifting item to user ${userId} of level ${level}:`,
+                  randomItem,
+                );
                 io.to(userId.toString()).emit("test123", {
                   message: `You have received a ${randomItem.name} as a gift!`,
                 });
@@ -515,11 +515,6 @@ const configure = async (app, server) => {
                   const user = await models.Customer.findById(userId)
                     .select(`${itemType}`)
                     .lean();
-
-                  console.log(
-                    `User ${userId} current items of type ${itemType}:`,
-                    user?._id,
-                  );
 
                   // Filter out the existing item by _id
                   const filteredItems = user[itemType].filter(
@@ -595,11 +590,6 @@ const configure = async (app, server) => {
                   });
                   ////////////////////////////////////////////////////////
                 }
-
-                console.log(
-                  `User From 123 ${userId} received a gift:`,
-                  randomItem,
-                );
               }
             } else {
               io.to(userId.toString()).emit("test123", {
@@ -712,8 +702,6 @@ const configure = async (app, server) => {
               io.to(userId.toString()).emit("test123", {
                 message: `You have received a ${randomItem.name} as a gift!`,
               });
-
-              console.log(`User ${userId} received a gift:`, randomItem);
             }
           }
         }
