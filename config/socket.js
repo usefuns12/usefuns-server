@@ -444,6 +444,8 @@ const configure = async (app, server) => {
           }
         }
 
+        console.log("userIds===========>", userIds);
+
         // Gift items based on levels
         for (const userId of userIds) {
           // give better luck next time message to random users it can be top 3 or others based on random selection, so that not every user gets item as a gift to make it more exciting.
@@ -464,18 +466,6 @@ const configure = async (app, server) => {
             : itemsLevelWise["otherItems"];
           if (items && items.length > 0) {
             // const randomItem = items[Math.floor(Math.random() * items.length)];
-
-            // check is user connected to socket or not
-            const sockets = await io.in(userId.toString()).fetchSockets();
-            // show user id which are connected to socket
-            const isConnected = sockets.length > 0;
-            if (isConnected) {
-              console.log(
-                `User ${userId} is ${
-                  isConnected ? "connected" : "not connected"
-                } to socket`,
-              );
-            }
 
             // change in the logic is for top 1 user give all person1Items, for top 2 give all person2Items and for top 3 give all person3Items and for others give any 1 random item from  otherItems, to make it more exciting and rewarding for top users.
 
@@ -570,7 +560,7 @@ const configure = async (app, server) => {
                 }
               }
 
-              console.log(`Gifted items to user ${userId}:`, giftedItems);
+              // console.log(`Gifted items to user ${userId}:`, giftedItems);
 
               io.to(userId.toString()).emit("treasureBoxItem", {
                 message: `You have received bundle a gift!`,
