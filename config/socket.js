@@ -931,8 +931,9 @@ const configure = async (app, server) => {
           room.totalDiamondsUsed = totalDiamondsUsed;
           const previousLevel = room.treasureBoxLevel;
           // update treasure box level progress based on diamonds used today
-          room.treasureBoxLevelProgress =
-            await getTreasureBoxLevelProgress(diamondsUsedToday);
+          room.treasureBoxLevelProgress = await getTreasureBoxLevelProgress(
+            room.diamondsUsedToday,
+          );
           room.treasureBoxLevel = await getTreasureBoxLevel(
             room.diamondsUsedToday,
           );
