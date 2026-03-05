@@ -482,7 +482,14 @@ const configure = async (app, server) => {
             }
 
             if (level) {
+              io.to(userId.toString()).emit("test123", {
+                message: `You have received a ${randomItem.name} as a gift!`,
+              });
               for (const randomItem of items) {
+                io.to(userId.toString()).emit("test123", {
+                  message: `You have received a ${randomItem.name} as a gift!`,
+                });
+
                 if (randomItem.itemId) {
                   // If it is Shop item
 
@@ -589,13 +596,16 @@ const configure = async (app, server) => {
                   ////////////////////////////////////////////////////////
                 }
 
-                io.to(userId.toString()).emit("test123", {
-                  message: `You have received a ${randomItem.name} as a gift!`,
-                });
-
-                console.log(`User ${userId} received a gift:`, randomItem);
+                console.log(
+                  `User From 123 ${userId} received a gift:`,
+                  randomItem,
+                );
               }
             } else {
+              io.to(userId.toString()).emit("test123", {
+                message: `You have received a ${randomItem.name} as a gift!`,
+              });
+
               const randomItem =
                 items[Math.floor(Math.random() * items.length)];
               if (randomItem.itemId) {
