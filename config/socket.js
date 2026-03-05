@@ -509,6 +509,11 @@ const configure = async (app, server) => {
                     .select(`${itemType}`)
                     .lean();
 
+                  console.log(
+                    `User ${userId} current items of type ${itemType}:`,
+                    user?._id,
+                  );
+
                   // Filter out the existing item by _id
                   const filteredItems = user[itemType].filter(
                     (i) => !i._id.equals(finalItemdata._id),
