@@ -397,7 +397,7 @@ const configure = async (app, server) => {
         // remove duplicate from userIds
         userIds = [...new Set(userIds)];
 
-        console.log("userIds===========>", userIds);
+        console.log("userIds after remove duplicates ===========>", userIds);
 
         const currentLevel = room.treasureBoxLevel || 1; // Assuming currentLevel is stored in the room document
 
@@ -921,12 +921,20 @@ const configure = async (app, server) => {
           if (previousLevel !== room.treasureBoxLevel) {
             room.treasureBoxLevelUpdatedAt = new Date();
 
-            // 123123123
-
             console.log(
               `Treasure Box Level Up! Previous: ${previousLevel}, New: ${room.treasureBoxLevel}. Triggering random shop item gifting...`,
             );
-            await giftRandomShopItemInRoom(roomId);
+
+            // only call giftRandomShopItemInRoom when there is a level up
+            // only call 1 time on 1 level up, even if multiple gifts are sent that cause multiple level ups, to avoid gifting too many items in case of multiple level ups in short time.
+            // Use lastGiftedTreasureBoxLevel to ensure the gift function is called only once per unique level
+            if (
+              !room.lastGiftedTreasureBoxLevel ||
+              room.treasureBoxLevel > room.lastGiftedTreasureBoxLevel
+            ) {
+              room.lastGiftedTreasureBoxLevel = room.treasureBoxLevel;
+              await giftRandomShopItemInRoom(roomId);
+            }
           }
           await room.save();
 
