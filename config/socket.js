@@ -569,6 +569,9 @@ const configure = async (app, server) => {
                 }
               }
 
+              io.to(userId.toString()).emit("test123", {
+                message: "Test123",
+              });
               // console.log(`Gifted items to user ${userId}:`, giftedItems);
 
               io.to(userId.toString()).emit("treasureBoxItem", {
