@@ -998,6 +998,7 @@ const configure = async (app, server) => {
             treasureBoxLevel: room.treasureBoxLevel,
             totalDiamondsUsed: room.totalDiamondsUsed,
             diamondsUsedCurrentSeason: room.diamondsUsedCurrentSeason,
+            treasureBoxLevelProgress: room.treasureBoxLevelProgress,
           });
 
           // ✅ Emit giftUpdate
