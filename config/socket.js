@@ -369,7 +369,7 @@ const configure = async (app, server) => {
     //   }
     // });
 
-    const giftRandomShopItemInRoom = async (roomId) => {
+    const giftRandomShopItemInRoom = async (roomId, lastGiftDetails) => {
       if (!roomId) {
         return {
           success: false,
@@ -455,6 +455,24 @@ const configure = async (app, server) => {
           }
         }
 
+        // push or update reasure box level wise winners in room document based on the room top 3 users who gifted the most diamonds in the room for the current treasure box level
+        let levelWiseWinners = room.treasureBoxLevelWiseWinners || new Map();
+
+        let top3Users = levelWiseWinners.get(currentLevel) || [];
+
+        // Add new winners to the existing list and remove duplicates
+        top3Users = Array.from(
+          new Set([
+            ...top3Users,
+            ...sortedUsers.slice(0, 3).map((u) => u[0].toString()),
+          ]),
+        ).map((id) => new mongoose.Types.ObjectId(id));
+        levelWiseWinners.set(currentLevel, top3Users);
+        await models.Room.updateOne(
+          { _id: roomId },
+          { $set: { treasureBoxLevelWiseWinners: levelWiseWinners } },
+        );
+
         // Gift items based on levels
         for (const userId of userIds) {
           // give better luck next time message to random users it can be top 3 or others based on random selection, so that not every user gets item as a gift to make it more exciting.
@@ -464,6 +482,7 @@ const configure = async (app, server) => {
             // 30% chance to not gift anything to a user
             io.to(userId).emit("treasureBoxItem", {
               message: "Better luck next time!",
+              lastGiftDetails,
             });
             continue;
           }
@@ -484,6 +503,7 @@ const configure = async (app, server) => {
 
               io.to(userId.toString()).emit("test123", {
                 message: "Test123",
+                lastGiftDetails,
               });
 
               for (let randomItem of levelItems) {
@@ -571,12 +591,14 @@ const configure = async (app, server) => {
 
               io.to(userId.toString()).emit("test123", {
                 message: "Test123",
+                lastGiftDetails,
               });
               // console.log(`Gifted items to user ${userId}:`, giftedItems);
 
               io.to(userId.toString()).emit("treasureBoxItem", {
                 message: `You have received bundle a gift!`,
                 items: giftedItems,
+                lastGiftDetails,
               });
             } else {
               const randomItem =
@@ -584,6 +606,7 @@ const configure = async (app, server) => {
 
               io.to(userId.toString()).emit("test123", {
                 message: "Test123",
+                lastGiftDetails,
               });
 
               if (randomItem.itemId) {
@@ -631,6 +654,7 @@ const configure = async (app, server) => {
                 io.to(userId.toString()).emit("treasureBoxItem", {
                   item: finalItemdata,
                   message: `You have received a ${finalItemdata.name} as a gift!`,
+                  lastGiftDetails,
                 });
                 ////////////////////////////////////////////////////////
               } else if (randomItem.diamondAmount) {
@@ -647,6 +671,7 @@ const configure = async (app, server) => {
                   message: `You have received ${randomItem.diamondAmount} diamonds as a gift!`,
                   image:
                     "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089129-removebg-preview.png",
+                  lastGiftDetails,
                 });
                 ////////////////////////////////////////////////////////
               } else if (randomItem.beansAmount) {
@@ -663,6 +688,7 @@ const configure = async (app, server) => {
                   message: `You have received ${randomItem.beansAmount} beans as a gift!`,
                   image:
                     "https://usefun-uploads.s3.ap-south-1.amazonaws.com/beans.png",
+                  lastGiftDetails,
                 });
                 ////////////////////////////////////////////////////////
               } else if (randomItem.xp) {
@@ -683,6 +709,7 @@ const configure = async (app, server) => {
                   message: `You have received ${randomItem.xp} EXP as a gift!`,
                   image:
                     "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089358-removebg-preview.png",
+                  lastGiftDetails,
                 });
                 ////////////////////////////////////////////////////////
               }
@@ -940,7 +967,11 @@ const configure = async (app, server) => {
               room.treasureBoxLevel > room.lastGiftedTreasureBoxLevel
             ) {
               room.lastGiftedTreasureBoxLevel = room.treasureBoxLevel;
-              await giftRandomShopItemInRoom(roomId);
+              await giftRandomShopItemInRoom(roomId, {
+                senderC,
+                receiverC,
+                selectedGift,
+              });
             }
           }
           await room.save();

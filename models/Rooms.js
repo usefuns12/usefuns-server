@@ -37,6 +37,12 @@ const RoomSchema = new mongoose.Schema(
       default: 0,
     },
 
+    treasureBoxLevelWiseWinners: {
+      type: Map,
+      of: [mongoose.Schema.Types.ObjectId], // Map of level to array of customer IDs
+      default: {},
+    },
+
     lastGiftedTreasureBoxLevel: {
       type: Number,
       default: 0,
