@@ -556,7 +556,7 @@ const configure = async (app, server) => {
 
               for (let randomItem of levelItems) {
                 console.log(
-                  "Random item to gift for user ${userId} at level ${level}:",
+                  `Random item to gift for user ${userId} at level ${level}:`,
                   randomItem,
                 );
                 if (randomItem.itemId) {
@@ -632,6 +632,13 @@ const configure = async (app, server) => {
                   const user = await models.Customer.findById(userId)
                     .select("xp")
                     .lean();
+
+                  if (!user) {
+                    logger.warn(
+                      `Skipping XP treasure gift because user ${userId} was not found`,
+                    );
+                    continue;
+                  }
 
                   await models.Customer.updateOne(
                     { _id: userId },
@@ -762,6 +769,13 @@ const configure = async (app, server) => {
                 const user = await models.Customer.findById(userId)
                   .select("xp")
                   .lean();
+
+                if (!user) {
+                  logger.warn(
+                    `Skipping XP treasure gift because user ${userId} was not found`,
+                  );
+                  continue;
+                }
 
                 await models.Customer.updateOne(
                   { _id: userId },
