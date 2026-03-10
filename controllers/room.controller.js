@@ -166,9 +166,15 @@ const getRoomById = async (req, res) => {
 
   try {
     if (mongoose.Types.ObjectId.isValid(id)) {
-      room = await models.Room.findOne({ _id: id });
+      room = await models.Room.findOne({ _id: id }).populate(
+        "treasureBoxLevelWiseWinners.$*",
+        "name profileImage userId oldUserId level",
+      );
     } else {
-      room = await models.Room.findOne({ roomId: id });
+      room = await models.Room.findOne({ roomId: id }).populate(
+        "treasureBoxLevelWiseWinners.$*",
+        "name profileImage userId oldUserId level",
+      );
     }
 
     if (!room) {
@@ -198,7 +204,10 @@ const getRoomByUserId = async (req, res) => {
   const id = req.params.id;
 
   try {
-    const room = await models.Room.findOne({ ownerId: id });
+    const room = await models.Room.findOne({ ownerId: id }).populate(
+      "treasureBoxLevelWiseWinners.$*",
+      "name profileImage userId oldUserId level",
+    );
 
     if (!room) {
       return res.status(400).json({
