@@ -369,7 +369,11 @@ const configure = async (app, server) => {
     //   }
     // });
 
-    const giftRandomShopItemInRoom = async (roomId, lastGiftDetails) => {
+    const giftRandomShopItemInRoom = async (
+      roomId,
+      lastGiftDetails,
+      targetLevel = null,
+    ) => {
       if (!roomId) {
         return {
           success: false,
@@ -403,7 +407,9 @@ const configure = async (app, server) => {
 
         console.log("userIds after remove duplicates ===========>", userIds);
 
-        const currentLevel = room.treasureBoxLevel || 1; // Assuming currentLevel is stored in the room document
+        // Use targetLevel if provided, otherwise use room's current level
+        const currentLevel =
+          targetLevel !== null ? targetLevel : room.treasureBoxLevel || 1;
 
         const itemsLevelWise = await models.TreasureBoxLevel.findOne({
           level: currentLevel,
@@ -1014,32 +1020,36 @@ const configure = async (app, server) => {
             room.treasureBoxLevelUpdatedAt = new Date();
 
             console.log(
-              `Treasure Box Level Up! Previous: ${previousLevel}, New: ${room.treasureBoxLevel}. Triggering random shop item gifting...`,
+              `Treasure Box Level Up! Previous: ${previousLevel}, New: ${room.treasureBoxLevel}. Triggering random shop item gifting for all crossed levels...`,
             );
 
-            // only call giftRandomShopItemInRoom when there is a level up
-            // only call 1 time on 1 level up, even if multiple gifts are sent that cause multiple level ups, to avoid gifting too many items in case of multiple level ups in short time.
-            // Use lastGiftedTreasureBoxLevel to ensure the gift function is called only once per unique level
+            // Call giftRandomShopItemInRoom for each level that was crossed
+            // This ensures that if a single gift unlocks multiple levels (e.g., level 1 to 4),
+            // the reward function is called for level 2, 3, and 4 individually
+            const startLevel =
+              (room.lastGiftedTreasureBoxLevel || previousLevel) + 1;
+            const endLevel = room.treasureBoxLevel;
 
             console.log(
-              "Checking if random shop item gifting is needed...",
-              !room.lastGiftedTreasureBoxLevel,
-              room.treasureBoxLevel > room.lastGiftedTreasureBoxLevel,
-              room.treasureBoxLevel,
-              room.lastGiftedTreasureBoxLevel,
+              `Gifting items for levels ${startLevel} to ${endLevel}...`,
             );
 
-            if (
-              !room.lastGiftedTreasureBoxLevel ||
-              room.treasureBoxLevel > room.lastGiftedTreasureBoxLevel
-            ) {
-              room.lastGiftedTreasureBoxLevel = room.treasureBoxLevel;
-              await giftRandomShopItemInRoom(roomId, {
-                senderC,
-                receiverC,
-                selectedGift,
-              });
+            for (let level = startLevel; level <= endLevel; level++) {
+              console.log(
+                `Processing treasure box rewards for level ${level}...`,
+              );
+              await giftRandomShopItemInRoom(
+                roomId,
+                {
+                  senderC,
+                  receiverC,
+                  selectedGift,
+                },
+                level,
+              );
             }
+
+            room.lastGiftedTreasureBoxLevel = room.treasureBoxLevel;
           }
           await room.save();
 
