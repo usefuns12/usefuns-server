@@ -455,19 +455,28 @@ const configure = async (app, server) => {
           }
         }
 
-        // push or update reasure box level wise winners in room document based on the room top 3 users who gifted the most diamonds in the room for the current treasure box level
-        let levelWiseWinners = room.treasureBoxLevelWiseWinners || new Map();
+        // push or update treasure box level-wise winners in room document
+        // Note: room is fetched with .lean(), so this field is a plain object, not a Map.
+        const levelWiseWinnersRaw = room.treasureBoxLevelWiseWinners || {};
+        const levelWiseWinners =
+          levelWiseWinnersRaw instanceof Map
+            ? Object.fromEntries(levelWiseWinnersRaw)
+            : { ...levelWiseWinnersRaw };
 
-        let top3Users = levelWiseWinners.get(currentLevel) || [];
+        const levelKey = String(currentLevel);
+        const existingTop3 = Array.isArray(levelWiseWinners[levelKey])
+          ? levelWiseWinners[levelKey]
+          : [];
 
-        // Add new winners to the existing list and remove duplicates
-        top3Users = Array.from(
+        // Add new winners to the existing list and remove duplicates.
+        const top3Users = Array.from(
           new Set([
-            ...top3Users,
+            ...existingTop3.map((id) => id.toString()),
             ...sortedUsers.slice(0, 3).map((u) => u[0].toString()),
           ]),
-        ).map((id) => new mongoose.Types.ObjectId(id));
-        levelWiseWinners.set(currentLevel, top3Users);
+        );
+
+        levelWiseWinners[levelKey] = top3Users;
         await models.Room.updateOne(
           { _id: roomId },
           { $set: { treasureBoxLevelWiseWinners: levelWiseWinners } },
