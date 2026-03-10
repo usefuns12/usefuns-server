@@ -10,6 +10,9 @@ const scheduleUsedDiamondTask = () => {
           $set: {
             diamondsUsedToday: 0,
             treasureBoxLevel: 0,
+            lastGiftedTreasureBoxLevel: 0,
+            treasureBoxLevelWiseWinners: {}, // Resetting the winners map
+            treasureBoxLevelProgress: 0,
             treasureBoxLevelUpdatedAt: new Date(), // Resetting the update time to now
           },
         },
