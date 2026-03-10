@@ -1,5 +1,15 @@
 const mongoose = require("mongoose");
 
+const TreasureBoxWinnerSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "customers",
+    required: true,
+  },
+  wonAt: { type: Date, required: true },
+  diamondGifted: { type: Number, default: 0 },
+});
+
 const RoomSchema = new mongoose.Schema(
   {
     roomId: {
@@ -39,12 +49,7 @@ const RoomSchema = new mongoose.Schema(
 
     treasureBoxLevelWiseWinners: {
       type: Map,
-      of: [
-        {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "customers",
-        },
-      ], // Map of level to array of customer IDs
+      of: [TreasureBoxWinnerSchema],
       default: {},
     },
 

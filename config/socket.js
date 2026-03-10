@@ -416,6 +416,13 @@ const configure = async (app, server) => {
           };
         }
 
+        // Level-wise contribution window:
+        // from last level-up timestamp (or start of day for first level) until now.
+        const levelWindowStart =
+          room.treasureBoxLevelUpdatedAt ||
+          new Date(new Date().setHours(0, 0, 0, 0));
+        const levelWindowEnd = new Date();
+
         const userDiamondsMap = new Map();
         for (const userId of userIds) {
           // use models.GiftTransaction to calculate total diamonds gifted by each user in the room by today date.
@@ -425,10 +432,8 @@ const configure = async (app, server) => {
                 roomId: new mongoose.Types.ObjectId(roomId),
                 sender: new mongoose.Types.ObjectId(userId),
                 createdAt: {
-                  $gte:
-                    room.treasureBoxLevelUpdatedAt ||
-                    new Date(new Date().setHours(0, 0, 0, 0)), // treasureBoxLevelUpdatedAt
-                  $lte: new Date(new Date().setHours(23, 59, 59, 999)), // End of today
+                  $gte: levelWindowStart,
+                  $lte: levelWindowEnd,
                 },
               },
             },
@@ -468,12 +473,34 @@ const configure = async (app, server) => {
           ? levelWiseWinners[levelKey]
           : [];
 
-        // Add new winners to the existing list and remove duplicates.
-        const top3Users = Array.from(
-          new Set([
-            ...existingTop3.map((id) => id.toString()),
-            ...sortedUsers.slice(0, 3).map((u) => u[0].toString()),
-          ]),
+        const existingWinnerMap = new Map(
+          existingTop3
+            .map((winner) => {
+              // Backward compatibility for old schema values (plain ObjectId arrays)
+              if (winner && typeof winner === "object" && winner.userId) {
+                return [winner.userId.toString(), winner];
+              }
+              return [winner?.toString(), null];
+            })
+            .filter(([id]) => Boolean(id)),
+        );
+
+        // Build level-wise winners with new schema shape.
+        const top3Users = sortedUsers.slice(0, 3).map(([userId, gifted]) => {
+          const userIdStr = userId.toString();
+          const existingWinner = existingWinnerMap.get(userIdStr);
+
+          return {
+            userId: new mongoose.Types.ObjectId(userIdStr),
+            wonAt: existingWinner?.wonAt || new Date(),
+            // Strictly store level-window gifted amount for this rank snapshot.
+            diamondGifted: Number(gifted ?? 0),
+          };
+        });
+
+        console.log(
+          `Updating treasure box level-wise winners for level ${currentLevel} :`,
+          top3Users,
         );
 
         levelWiseWinners[levelKey] = top3Users;
