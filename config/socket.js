@@ -548,6 +548,12 @@ const configure = async (app, server) => {
                 lastGiftDetails,
               });
 
+              console.log(
+                `Gifting items to user ${userId} for level ${level}:`,
+                levelItems,
+                itemsLevelWise,
+              );
+
               for (let randomItem of levelItems) {
                 if (randomItem.itemId) {
                   // If it is Shop item
