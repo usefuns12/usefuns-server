@@ -967,6 +967,8 @@ const configure = async (app, server) => {
               "Checking if random shop item gifting is needed...",
               !room.lastGiftedTreasureBoxLevel,
               room.treasureBoxLevel > room.lastGiftedTreasureBoxLevel,
+              room.treasureBoxLevel,
+              room.lastGiftedTreasureBoxLevel,
             );
 
             if (
