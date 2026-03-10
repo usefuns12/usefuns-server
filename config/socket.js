@@ -962,6 +962,13 @@ const configure = async (app, server) => {
             // only call giftRandomShopItemInRoom when there is a level up
             // only call 1 time on 1 level up, even if multiple gifts are sent that cause multiple level ups, to avoid gifting too many items in case of multiple level ups in short time.
             // Use lastGiftedTreasureBoxLevel to ensure the gift function is called only once per unique level
+
+            console.log(
+              "Checking if random shop item gifting is needed...",
+              !room.lastGiftedTreasureBoxLevel,
+              room.treasureBoxLevel > room.lastGiftedTreasureBoxLevel,
+            );
+
             if (
               !room.lastGiftedTreasureBoxLevel ||
               room.treasureBoxLevel > room.lastGiftedTreasureBoxLevel
