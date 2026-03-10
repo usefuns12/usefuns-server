@@ -1044,6 +1044,7 @@ const configure = async (app, server) => {
                   senderC,
                   receiverC,
                   selectedGift,
+                  treasureBoxLevel: level,
                 },
                 level,
               );
