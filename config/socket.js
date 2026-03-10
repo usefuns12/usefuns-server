@@ -517,6 +517,15 @@ const configure = async (app, server) => {
 
         // Gift items based on levels
         for (const userId of userIds) {
+          const isUserExists = await models.Customer.findById(userId);
+
+          if (!isUserExists) {
+            logger.warn(
+              `Skipping gifting because user ${userId} was not found`,
+            );
+            continue;
+          }
+
           // give better luck next time message to random users it can be top 3 or others based on random selection, so that not every user gets item as a gift to make it more exciting.
 
           const randomUser = Math.random();
@@ -632,13 +641,6 @@ const configure = async (app, server) => {
                   const user = await models.Customer.findById(userId)
                     .select("xp")
                     .lean();
-
-                  if (!user) {
-                    logger.warn(
-                      `Skipping XP treasure gift because user ${userId} was not found`,
-                    );
-                    continue;
-                  }
 
                   await models.Customer.updateOne(
                     { _id: userId },
@@ -769,13 +771,6 @@ const configure = async (app, server) => {
                 const user = await models.Customer.findById(userId)
                   .select("xp")
                   .lean();
-
-                if (!user) {
-                  logger.warn(
-                    `Skipping XP treasure gift because user ${userId} was not found`,
-                  );
-                  continue;
-                }
 
                 await models.Customer.updateOne(
                   { _id: userId },
