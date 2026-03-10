@@ -555,6 +555,10 @@ const configure = async (app, server) => {
               // );
 
               for (let randomItem of levelItems) {
+                console.log(
+                  "Random item to gift for user ${userId} at level ${level}:",
+                  randomItem,
+                );
                 if (randomItem.itemId) {
                   // If it is Shop item
 
