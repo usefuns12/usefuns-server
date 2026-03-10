@@ -557,17 +557,7 @@ const configure = async (app, server) => {
                 lastGiftDetails,
               });
 
-              // console.log(
-              //   `Gifting items to user ${userId} for level ${level}:`,
-              //   levelItems,
-              //   itemsLevelWise,
-              // );
-
               for (let randomItem of levelItems) {
-                console.log(
-                  `Random item to gift for user ${userId} at level ${level}:`,
-                  randomItem,
-                );
                 if (randomItem.itemId) {
                   // If it is Shop item
 
@@ -658,7 +648,6 @@ const configure = async (app, server) => {
                 message: "Test123",
                 lastGiftDetails,
               });
-              // console.log(`Gifted items to user ${userId}:`, giftedItems);
 
               io.to(userId.toString()).emit("treasureBoxItem", {
                 message: `You have received bundle a gift!`,
@@ -673,11 +662,6 @@ const configure = async (app, server) => {
                 message: "Test123",
                 lastGiftDetails,
               });
-
-              console.log(
-                `Gifting item to user ${userId} for level ${level}:`,
-                randomItem,
-              );
 
               if (randomItem.itemId) {
                 // If it is Shop item
