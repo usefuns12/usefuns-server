@@ -219,4 +219,11 @@ RoomSchema.index({ agencyId: 1 });
 RoomSchema.index({ hostId: 1 });
 RoomSchema.index({ isActive: 1 });
 
+// add logic to automatically populate treasureBoxLevelWiseWinners when finding a room by ID
+RoomSchema.post("findOne", function (room) {
+  if (room) {
+    room.populate("treasureBoxLevelWiseWinners");
+  }
+});
+
 module.exports = mongoose.model("room", RoomSchema);
