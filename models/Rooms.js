@@ -209,6 +209,8 @@ const RoomSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
+    toJSON: { flattenMaps: true },
+    toObject: { flattenMaps: true },
   },
 );
 
@@ -219,11 +221,7 @@ RoomSchema.index({ agencyId: 1 });
 RoomSchema.index({ hostId: 1 });
 RoomSchema.index({ isActive: 1 });
 
-// add logic to automatically populate treasureBoxLevelWiseWinners when finding a room by ID
-RoomSchema.post("findOne", function (room) {
-  if (room) {
-    room.populate("treasureBoxLevelWiseWinners");
-  }
-});
+// Note: treasureBoxLevelWiseWinners is a Map<level, ObjectId[]>.
+// We use flattenMaps above so it serializes as a plain object in API responses.
 
 module.exports = mongoose.model("room", RoomSchema);
