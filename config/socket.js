@@ -425,8 +425,9 @@ const configure = async (app, server) => {
 
         const userDiamondsMap = new Map();
         for (const userId of userIds) {
-          // use models.GiftTransaction to calculate total diamonds gifted by each user in the room by today date.
-          const totalDiamonds = await models.GiftTransaction.aggregate([
+          // Level-wise diamonds by room/sender/time window.
+          // Use SendGift because it always has roomId.
+          const totalDiamonds = await models.SendGift.aggregate([
             {
               $match: {
                 roomId: new mongoose.Types.ObjectId(roomId),
@@ -437,10 +438,15 @@ const configure = async (app, server) => {
                 },
               },
             },
-            { $group: { _id: "$sender", total: { $sum: "$totalDiamonds" } } },
+            {
+              $group: {
+                _id: "$sender",
+                total: { $sum: { $multiply: ["$gift.diamonds", "$count"] } },
+              },
+            },
           ]);
 
-          userDiamondsMap.set(userId, totalDiamonds[0]?.total || 0);
+          userDiamondsMap.set(userId, Number(totalDiamonds[0]?.total || 0));
         }
 
         // Sort users by diamond amount in descending order
@@ -570,7 +576,11 @@ const configure = async (app, server) => {
                     .lean();
 
                   // Filter out the existing item by _id
-                  const filteredItems = user[itemType].filter(
+                  const existingUserItems = Array.isArray(user?.[itemType])
+                    ? user[itemType]
+                    : [];
+
+                  const filteredItems = existingUserItems.filter(
                     (i) => !i._id.equals(finalItemdata._id),
                   );
 
@@ -672,7 +682,11 @@ const configure = async (app, server) => {
                   .lean();
 
                 // Filter out the existing item by _id
-                const filteredItems = user[itemType].filter(
+                const existingUserItems = Array.isArray(user?.[itemType])
+                  ? user[itemType]
+                  : [];
+
+                const filteredItems = existingUserItems.filter(
                   (i) => !i._id.equals(finalItemdata._id),
                 );
 
