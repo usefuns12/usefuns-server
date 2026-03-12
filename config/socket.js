@@ -436,15 +436,74 @@ const configure = async (app, server) => {
           return [];
         });
 
+        const levelRewards = levelList.map((level) => {
+          const rewardsForLevel = rewards.filter(
+            (reward) => reward.treasureBoxLevel === level,
+          );
+
+          const normalizedRewards = rewardsForLevel.map((reward) => {
+            if (Array.isArray(reward.items)) {
+              return {
+                rewardType: "bundle",
+                message: reward.message,
+                items: reward.items,
+              };
+            }
+
+            if (reward.item) {
+              return {
+                rewardType: "item",
+                message: reward.message,
+                item: reward.item,
+              };
+            }
+
+            if (reward.rewardItem) {
+              return {
+                rewardType: "attribute",
+                message: reward.message,
+                item: reward.rewardItem,
+              };
+            }
+
+            return {
+              rewardType: "message",
+              message: reward.message,
+            };
+          });
+
+          const levelItems = normalizedRewards.flatMap((reward) => {
+            if (Array.isArray(reward.items)) {
+              return reward.items;
+            }
+
+            if (reward.item) {
+              return [reward.item];
+            }
+
+            return [];
+          });
+
+          return {
+            level,
+            rewards: normalizedRewards,
+            items: levelItems,
+          };
+        });
+
         io.to(userId).emit("treasureBoxItem", {
-          message:
-            levelList.length > 1
-              ? `You received treasure box rewards for levels ${levelList.join(", ")}!`
-              : rewards[rewards.length - 1]?.message ||
-                "You received a treasure box reward!",
-          items: flattenedItems,
-          rewards,
-          treasureBoxLevels: levelList,
+          type: "treasureBoxRewardBatch",
+          summary: {
+            message:
+              levelList.length > 1
+                ? `You received treasure box rewards for levels ${levelList.join(", ")}!`
+                : rewards[rewards.length - 1]?.message ||
+                  "You received a treasure box reward!",
+            levels: levelList,
+            totalRewards: rewards.length,
+            totalItems: flattenedItems.length,
+          },
+          levelRewards,
           lastGiftDetails,
         });
       }
