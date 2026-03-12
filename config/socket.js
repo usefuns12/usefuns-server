@@ -369,6 +369,36 @@ const configure = async (app, server) => {
     //   }
     // });
 
+    const claimTreasureBoxRewardLevel = async (
+      roomId,
+      level,
+      rewardTriggeredAt,
+    ) => {
+      const claimedRoom = await models.Room.findOneAndUpdate(
+        {
+          _id: roomId,
+          treasureBoxLevel: { $gte: level },
+          lastGiftedTreasureBoxLevel: { $lt: level },
+        },
+        {
+          $max: { lastGiftedTreasureBoxLevel: level },
+          ...(rewardTriggeredAt
+            ? { $set: { treasureBoxLevelUpdatedAt: rewardTriggeredAt } }
+            : {}),
+        },
+        {
+          new: true,
+          projection: {
+            _id: 1,
+            treasureBoxLevel: 1,
+            lastGiftedTreasureBoxLevel: 1,
+          },
+        },
+      );
+
+      return Boolean(claimedRoom);
+    };
+
     const giftRandomShopItemInRoom = async (
       roomId,
       lastGiftDetails,
@@ -1001,13 +1031,38 @@ const configure = async (app, server) => {
             ]),
           ]);
 
-          // ✅ Update TreasureBox (room stats)
-          const room = await models.Room.findById(roomId);
-          const totalDiamondsUsed = room.totalDiamondsUsed + totalGiftDiamonds;
-          room.diamondsUsedToday += totalGiftDiamonds;
-          room.diamondsUsedCurrentSeason += totalGiftDiamonds;
-          room.totalDiamondsUsed = totalDiamondsUsed;
-          const previousLevel = room.treasureBoxLevel;
+          // ✅ Update TreasureBox (room stats) atomically to avoid race conditions
+          const room = await models.Room.findOneAndUpdate(
+            { _id: roomId },
+            {
+              $inc: {
+                diamondsUsedToday: totalGiftDiamonds,
+                diamondsUsedCurrentSeason: totalGiftDiamonds,
+                totalDiamondsUsed: totalGiftDiamonds,
+              },
+            },
+            {
+              new: true,
+              projection: {
+                _id: 1,
+                name: 1,
+                roomImage: 1,
+                diamondsUsedToday: 1,
+                diamondsUsedCurrentSeason: 1,
+                totalDiamondsUsed: 1,
+                treasureBoxLevel: 1,
+                treasureBoxLevelProgress: 1,
+                treasureBoxLevelUpdatedAt: 1,
+              },
+            },
+          );
+
+          const previousDiamondsUsedToday =
+            room.diamondsUsedToday - totalGiftDiamonds;
+          const previousLevel = await getTreasureBoxLevel(
+            previousDiamondsUsedToday,
+          );
+
           // update treasure box level progress based on diamonds used today
           room.treasureBoxLevelProgress = await getTreasureBoxLevelProgress(
             room.diamondsUsedToday,
@@ -1015,19 +1070,32 @@ const configure = async (app, server) => {
           room.treasureBoxLevel = await getTreasureBoxLevel(
             room.diamondsUsedToday,
           );
-          // if level up happened, then only update the updatedAt field, otherwise keep it unchanged to preserve the daily reset logic
-          if (previousLevel !== room.treasureBoxLevel) {
-            room.treasureBoxLevelUpdatedAt = new Date();
 
+          const rewardTriggeredAt =
+            previousLevel !== room.treasureBoxLevel
+              ? new Date()
+              : room.treasureBoxLevelUpdatedAt;
+
+          await models.Room.updateOne(
+            { _id: roomId },
+            {
+              $set: {
+                treasureBoxLevel: room.treasureBoxLevel,
+                treasureBoxLevelProgress: room.treasureBoxLevelProgress,
+                ...(previousLevel !== room.treasureBoxLevel
+                  ? { treasureBoxLevelUpdatedAt: rewardTriggeredAt }
+                  : {}),
+              },
+            },
+          );
+
+          // if level up happened, atomically claim each crossed level so rewards emit once only
+          if (previousLevel !== room.treasureBoxLevel) {
             console.log(
               `Treasure Box Level Up! Previous: ${previousLevel}, New: ${room.treasureBoxLevel}. Triggering random shop item gifting for all crossed levels...`,
             );
 
-            // Call giftRandomShopItemInRoom for each level that was crossed
-            // This ensures that if a single gift unlocks multiple levels (e.g., level 1 to 4),
-            // the reward function is called for level 2, 3, and 4 individually
-            const startLevel =
-              (room.lastGiftedTreasureBoxLevel || previousLevel) + 1;
+            const startLevel = previousLevel + 1;
             const endLevel = room.treasureBoxLevel;
 
             console.log(
@@ -1035,6 +1103,19 @@ const configure = async (app, server) => {
             );
 
             for (let level = startLevel; level <= endLevel; level++) {
+              const isLevelClaimed = await claimTreasureBoxRewardLevel(
+                roomId,
+                level,
+                rewardTriggeredAt,
+              );
+
+              if (!isLevelClaimed) {
+                console.log(
+                  `Skipping treasure box rewards for level ${level} because it was already processed.`,
+                );
+                continue;
+              }
+
               console.log(
                 `Processing treasure box rewards for level ${level}...`,
               );
@@ -1049,10 +1130,7 @@ const configure = async (app, server) => {
                 level,
               );
             }
-
-            room.lastGiftedTreasureBoxLevel = room.treasureBoxLevel;
           }
-          await room.save();
 
           // ✅ Emit sender updated data
           const userData = await models.Customer.findById(socket.data.userId);
