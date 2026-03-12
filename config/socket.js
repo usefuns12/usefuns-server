@@ -392,11 +392,72 @@ const configure = async (app, server) => {
       return Boolean(claimedRoom);
     };
 
+    const queueTreasureBoxReward = (notificationMap, userId, rewardPayload) => {
+      if (!notificationMap) {
+        return;
+      }
+
+      const userKey = userId.toString();
+      const existingRewards = notificationMap.get(userKey) || [];
+      existingRewards.push(rewardPayload);
+      notificationMap.set(userKey, existingRewards);
+    };
+
+    const emitQueuedTreasureBoxRewards = async (
+      notificationMap,
+      lastGiftDetails,
+    ) => {
+      for (const [userId, rewards] of notificationMap.entries()) {
+        if (!rewards.length) {
+          continue;
+        }
+
+        const levelList = [
+          ...new Set(
+            rewards
+              .map((reward) => reward.treasureBoxLevel)
+              .filter((level) => level !== undefined),
+          ),
+        ].sort((a, b) => a - b);
+
+        const flattenedItems = rewards.flatMap((reward) => {
+          if (Array.isArray(reward.items)) {
+            return reward.items;
+          }
+
+          if (reward.item) {
+            return [reward.item];
+          }
+
+          if (reward.rewardItem) {
+            return [reward.rewardItem];
+          }
+
+          return [];
+        });
+
+        io.to(userId).emit("treasureBoxItem", {
+          message:
+            levelList.length > 1
+              ? `You received treasure box rewards for levels ${levelList.join(", ")}!`
+              : rewards[rewards.length - 1]?.message ||
+                "You received a treasure box reward!",
+          items: flattenedItems,
+          rewards,
+          treasureBoxLevels: levelList,
+          lastGiftDetails,
+        });
+      }
+    };
+
     const processPendingTreasureBoxRewards = async (
       roomId,
       lastGiftDetails,
       maxIterations = 20,
     ) => {
+      const notificationMap = new Map();
+      let hitIterationLimit = true;
+
       for (let attempt = 0; attempt < maxIterations; attempt++) {
         const roomSnapshot = await models.Room.findById(roomId, {
           treasureBoxLevel: 1,
@@ -415,7 +476,8 @@ const configure = async (app, server) => {
         const nextPendingLevel = lastGiftedLevel + 1;
 
         if (nextPendingLevel > currentLevel) {
-          return;
+          hitIterationLimit = false;
+          break;
         }
 
         const isLevelClaimed = await claimTreasureBoxRewardLevel(
@@ -439,18 +501,24 @@ const configure = async (app, server) => {
             treasureBoxLevel: nextPendingLevel,
           },
           nextPendingLevel,
+          notificationMap,
         );
       }
 
-      logger.warn(
-        `Stopped processing treasure box rewards for room ${roomId} after ${maxIterations} iterations`,
-      );
+      await emitQueuedTreasureBoxRewards(notificationMap, lastGiftDetails);
+
+      if (hitIterationLimit) {
+        logger.warn(
+          `Stopped processing treasure box rewards for room ${roomId} after ${maxIterations} iterations`,
+        );
+      }
     };
 
     const giftRandomShopItemInRoom = async (
       roomId,
       lastGiftDetails,
       targetLevel = null,
+      notificationMap = null,
     ) => {
       if (!roomId) {
         return {
@@ -615,10 +683,19 @@ const configure = async (app, server) => {
           const randomUser = Math.random();
           if (randomUser < 0.3) {
             // 30% chance to not gift anything to a user
-            io.to(userId).emit("treasureBoxItem", {
+            queueTreasureBoxReward(notificationMap, userId, {
               message: "Better luck next time!",
+              treasureBoxLevel: currentLevel,
               lastGiftDetails,
             });
+
+            if (!notificationMap) {
+              io.to(userId).emit("treasureBoxItem", {
+                message: "Better luck next time!",
+                treasureBoxLevel: currentLevel,
+                lastGiftDetails,
+              });
+            }
             continue;
           }
 
@@ -635,11 +712,6 @@ const configure = async (app, server) => {
             if (level === 1 || level === 2 || level === 3) {
               const levelItems = itemsLevelWise[`person${level}Items`];
               let giftedItems = [];
-
-              io.to(userId.toString()).emit("test123", {
-                message: "Test123",
-                lastGiftDetails,
-              });
 
               for (let randomItem of levelItems) {
                 if (randomItem.itemId) {
@@ -728,24 +800,24 @@ const configure = async (app, server) => {
                 }
               }
 
-              io.to(userId.toString()).emit("test123", {
-                message: "Test123",
+              queueTreasureBoxReward(notificationMap, userId, {
+                message: "You have received bundle a gift!",
+                items: giftedItems,
+                treasureBoxLevel: currentLevel,
                 lastGiftDetails,
               });
 
-              io.to(userId.toString()).emit("treasureBoxItem", {
-                message: `You have received bundle a gift!`,
-                items: giftedItems,
-                lastGiftDetails,
-              });
+              if (!notificationMap) {
+                io.to(userId.toString()).emit("treasureBoxItem", {
+                  message: "You have received bundle a gift!",
+                  items: giftedItems,
+                  treasureBoxLevel: currentLevel,
+                  lastGiftDetails,
+                });
+              }
             } else {
               const randomItem =
                 items[Math.floor(Math.random() * items.length)];
-
-              io.to(userId.toString()).emit("test123", {
-                message: "Test123",
-                lastGiftDetails,
-              });
 
               if (randomItem.itemId) {
                 // If it is Shop item
@@ -791,14 +863,21 @@ const configure = async (app, server) => {
                   { $set: { [itemType]: filteredItems } },
                 );
 
-                // Hit Socket event in room
-                ////////////////////////////////////////////////////////
-                io.to(userId.toString()).emit("treasureBoxItem", {
+                queueTreasureBoxReward(notificationMap, userId, {
                   item: finalItemdata,
                   message: `You have received a ${finalItemdata.name} as a gift!`,
+                  treasureBoxLevel: currentLevel,
                   lastGiftDetails,
                 });
-                ////////////////////////////////////////////////////////
+
+                if (!notificationMap) {
+                  io.to(userId.toString()).emit("treasureBoxItem", {
+                    item: finalItemdata,
+                    message: `You have received a ${finalItemdata.name} as a gift!`,
+                    treasureBoxLevel: currentLevel,
+                    lastGiftDetails,
+                  });
+                }
               } else if (randomItem.diamondAmount) {
                 // If it is diamond gift
 
@@ -807,15 +886,27 @@ const configure = async (app, server) => {
                   { $inc: { diamonds: randomItem.diamondAmount } },
                 );
 
-                // Hit Socket event in room
-                ////////////////////////////////////////////////////////
-                io.to(userId.toString()).emit("treasureBoxItem", {
+                queueTreasureBoxReward(notificationMap, userId, {
                   message: `You have received ${randomItem.diamondAmount} diamonds as a gift!`,
-                  image:
-                    "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089129-removebg-preview.png",
+                  rewardItem: {
+                    ...randomItem,
+                    image:
+                      "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089129-removebg-preview.png",
+                    treasureBoxLevel: currentLevel,
+                  },
+                  treasureBoxLevel: currentLevel,
                   lastGiftDetails,
                 });
-                ////////////////////////////////////////////////////////
+
+                if (!notificationMap) {
+                  io.to(userId.toString()).emit("treasureBoxItem", {
+                    message: `You have received ${randomItem.diamondAmount} diamonds as a gift!`,
+                    image:
+                      "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089129-removebg-preview.png",
+                    treasureBoxLevel: currentLevel,
+                    lastGiftDetails,
+                  });
+                }
               } else if (randomItem.beansAmount) {
                 // If it is bean gift
 
@@ -824,15 +915,27 @@ const configure = async (app, server) => {
                   { $inc: { beans: randomItem.beansAmount } },
                 );
 
-                // Hit Socket event in room
-                ////////////////////////////////////////////////////////
-                io.to(userId.toString()).emit("treasureBoxItem", {
+                queueTreasureBoxReward(notificationMap, userId, {
                   message: `You have received ${randomItem.beansAmount} beans as a gift!`,
-                  image:
-                    "https://usefun-uploads.s3.ap-south-1.amazonaws.com/beans.png",
+                  rewardItem: {
+                    ...randomItem,
+                    image:
+                      "https://usefun-uploads.s3.ap-south-1.amazonaws.com/beans.png",
+                    treasureBoxLevel: currentLevel,
+                  },
+                  treasureBoxLevel: currentLevel,
                   lastGiftDetails,
                 });
-                ////////////////////////////////////////////////////////
+
+                if (!notificationMap) {
+                  io.to(userId.toString()).emit("treasureBoxItem", {
+                    message: `You have received ${randomItem.beansAmount} beans as a gift!`,
+                    image:
+                      "https://usefun-uploads.s3.ap-south-1.amazonaws.com/beans.png",
+                    treasureBoxLevel: currentLevel,
+                    lastGiftDetails,
+                  });
+                }
               } else if (randomItem.xp) {
                 // If it is xp gift
 
@@ -845,15 +948,27 @@ const configure = async (app, server) => {
                   { $set: { xp: Number(user.xp || 0) + randomItem.xp } },
                 );
 
-                // Hit Socket event in room
-                ////////////////////////////////////////////////////////
-                io.to(userId.toString()).emit("treasureBoxItem", {
+                queueTreasureBoxReward(notificationMap, userId, {
                   message: `You have received ${randomItem.xp} EXP as a gift!`,
-                  image:
-                    "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089358-removebg-preview.png",
+                  rewardItem: {
+                    ...randomItem,
+                    image:
+                      "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089358-removebg-preview.png",
+                    treasureBoxLevel: currentLevel,
+                  },
+                  treasureBoxLevel: currentLevel,
                   lastGiftDetails,
                 });
-                ////////////////////////////////////////////////////////
+
+                if (!notificationMap) {
+                  io.to(userId.toString()).emit("treasureBoxItem", {
+                    message: `You have received ${randomItem.xp} EXP as a gift!`,
+                    image:
+                      "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089358-removebg-preview.png",
+                    treasureBoxLevel: currentLevel,
+                    lastGiftDetails,
+                  });
+                }
               }
             }
           }
