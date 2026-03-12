@@ -369,22 +369,15 @@ const configure = async (app, server) => {
     //   }
     // });
 
-    const claimTreasureBoxRewardLevel = async (
-      roomId,
-      level,
-      rewardTriggeredAt,
-    ) => {
+    const claimTreasureBoxRewardLevel = async (roomId, level) => {
       const claimedRoom = await models.Room.findOneAndUpdate(
         {
           _id: roomId,
           treasureBoxLevel: { $gte: level },
-          lastGiftedTreasureBoxLevel: { $lt: level },
+          lastGiftedTreasureBoxLevel: level - 1,
         },
         {
-          $max: { lastGiftedTreasureBoxLevel: level },
-          ...(rewardTriggeredAt
-            ? { $set: { treasureBoxLevelUpdatedAt: rewardTriggeredAt } }
-            : {}),
+          $set: { lastGiftedTreasureBoxLevel: level },
         },
         {
           new: true,
@@ -397,6 +390,61 @@ const configure = async (app, server) => {
       );
 
       return Boolean(claimedRoom);
+    };
+
+    const processPendingTreasureBoxRewards = async (
+      roomId,
+      lastGiftDetails,
+      maxIterations = 20,
+    ) => {
+      for (let attempt = 0; attempt < maxIterations; attempt++) {
+        const roomSnapshot = await models.Room.findById(roomId, {
+          treasureBoxLevel: 1,
+          lastGiftedTreasureBoxLevel: 1,
+        }).lean();
+
+        if (!roomSnapshot) {
+          logger.warn(
+            `Room ${roomId} not found while processing pending treasure box rewards`,
+          );
+          return;
+        }
+
+        const lastGiftedLevel = roomSnapshot.lastGiftedTreasureBoxLevel || 0;
+        const currentLevel = roomSnapshot.treasureBoxLevel || 0;
+        const nextPendingLevel = lastGiftedLevel + 1;
+
+        if (nextPendingLevel > currentLevel) {
+          return;
+        }
+
+        const isLevelClaimed = await claimTreasureBoxRewardLevel(
+          roomId,
+          nextPendingLevel,
+        );
+
+        if (!isLevelClaimed) {
+          // Another concurrent request is processing this level; retry from fresh DB state.
+          continue;
+        }
+
+        console.log(
+          `Processing treasure box rewards for level ${nextPendingLevel}...`,
+        );
+
+        await giftRandomShopItemInRoom(
+          roomId,
+          {
+            ...lastGiftDetails,
+            treasureBoxLevel: nextPendingLevel,
+          },
+          nextPendingLevel,
+        );
+      }
+
+      logger.warn(
+        `Stopped processing treasure box rewards for room ${roomId} after ${maxIterations} iterations`,
+      );
     };
 
     const giftRandomShopItemInRoom = async (
@@ -1089,47 +1137,17 @@ const configure = async (app, server) => {
             },
           );
 
-          // if level up happened, atomically claim each crossed level so rewards emit once only
+          // if level up happened, process pending levels sequentially so none are skipped in concurrent bursts
           if (previousLevel !== room.treasureBoxLevel) {
             console.log(
-              `Treasure Box Level Up! Previous: ${previousLevel}, New: ${room.treasureBoxLevel}. Triggering random shop item gifting for all crossed levels...`,
+              `Treasure Box Level Up! Previous: ${previousLevel}, New: ${room.treasureBoxLevel}. Processing pending treasure box rewards...`,
             );
 
-            const startLevel = previousLevel + 1;
-            const endLevel = room.treasureBoxLevel;
-
-            console.log(
-              `Gifting items for levels ${startLevel} to ${endLevel}...`,
-            );
-
-            for (let level = startLevel; level <= endLevel; level++) {
-              const isLevelClaimed = await claimTreasureBoxRewardLevel(
-                roomId,
-                level,
-                rewardTriggeredAt,
-              );
-
-              if (!isLevelClaimed) {
-                console.log(
-                  `Skipping treasure box rewards for level ${level} because it was already processed.`,
-                );
-                continue;
-              }
-
-              console.log(
-                `Processing treasure box rewards for level ${level}...`,
-              );
-              await giftRandomShopItemInRoom(
-                roomId,
-                {
-                  senderC,
-                  receiverC,
-                  selectedGift,
-                  treasureBoxLevel: level,
-                },
-                level,
-              );
-            }
+            await processPendingTreasureBoxRewards(roomId, {
+              senderC,
+              receiverC,
+              selectedGift,
+            });
           }
 
           // ✅ Emit sender updated data
