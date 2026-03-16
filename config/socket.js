@@ -404,9 +404,20 @@ const configure = async (app, server) => {
     };
 
     const emitQueuedTreasureBoxRewards = async (
+      roomId,
       notificationMap,
       lastGiftDetails,
     ) => {
+      const roomData = await models.Room.findById(roomId, {
+        treasureBoxLevelWiseWinners: 1,
+      }).lean();
+
+      const levelWiseWinnersRaw = roomData?.treasureBoxLevelWiseWinners || {};
+      const levelWiseWinners =
+        levelWiseWinnersRaw instanceof Map
+          ? Object.fromEntries(levelWiseWinnersRaw)
+          : { ...levelWiseWinnersRaw };
+
       for (const [userId, rewards] of notificationMap.entries()) {
         if (!rewards.length) {
           continue;
@@ -436,10 +447,88 @@ const configure = async (app, server) => {
           return [];
         });
 
+        const winnerIds = Array.from(
+          new Set(
+            levelList.flatMap((level) => {
+              const levelKey = String(level);
+              const levelWinners = Array.isArray(levelWiseWinners[levelKey])
+                ? levelWiseWinners[levelKey]
+                : [];
+
+              return levelWinners
+                .map((winner) => {
+                  if (winner && typeof winner === "object" && winner.userId) {
+                    return winner.userId.toString();
+                  }
+
+                  return winner?.toString();
+                })
+                .filter(Boolean);
+            }),
+          ),
+        );
+
+        const winnerCustomers = winnerIds.length
+          ? await models.Customer.find(
+              { _id: { $in: winnerIds } },
+              {
+                _id: 1,
+                userId: 1,
+                name: 1,
+                profileImage: 1,
+                level: 1,
+                countryCode: 1,
+              },
+            ).lean()
+          : [];
+
+        const winnerCustomerMap = new Map(
+          winnerCustomers.map((customer) => [
+            customer._id.toString(),
+            {
+              _id: customer._id,
+              userId: customer.userId,
+              name: customer.name,
+              profileImage: customer.profileImage,
+              level: customer.level,
+              countryCode: customer.countryCode,
+            },
+          ]),
+        );
+
         const levelRewards = levelList.map((level) => {
           const rewardsForLevel = rewards.filter(
             (reward) => reward.treasureBoxLevel === level,
           );
+
+          const levelKey = String(level);
+          const top3WinnersRaw = Array.isArray(levelWiseWinners[levelKey])
+            ? levelWiseWinners[levelKey]
+            : [];
+
+          const top3Customers = top3WinnersRaw
+            .map((winner, index) => {
+              const winnerUserId =
+                winner && typeof winner === "object" && winner.userId
+                  ? winner.userId.toString()
+                  : winner?.toString();
+
+              const winnerUser = winnerUserId
+                ? winnerCustomerMap.get(winnerUserId)
+                : null;
+
+              if (!winnerUser) {
+                return null;
+              }
+
+              return {
+                rank: index + 1,
+                wonAt: winner?.wonAt || null,
+                diamondGifted: Number(winner?.diamondGifted || 0),
+                customer: winnerUser,
+              };
+            })
+            .filter(Boolean);
 
           const normalizedRewards = rewardsForLevel.map((reward) => {
             if (Array.isArray(reward.items)) {
@@ -486,6 +575,7 @@ const configure = async (app, server) => {
 
           return {
             level,
+            top3Customers,
             rewards: normalizedRewards,
             items: levelItems,
           };
@@ -564,7 +654,11 @@ const configure = async (app, server) => {
         );
       }
 
-      await emitQueuedTreasureBoxRewards(notificationMap, lastGiftDetails);
+      await emitQueuedTreasureBoxRewards(
+        roomId,
+        notificationMap,
+        lastGiftDetails,
+      );
 
       if (hitIterationLimit) {
         logger.warn(
