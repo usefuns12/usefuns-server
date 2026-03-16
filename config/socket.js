@@ -831,10 +831,12 @@ const configure = async (app, server) => {
             continue;
           }
 
+          const level = userLevels.get(userId);
+
           // give better luck next time message to random users it can be top 3 or others based on random selection, so that not every user gets item as a gift to make it more exciting.
 
           const randomUser = Math.random();
-          if (randomUser < 0.3) {
+          if (randomUser < 0.3 && ![1, 2, 3].includes(level)) {
             // 30% chance to not gift anything to a user
             queueTreasureBoxReward(notificationMap, userId, {
               message: "Better luck next time!",
@@ -851,8 +853,6 @@ const configure = async (app, server) => {
             }
             continue;
           }
-
-          const level = userLevels.get(userId);
 
           const items = level
             ? itemsLevelWise[`person${level}Items`]
