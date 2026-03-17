@@ -602,6 +602,7 @@ const configure = async (app, server) => {
     const processPendingTreasureBoxRewards = async (
       roomId,
       lastGiftDetails,
+      rewardWindow = null,
       maxIterations = 20,
     ) => {
       const notificationMap = new Map();
@@ -651,6 +652,7 @@ const configure = async (app, server) => {
           },
           nextPendingLevel,
           notificationMap,
+          rewardWindow,
         );
       }
 
@@ -672,6 +674,7 @@ const configure = async (app, server) => {
       lastGiftDetails,
       targetLevel = null,
       notificationMap = null,
+      rewardWindow = null,
     ) => {
       if (!roomId) {
         return {
@@ -723,10 +726,16 @@ const configure = async (app, server) => {
 
         // Level-wise contribution window:
         // from last level-up timestamp (or start of day for first level) until now.
-        const levelWindowStart =
+        const levelWindowStartBase =
+          rewardWindow?.start ||
           room.treasureBoxLevelUpdatedAt ||
           new Date(new Date().setHours(0, 0, 0, 0));
-        const levelWindowEnd = new Date();
+
+        // Small buffer protects against millisecond timing gaps between write and read.
+        const levelWindowStart = new Date(
+          new Date(levelWindowStartBase).getTime() - 2000,
+        );
+        const levelWindowEnd = rewardWindow?.end || new Date();
 
         const userDiamondsMap = new Map();
         for (const userId of userIds) {
@@ -1387,9 +1396,14 @@ const configure = async (app, server) => {
             room.diamondsUsedToday,
           );
 
+          const rewardWindowStart =
+            room.treasureBoxLevelUpdatedAt ||
+            new Date(new Date().setHours(0, 0, 0, 0));
+          const rewardWindowEnd = new Date();
+
           const rewardTriggeredAt =
             previousLevel !== room.treasureBoxLevel
-              ? new Date()
+              ? rewardWindowEnd
               : room.treasureBoxLevelUpdatedAt;
 
           await models.Room.updateOne(
@@ -1411,11 +1425,18 @@ const configure = async (app, server) => {
               `Treasure Box Level Up! Previous: ${previousLevel}, New: ${room.treasureBoxLevel}. Processing pending treasure box rewards...`,
             );
 
-            await processPendingTreasureBoxRewards(roomId, {
-              senderC,
-              receiverC,
-              selectedGift,
-            });
+            await processPendingTreasureBoxRewards(
+              roomId,
+              {
+                senderC,
+                receiverC,
+                selectedGift,
+              },
+              {
+                start: rewardWindowStart,
+                end: rewardWindowEnd,
+              },
+            );
           }
 
           // ✅ Emit sender updated data
