@@ -14,6 +14,7 @@ const scheduleUsedDiamondTask = () => {
             treasureBoxLevelWiseWinners: {}, // Resetting the winners map
             treasureBoxLevelProgress: 0,
             treasureBoxLevelUpdatedAt: new Date(), // Resetting the update time to now
+            treasureBoxLevelOpenTimes: {}, // Resetting the open times map
           },
         },
       );

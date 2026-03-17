@@ -377,7 +377,10 @@ const configure = async (app, server) => {
           lastGiftedTreasureBoxLevel: level - 1,
         },
         {
-          $set: { lastGiftedTreasureBoxLevel: level },
+          $set: {
+            lastGiftedTreasureBoxLevel: level,
+            [`treasureBoxLevelOpenTimes.${level}`]: new Date(), // Track when this level was opened
+          },
         },
         {
           new: true,
@@ -385,6 +388,7 @@ const configure = async (app, server) => {
             _id: 1,
             treasureBoxLevel: 1,
             lastGiftedTreasureBoxLevel: 1,
+            treasureBoxLevelOpenTimes: 1,
           },
         },
       );
@@ -725,11 +729,31 @@ const configure = async (app, server) => {
         }
 
         // Level-wise contribution window:
-        // from last level-up timestamp (or start of day for first level) until now.
-        const levelWindowStartBase =
-          rewardWindow?.start ||
-          room.treasureBoxLevelUpdatedAt ||
-          new Date(new Date().setHours(0, 0, 0, 0));
+        // For level N, count gifts from when level N-1 was opened until now.
+        // This ensures each level's top-3 are only based on gifts for THAT level.
+        let levelWindowStartBase;
+
+        if (rewardWindow?.start) {
+          // If a fixed window is provided, use it
+          levelWindowStartBase = rewardWindow.start;
+        } else {
+          // Check if previous level's open time is recorded
+          const levelOpenTimes = room.treasureBoxLevelOpenTimes || {};
+          const previousLevel = currentLevel - 1;
+
+          if (previousLevel > 0 && levelOpenTimes[previousLevel]) {
+            // Use the time when previous level opened as start
+            levelWindowStartBase = new Date(levelOpenTimes[previousLevel]);
+          } else if (currentLevel > 0 && levelOpenTimes[currentLevel]) {
+            // Fallback: use current level's open time if available
+            levelWindowStartBase = new Date(levelOpenTimes[currentLevel]);
+          } else {
+            // Fallback: use room's last updated timestamp
+            levelWindowStartBase =
+              room.treasureBoxLevelUpdatedAt ||
+              new Date(new Date().setHours(0, 0, 0, 0));
+          }
+        }
 
         // Small buffer protects against millisecond timing gaps between write and read.
         const levelWindowStart = new Date(

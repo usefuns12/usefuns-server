@@ -68,6 +68,11 @@ const RoomSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    treasureBoxLevelOpenTimes: {
+      type: Map,
+      of: Date,
+      default: {},
+    },
     diamondsUsedToday: {
       type: Number,
       default: 0,
