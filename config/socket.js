@@ -729,37 +729,43 @@ const configure = async (app, server) => {
         }
 
         // Level-wise contribution window:
-        // For level N, count gifts from when level N-1 was opened until now.
-        // This ensures each level's top-3 are only based on gifts for THAT level.
+        // For level N, count gifts from when level N-1 was opened until when level N was opened.
+        // This ensures each level's top-3 are only based on gifts that unlocked THAT specific level.
         let levelWindowStartBase;
+        let levelWindowEndBase;
 
-        if (rewardWindow?.start) {
-          // If a fixed window is provided, use it
+        // Check if previous level's open time is recorded (priority: level-specific timestamps)
+        const levelOpenTimes = room.treasureBoxLevelOpenTimes || {};
+        const previousLevel = currentLevel - 1;
+
+        if (previousLevel > 0 && levelOpenTimes[previousLevel]) {
+          // Use the time when previous level opened as start
+          levelWindowStartBase = new Date(levelOpenTimes[previousLevel]);
+        } else if (currentLevel > 0 && levelOpenTimes[currentLevel]) {
+          // Fallback: use current level's open time if available
+          levelWindowStartBase = new Date(levelOpenTimes[currentLevel]);
+        } else if (rewardWindow?.start) {
+          // Last resort: use fixed rewardWindow if no level timestamps exist
           levelWindowStartBase = rewardWindow.start;
         } else {
-          // Check if previous level's open time is recorded
-          const levelOpenTimes = room.treasureBoxLevelOpenTimes || {};
-          const previousLevel = currentLevel - 1;
+          // Final fallback: use room's last updated timestamp or today
+          levelWindowStartBase =
+            room.treasureBoxLevelUpdatedAt ||
+            new Date(new Date().setHours(0, 0, 0, 0));
+        }
 
-          if (previousLevel > 0 && levelOpenTimes[previousLevel]) {
-            // Use the time when previous level opened as start
-            levelWindowStartBase = new Date(levelOpenTimes[previousLevel]);
-          } else if (currentLevel > 0 && levelOpenTimes[currentLevel]) {
-            // Fallback: use current level's open time if available
-            levelWindowStartBase = new Date(levelOpenTimes[currentLevel]);
-          } else {
-            // Fallback: use room's last updated timestamp
-            levelWindowStartBase =
-              room.treasureBoxLevelUpdatedAt ||
-              new Date(new Date().setHours(0, 0, 0, 0));
-          }
+        // Window END: use the current level's open time if available, otherwise use now
+        if (currentLevel > 0 && levelOpenTimes[currentLevel]) {
+          levelWindowEndBase = new Date(levelOpenTimes[currentLevel]);
+        } else {
+          levelWindowEndBase = rewardWindow?.end || new Date();
         }
 
         // Small buffer protects against millisecond timing gaps between write and read.
         const levelWindowStart = new Date(
           new Date(levelWindowStartBase).getTime() - 2000,
         );
-        const levelWindowEnd = rewardWindow?.end || new Date();
+        const levelWindowEnd = levelWindowEndBase;
 
         const userDiamondsMap = new Map();
         for (const userId of userIds) {
