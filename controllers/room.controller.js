@@ -160,6 +160,171 @@ const getRecentlyJoined = async (req, res) => {
   }
 };
 
+const buildTreasureBoxWinnersSnapshot = async (room) => {
+  const openedLevel = Number(room?.treasureBoxLevel || 0);
+  const levelWiseRaw = room?.treasureBoxLevelWiseWinners || {};
+  const levelWiseWinners =
+    levelWiseRaw instanceof Map
+      ? Object.fromEntries(levelWiseRaw)
+      : { ...levelWiseRaw };
+
+  const levelOpenTimesRaw = room?.treasureBoxLevelOpenTimes || {};
+  const levelOpenTimes =
+    levelOpenTimesRaw instanceof Map
+      ? Object.fromEntries(levelOpenTimesRaw)
+      : { ...levelOpenTimesRaw };
+
+  const completedLevels = [];
+  const missingWinnerIds = new Set();
+
+  for (let level = 1; level <= openedLevel; level++) {
+    const winners = Array.isArray(levelWiseWinners[String(level)])
+      ? levelWiseWinners[String(level)]
+      : [];
+
+    winners.forEach((winner) => {
+      const winnerUser = winner?.userId;
+      if (
+        winnerUser &&
+        typeof winnerUser === "object" &&
+        !winnerUser.name &&
+        winnerUser._id
+      ) {
+        missingWinnerIds.add(winnerUser._id.toString());
+      } else if (winnerUser && typeof winnerUser !== "object") {
+        missingWinnerIds.add(winnerUser.toString());
+      }
+    });
+
+    completedLevels.push({ level, winners });
+  }
+
+  const winnerCustomers = missingWinnerIds.size
+    ? await models.Customer.find(
+        { _id: { $in: Array.from(missingWinnerIds) } },
+        { _id: 1, userId: 1, oldUserId: 1, name: 1, profileImage: 1, level: 1 },
+      ).lean()
+    : [];
+
+  const winnerCustomerMap = new Map(
+    winnerCustomers.map((customer) => [customer._id.toString(), customer]),
+  );
+
+  const resolvedCompletedLevels = completedLevels.map(({ level, winners }) => {
+    const top3Winners = winners.slice(0, 3).map((winner, index) => {
+      const winnerUser = winner?.userId;
+
+      let customer = null;
+      if (winnerUser && typeof winnerUser === "object" && winnerUser.name) {
+        customer = {
+          _id: winnerUser._id,
+          userId: winnerUser.userId,
+          oldUserId: winnerUser.oldUserId,
+          name: winnerUser.name,
+          profileImage: winnerUser.profileImage,
+          level: winnerUser.level,
+        };
+      } else {
+        const winnerId =
+          winnerUser && typeof winnerUser === "object" && winnerUser._id
+            ? winnerUser._id.toString()
+            : winnerUser?.toString();
+        customer = winnerId ? winnerCustomerMap.get(winnerId) || null : null;
+      }
+
+      return {
+        rank: index + 1,
+        wonAt: winner?.wonAt || null,
+        diamondGifted: Number(winner?.diamondGifted || 0),
+        customer,
+      };
+    });
+
+    return {
+      level,
+      top3Winners,
+      openedAt: levelOpenTimes[String(level)] || null,
+    };
+  });
+
+  const nextLevel = openedLevel + 1;
+  const nextLevelConfig = await models.TreasureBoxLevel.findOne(
+    { level: nextLevel },
+    { level: 1, diamondToOpen: 1 },
+  ).lean();
+
+  let inProgressNextLevel = null;
+  if (nextLevelConfig) {
+    const previousLevelOpenAt =
+      openedLevel > 0 && levelOpenTimes[String(openedLevel)]
+        ? new Date(levelOpenTimes[String(openedLevel)])
+        : room?.treasureBoxLevelUpdatedAt ||
+          new Date(new Date().setHours(0, 0, 0, 0));
+
+    const now = new Date();
+
+    const inProgressTopSenders = await models.SendGift.aggregate([
+      {
+        $match: {
+          roomId: new mongoose.Types.ObjectId(room._id),
+          createdAt: {
+            $gte: previousLevelOpenAt,
+            $lte: now,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$sender",
+          totalDiamonds: { $sum: { $multiply: ["$gift.diamonds", "$count"] } },
+        },
+      },
+      { $sort: { totalDiamonds: -1 } },
+      { $limit: 3 },
+    ]);
+
+    const inProgressSenderIds = inProgressTopSenders.map((item) => item._id);
+    const inProgressCustomers = inProgressSenderIds.length
+      ? await models.Customer.find(
+          { _id: { $in: inProgressSenderIds } },
+          {
+            _id: 1,
+            userId: 1,
+            oldUserId: 1,
+            name: 1,
+            profileImage: 1,
+            level: 1,
+          },
+        ).lean()
+      : [];
+
+    const inProgressCustomerMap = new Map(
+      inProgressCustomers.map((customer) => [
+        customer._id.toString(),
+        customer,
+      ]),
+    );
+
+    inProgressNextLevel = {
+      level: nextLevel,
+      diamondToOpen: nextLevelConfig.diamondToOpen,
+      windowStart: previousLevelOpenAt,
+      windowEnd: now,
+      top3Gifters: inProgressTopSenders.map((entry, index) => ({
+        rank: index + 1,
+        diamondGifted: Number(entry.totalDiamonds || 0),
+        customer: inProgressCustomerMap.get(entry._id.toString()) || null,
+      })),
+    };
+  }
+
+  return {
+    openedLevel,
+    completedLevels: resolvedCompletedLevels,
+    inProgressNextLevel,
+  };
+};
+
 const getRoomById = async (req, res) => {
   const id = req.params.id;
   let room;
@@ -190,6 +355,8 @@ const getRoomById = async (req, res) => {
     // Convert to plain object so we can append a new field
     const roomObj = room.toObject();
     roomObj.ownerUserData = ownerUserData || null;
+    roomObj.treasureBoxLevelWiseWinners =
+      await buildTreasureBoxWinnersSnapshot(roomObj);
 
     res
       .status(200)
@@ -216,9 +383,13 @@ const getRoomByUserId = async (req, res) => {
       });
     }
 
+    const roomObj = room.toObject();
+    roomObj.treasureBoxLevelWiseWinners =
+      await buildTreasureBoxWinnersSnapshot(roomObj);
+
     res
       .status(200)
-      .send({ success: true, message: "Find successful.", data: room });
+      .send({ success: true, message: "Find successful.", data: roomObj });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
     logger.error(error);
