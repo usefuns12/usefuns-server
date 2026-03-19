@@ -174,7 +174,7 @@ const buildTreasureBoxWinnersSnapshot = async (room) => {
       ? Object.fromEntries(levelOpenTimesRaw)
       : { ...levelOpenTimesRaw };
 
-  const completedLevels = [];
+  const snapshotByLevel = {};
   const missingWinnerIds = new Set();
 
   for (let level = 1; level <= openedLevel; level++) {
@@ -196,7 +196,7 @@ const buildTreasureBoxWinnersSnapshot = async (room) => {
       }
     });
 
-    completedLevels.push({ level, winners });
+    snapshotByLevel[String(level)] = winners;
   }
 
   const winnerCustomers = missingWinnerIds.size
@@ -210,8 +210,10 @@ const buildTreasureBoxWinnersSnapshot = async (room) => {
     winnerCustomers.map((customer) => [customer._id.toString(), customer]),
   );
 
-  const resolvedCompletedLevels = completedLevels.map(({ level, winners }) => {
-    const top3Winners = winners.slice(0, 3).map((winner, index) => {
+  const resolvedCompletedLevelMap = {};
+  Object.keys(snapshotByLevel).forEach((levelKey) => {
+    const winners = snapshotByLevel[levelKey] || [];
+    const top3Winners = winners.slice(0, 3).map((winner) => {
       const winnerUser = winner?.userId;
 
       let customer = null;
@@ -233,18 +235,15 @@ const buildTreasureBoxWinnersSnapshot = async (room) => {
       }
 
       return {
-        rank: index + 1,
+        userId: customer,
         wonAt: winner?.wonAt || null,
         diamondGifted: Number(winner?.diamondGifted || 0),
-        customer,
+        _id: winner?._id || null,
+        levelStatus: "completed",
       };
     });
 
-    return {
-      level,
-      top3Winners,
-      openedAt: levelOpenTimes[String(level)] || null,
-    };
+    resolvedCompletedLevelMap[levelKey] = top3Winners;
   });
 
   const nextLevel = openedLevel + 1;
@@ -253,7 +252,7 @@ const buildTreasureBoxWinnersSnapshot = async (room) => {
     { level: 1, diamondToOpen: 1 },
   ).lean();
 
-  let inProgressNextLevel = null;
+  let inProgressNextLevelWinners = null;
   if (nextLevelConfig) {
     const previousLevelOpenAt =
       openedLevel > 0 && levelOpenTimes[String(openedLevel)]
@@ -305,24 +304,20 @@ const buildTreasureBoxWinnersSnapshot = async (room) => {
       ]),
     );
 
-    inProgressNextLevel = {
-      level: nextLevel,
-      diamondToOpen: nextLevelConfig.diamondToOpen,
-      windowStart: previousLevelOpenAt,
-      windowEnd: now,
-      top3Gifters: inProgressTopSenders.map((entry, index) => ({
-        rank: index + 1,
-        diamondGifted: Number(entry.totalDiamonds || 0),
-        customer: inProgressCustomerMap.get(entry._id.toString()) || null,
-      })),
-    };
+    inProgressNextLevelWinners = inProgressTopSenders.map((entry) => ({
+      userId: inProgressCustomerMap.get(entry._id.toString()) || {
+        _id: entry._id,
+      },
+      wonAt: null,
+      diamondGifted: Number(entry.totalDiamonds || 0),
+      _id: null,
+      levelStatus: "in_progress",
+    }));
+
+    resolvedCompletedLevelMap[String(nextLevel)] = inProgressNextLevelWinners;
   }
 
-  return {
-    openedLevel,
-    completedLevels: resolvedCompletedLevels,
-    inProgressNextLevel,
-  };
+  return resolvedCompletedLevelMap;
 };
 
 const getRoomById = async (req, res) => {
