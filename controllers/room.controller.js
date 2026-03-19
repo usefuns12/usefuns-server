@@ -278,11 +278,32 @@ const buildTreasureBoxWinnersSnapshot = async (room) => {
           totalDiamonds: { $sum: { $multiply: ["$gift.diamonds", "$count"] } },
         },
       },
-      { $sort: { totalDiamonds: -1 } },
-      { $limit: 3 },
     ]);
 
-    const inProgressSenderIds = inProgressTopSenders.map((item) => item._id);
+    const inProgressTotalsMap = new Map(
+      inProgressTopSenders.map((entry) => [
+        entry._id.toString(),
+        Number(entry.totalDiamonds || 0),
+      ]),
+    );
+
+    const participantIds = Array.from(
+      new Set(
+        [...(room.activeUsers || []), ...(room.lastMembers || [])].map((id) =>
+          id.toString(),
+        ),
+      ),
+    );
+
+    const rankedParticipants = participantIds
+      .map((id) => ({
+        _id: new mongoose.Types.ObjectId(id),
+        totalDiamonds: inProgressTotalsMap.get(id) || 0,
+      }))
+      .sort((a, b) => b.totalDiamonds - a.totalDiamonds)
+      .slice(0, 3);
+
+    const inProgressSenderIds = rankedParticipants.map((item) => item._id);
     const inProgressCustomers = inProgressSenderIds.length
       ? await models.Customer.find(
           { _id: { $in: inProgressSenderIds } },
@@ -304,7 +325,7 @@ const buildTreasureBoxWinnersSnapshot = async (room) => {
       ]),
     );
 
-    inProgressNextLevelWinners = inProgressTopSenders.map((entry) => ({
+    inProgressNextLevelWinners = rankedParticipants.map((entry) => ({
       userId: inProgressCustomerMap.get(entry._id.toString()) || {
         _id: entry._id,
       },
