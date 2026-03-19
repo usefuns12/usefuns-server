@@ -741,11 +741,8 @@ const configure = async (app, server) => {
         if (previousLevel > 0 && levelOpenTimes[previousLevel]) {
           // Use the time when previous level opened as start
           levelWindowStartBase = new Date(levelOpenTimes[previousLevel]);
-        } else if (currentLevel > 0 && levelOpenTimes[currentLevel]) {
-          // Fallback: use current level's open time if available
-          levelWindowStartBase = new Date(levelOpenTimes[currentLevel]);
         } else if (rewardWindow?.start) {
-          // Last resort: use fixed rewardWindow if no level timestamps exist
+          // For level 1 or missing previous level timestamp, use stable window start.
           levelWindowStartBase = rewardWindow.start;
         } else {
           // Final fallback: use room's last updated timestamp or today
@@ -759,6 +756,17 @@ const configure = async (app, server) => {
           levelWindowEndBase = new Date(levelOpenTimes[currentLevel]);
         } else {
           levelWindowEndBase = rewardWindow?.end || new Date();
+        }
+
+        // Guard against invalid/narrow windows when timestamps are partially missing.
+        if (
+          new Date(levelWindowEndBase).getTime() <=
+          new Date(levelWindowStartBase).getTime()
+        ) {
+          levelWindowStartBase =
+            rewardWindow?.start ||
+            room.treasureBoxLevelUpdatedAt ||
+            new Date(new Date().setHours(0, 0, 0, 0));
         }
 
         // Small buffer protects against millisecond timing gaps between write and read.
