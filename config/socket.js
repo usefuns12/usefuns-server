@@ -879,10 +879,15 @@ const configure = async (app, server) => {
           top3Users,
         );
 
-        levelWiseWinners[levelKey] = top3Users;
+        // Update only the current level key to avoid clobbering winners
+        // from other levels during concurrent reward processing.
         await models.Room.updateOne(
           { _id: roomId },
-          { $set: { treasureBoxLevelWiseWinners: levelWiseWinners } },
+          {
+            $set: {
+              [`treasureBoxLevelWiseWinners.${levelKey}`]: top3Users,
+            },
+          },
         );
 
         // Gift items based on levels
