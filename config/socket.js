@@ -1590,19 +1590,20 @@ const configure = async (app, server) => {
       .sort({ level: 1 })
       .lean();
 
-    if (totalDiamonds < levels[0]?.diamondToOpen) {
+    if (!levels.length) {
       return 0;
-    } else if (totalDiamonds < levels[1]?.diamondToOpen) {
-      return 1;
-    } else if (totalDiamonds < levels[2]?.diamondToOpen) {
-      return 2;
-    } else if (totalDiamonds < levels[3]?.diamondToOpen) {
-      return 3;
-    } else if (totalDiamonds < levels[4]?.diamondToOpen) {
-      return 4;
-    } else {
-      return 5;
     }
+
+    let currentLevel = 0;
+    for (const levelConfig of levels) {
+      if (totalDiamonds >= levelConfig.diamondToOpen) {
+        currentLevel = Number(levelConfig.level || 0);
+      } else {
+        break;
+      }
+    }
+
+    return currentLevel;
   };
 
   const getTreasureBoxLevelProgress = async (totalDiamonds) => {
@@ -1612,25 +1613,41 @@ const configure = async (app, server) => {
       .sort({ level: 1 })
       .lean();
 
-    let currentLevel = 0;
-    let nextLevelThreshold = levels[0]?.diamondToOpen || 1000; // Default to 1000 if not defined
+    if (!levels.length) {
+      return 0;
+    }
 
+    // Find the highest reached threshold index based on total diamonds.
+    let currentIndex = -1;
     for (let i = 0; i < levels.length; i++) {
-      if (totalDiamonds < levels[i].diamondToOpen) {
-        nextLevelThreshold = levels[i].diamondToOpen;
+      if (totalDiamonds >= levels[i].diamondToOpen) {
+        currentIndex = i;
+      } else {
         break;
       }
-      currentLevel = levels[i].level;
+    }
+
+    // If user has already crossed the highest configured level threshold.
+    if (currentIndex >= levels.length - 1) {
+      return 100;
     }
 
     const previousLevelThreshold =
-      currentLevel === 0 ? 0 : levels[currentLevel - 1].diamondToOpen;
+      currentIndex >= 0 ? Number(levels[currentIndex].diamondToOpen || 0) : 0;
+    const nextLevelThreshold = Number(
+      levels[currentIndex + 1]?.diamondToOpen || previousLevelThreshold,
+    );
 
-    // Calculate progress towards next level
+    if (nextLevelThreshold <= previousLevelThreshold) {
+      return 100;
+    }
+
+    // Calculate progress only inside current level window.
     const progress =
       ((totalDiamonds - previousLevelThreshold) /
         (nextLevelThreshold - previousLevelThreshold)) *
       100;
+
     return Math.min(100, Math.max(0, progress)); // Ensure progress is between 0 and 100
   };
 };
