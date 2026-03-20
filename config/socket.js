@@ -734,41 +734,46 @@ const configure = async (app, server) => {
         let levelWindowStartBase;
         let levelWindowEndBase;
 
-        // Check if previous level's open time is recorded (priority: level-specific timestamps)
+        // Check if previous level's open time is recorded (priority: stable reward trigger window)
         const levelOpenTimes = room.treasureBoxLevelOpenTimes || {};
         const previousLevel = currentLevel - 1;
 
-        // Exact start for current level = when previous level got opened.
-        if (previousLevel > 0 && levelOpenTimes[previousLevel]) {
-          levelWindowStartBase = new Date(levelOpenTimes[previousLevel]);
-        } else if (previousLevel > 0) {
-          // Backward compatibility: if direct previous is missing, search nearest lower known level time.
-          let nearestKnownStart = null;
-          for (let lvl = previousLevel - 1; lvl >= 1; lvl--) {
-            if (levelOpenTimes[lvl]) {
-              nearestKnownStart = new Date(levelOpenTimes[lvl]);
-              break;
+        // During pending-level processing, use one stable trigger window for all levels.
+        // This avoids claim-time millisecond windows that undercount contributors.
+        if (rewardWindow?.start && rewardWindow?.end) {
+          levelWindowStartBase = new Date(rewardWindow.start);
+          levelWindowEndBase = new Date(rewardWindow.end);
+        } else {
+          // Exact start for current level = when previous level got opened.
+          if (previousLevel > 0 && levelOpenTimes[previousLevel]) {
+            levelWindowStartBase = new Date(levelOpenTimes[previousLevel]);
+          } else if (previousLevel > 0) {
+            // Backward compatibility: if direct previous is missing, search nearest lower known level time.
+            let nearestKnownStart = null;
+            for (let lvl = previousLevel - 1; lvl >= 1; lvl--) {
+              if (levelOpenTimes[lvl]) {
+                nearestKnownStart = new Date(levelOpenTimes[lvl]);
+                break;
+              }
             }
+
+            levelWindowStartBase =
+              nearestKnownStart ||
+              room.treasureBoxLevelUpdatedAt ||
+              new Date(new Date().setHours(0, 0, 0, 0));
+          } else {
+            // Level 1 start comes from stable room-level marker.
+            levelWindowStartBase =
+              room.treasureBoxLevelUpdatedAt ||
+              new Date(new Date().setHours(0, 0, 0, 0));
           }
 
-          levelWindowStartBase =
-            nearestKnownStart ||
-            room.treasureBoxLevelUpdatedAt ||
-            rewardWindow?.start ||
-            new Date(new Date().setHours(0, 0, 0, 0));
-        } else {
-          // Level 1 start comes from stable room-level marker.
-          levelWindowStartBase =
-            room.treasureBoxLevelUpdatedAt ||
-            rewardWindow?.start ||
-            new Date(new Date().setHours(0, 0, 0, 0));
-        }
-
-        // Window END: use the current level open datetime, otherwise use trigger time.
-        if (currentLevel > 0 && levelOpenTimes[currentLevel]) {
-          levelWindowEndBase = new Date(levelOpenTimes[currentLevel]);
-        } else {
-          levelWindowEndBase = rewardWindow?.end || new Date();
+          // Window END: use the current level open datetime, otherwise use now.
+          if (currentLevel > 0 && levelOpenTimes[currentLevel]) {
+            levelWindowEndBase = new Date(levelOpenTimes[currentLevel]);
+          } else {
+            levelWindowEndBase = new Date();
+          }
         }
 
         // Guard against invalid/narrow windows when timestamps are partially missing.
