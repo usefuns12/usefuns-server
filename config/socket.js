@@ -1444,23 +1444,25 @@ const configure = async (app, server) => {
             previousDiamondsUsedToday,
           );
 
+          const calculatedLevel = await getTreasureBoxLevel(
+            room.diamondsUsedToday,
+          );
+          const isLevelChanged = previousLevel !== calculatedLevel;
+
           // update treasure box level progress based on diamonds used today
-          room.treasureBoxLevelProgress = await getTreasureBoxLevelProgress(
-            room.diamondsUsedToday,
-          );
-          room.treasureBoxLevel = await getTreasureBoxLevel(
-            room.diamondsUsedToday,
-          );
+          room.treasureBoxLevel = calculatedLevel;
+          room.treasureBoxLevelProgress = isLevelChanged
+            ? 0
+            : await getTreasureBoxLevelProgress(room.diamondsUsedToday);
 
           const rewardWindowStart =
             room.treasureBoxLevelUpdatedAt ||
             new Date(new Date().setHours(0, 0, 0, 0));
           const rewardWindowEnd = new Date();
 
-          const rewardTriggeredAt =
-            previousLevel !== room.treasureBoxLevel
-              ? rewardWindowEnd
-              : room.treasureBoxLevelUpdatedAt;
+          const rewardTriggeredAt = isLevelChanged
+            ? rewardWindowEnd
+            : room.treasureBoxLevelUpdatedAt;
 
           await models.Room.updateOne(
             { _id: roomId },
@@ -1468,7 +1470,7 @@ const configure = async (app, server) => {
               $set: {
                 treasureBoxLevel: room.treasureBoxLevel,
                 treasureBoxLevelProgress: room.treasureBoxLevelProgress,
-                ...(previousLevel !== room.treasureBoxLevel
+                ...(isLevelChanged
                   ? { treasureBoxLevelUpdatedAt: rewardTriggeredAt }
                   : {}),
               },
@@ -1476,7 +1478,7 @@ const configure = async (app, server) => {
           );
 
           // if level up happened, process pending levels sequentially so none are skipped in concurrent bursts
-          if (previousLevel !== room.treasureBoxLevel) {
+          if (isLevelChanged) {
             console.log(
               `Treasure Box Level Up! Previous: ${previousLevel}, New: ${room.treasureBoxLevel}. Processing pending treasure box rewards...`,
             );
