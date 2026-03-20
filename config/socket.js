@@ -1438,16 +1438,12 @@ const configure = async (app, server) => {
             },
           );
 
-          const previousDiamondsUsedToday =
-            room.diamondsUsedToday - totalGiftDiamonds;
-          const previousLevel = await getTreasureBoxLevel(
-            previousDiamondsUsedToday,
-          );
+          const previousLevel = Number(room.treasureBoxLevel || 0);
 
           const calculatedLevel = await getTreasureBoxLevel(
             room.diamondsUsedToday,
           );
-          const isLevelChanged = previousLevel !== calculatedLevel;
+          const isLevelChanged = calculatedLevel > previousLevel;
 
           // update treasure box level progress based on diamonds used today
           room.treasureBoxLevel = calculatedLevel;
