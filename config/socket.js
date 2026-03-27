@@ -1460,9 +1460,7 @@ const configure = async (app, server) => {
           room.treasureBoxLevel = calculatedLevel;
           room.treasureBoxCurrentLevelDiamonds =
             treasureBoxState.remainingDiamonds;
-          room.treasureBoxLevelProgress = isLevelChanged
-            ? 0
-            : treasureBoxState.progress;
+          room.treasureBoxLevelProgress = treasureBoxState.progress;
 
           const rewardWindowStart =
             room.treasureBoxLevelUpdatedAt ||
