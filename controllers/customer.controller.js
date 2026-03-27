@@ -3563,6 +3563,23 @@ const toggleMysteryMen = async (req, res) => {
         .json({ success: false, message: "Customer not found" });
     }
     user.isMysteryMen = !user.isMysteryMen;
+
+    // If user is now miystreyman then save it's current profile image as old profile image and in profile image add mystreyman image same as name and if user is not mysteryman then restore it's old profile image to current profile image and remove old profile image
+    if (user.isMysteryMen) {
+      user.oldProfileImage = user.profileImage;
+      user.oldName = user.name;
+      user.profileImage =
+        "https://usefun-uploads.s3.ap-south-1.amazonaws.com/mysterymanimages.jpeg";
+      user.name = "MysteryMan";
+    } else {
+      // If user is not
+      // mysteryman then restore it's old profile image to current profile image and remove old profile image
+      user.profileImage = user.oldProfileImage || user.profileImage;
+      user.oldProfileImage = undefined;
+      user.name = user.oldName || user.name;
+      user.oldName = undefined;
+    }
+
     await user.save();
     if (!user) {
       return res

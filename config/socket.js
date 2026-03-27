@@ -1417,12 +1417,14 @@ const configure = async (app, server) => {
             ]),
           ]);
 
-          // ✅ Update TreasureBox (room stats) atomically to avoid race conditions
+          // ✅ Update TreasureBox totals atomically to avoid race conditions.
+          // `treasureBoxCurrentLevelDiamonds` tracks only the spend inside the active level window.
           const room = await models.Room.findOneAndUpdate(
             { _id: roomId },
             {
               $inc: {
                 diamondsUsedToday: totalGiftDiamonds,
+                treasureBoxCurrentLevelDiamonds: totalGiftDiamonds,
                 diamondsUsedCurrentSeason: totalGiftDiamonds,
                 totalDiamondsUsed: totalGiftDiamonds,
               },
@@ -1434,6 +1436,7 @@ const configure = async (app, server) => {
                 name: 1,
                 roomImage: 1,
                 diamondsUsedToday: 1,
+                treasureBoxCurrentLevelDiamonds: 1,
                 diamondsUsedCurrentSeason: 1,
                 totalDiamondsUsed: 1,
                 treasureBoxLevel: 1,
@@ -1444,17 +1447,22 @@ const configure = async (app, server) => {
           );
 
           const previousLevel = Number(room.treasureBoxLevel || 0);
-
-          const calculatedLevel = await getTreasureBoxLevel(
-            room.diamondsUsedToday,
-          );
+          const treasureBoxState = await getTreasureBoxState({
+            currentLevel: previousLevel,
+            currentLevelDiamonds: Number(
+              room.treasureBoxCurrentLevelDiamonds || 0,
+            ),
+          });
+          const calculatedLevel = treasureBoxState.level;
           const isLevelChanged = calculatedLevel > previousLevel;
 
-          // update treasure box level progress based on diamonds used today
+          // update treasure box state based on diamonds spent inside the current level only
           room.treasureBoxLevel = calculatedLevel;
+          room.treasureBoxCurrentLevelDiamonds =
+            treasureBoxState.remainingDiamonds;
           room.treasureBoxLevelProgress = isLevelChanged
             ? 0
-            : await getTreasureBoxLevelProgress(room.diamondsUsedToday);
+            : treasureBoxState.progress;
 
           const rewardWindowStart =
             room.treasureBoxLevelUpdatedAt ||
@@ -1470,6 +1478,8 @@ const configure = async (app, server) => {
             {
               $set: {
                 treasureBoxLevel: room.treasureBoxLevel,
+                treasureBoxCurrentLevelDiamonds:
+                  room.treasureBoxCurrentLevelDiamonds,
                 treasureBoxLevelProgress: room.treasureBoxLevelProgress,
                 ...(isLevelChanged
                   ? { treasureBoxLevelUpdatedAt: rewardTriggeredAt }
@@ -1586,72 +1596,58 @@ const configure = async (app, server) => {
     return xpSeries.length - 1;
   };
 
-  const getTreasureBoxLevel = async (totalDiamonds) => {
-    // instead of constants.diamondsLevel.L0, L1, etc., we now use TreasureBoxLevelSchema levels from the database. This allows dynamic configuration of levels and thresholds without code changes.
-
+  const getTreasureBoxState = async ({
+    currentLevel = 0,
+    currentLevelDiamonds = 0,
+  }) => {
     const levels = await models.TreasureBoxLevel.find({})
       .sort({ level: 1 })
       .lean();
 
     if (!levels.length) {
-      return 0;
+      return {
+        level: 0,
+        remainingDiamonds: 0,
+        progress: 0,
+      };
     }
 
-    let currentLevel = 0;
-    for (const levelConfig of levels) {
-      if (totalDiamonds >= levelConfig.diamondToOpen) {
-        currentLevel = Number(levelConfig.level || 0);
-      } else {
-        break;
+    let resolvedLevel = Number(currentLevel || 0);
+    let remainingDiamonds = Number(currentLevelDiamonds || 0);
+
+    while (true) {
+      const nextLevelConfig = levels.find(
+        (levelConfig) => Number(levelConfig.level || 0) === resolvedLevel + 1,
+      );
+
+      if (!nextLevelConfig) {
+        return {
+          level: resolvedLevel,
+          remainingDiamonds,
+          progress: 100,
+        };
       }
-    }
 
-    return currentLevel;
-  };
-
-  const getTreasureBoxLevelProgress = async (totalDiamonds) => {
-    // This function calculates the progress towards the next treasure box level as a percentage. It uses the same TreasureBoxLevel thresholds from the database to determine the current and next levels.
-    // Fetch levels from the database
-    const levels = await models.TreasureBoxLevel.find({})
-      .sort({ level: 1 })
-      .lean();
-
-    if (!levels.length) {
-      return 0;
-    }
-
-    // Find the highest reached threshold index based on total diamonds.
-    let currentIndex = -1;
-    for (let i = 0; i < levels.length; i++) {
-      if (totalDiamonds >= levels[i].diamondToOpen) {
-        currentIndex = i;
-      } else {
-        break;
+      const requiredDiamonds = Number(nextLevelConfig.diamondToOpen || 0);
+      if (requiredDiamonds <= 0) {
+        resolvedLevel = Number(nextLevelConfig.level || resolvedLevel);
+        continue;
       }
+
+      if (remainingDiamonds < requiredDiamonds) {
+        return {
+          level: resolvedLevel,
+          remainingDiamonds,
+          progress: Math.min(
+            100,
+            Math.max(0, (remainingDiamonds / requiredDiamonds) * 100),
+          ),
+        };
+      }
+
+      remainingDiamonds -= requiredDiamonds;
+      resolvedLevel = Number(nextLevelConfig.level || resolvedLevel);
     }
-
-    // If user has already crossed the highest configured level threshold.
-    if (currentIndex >= levels.length - 1) {
-      return 100;
-    }
-
-    const previousLevelThreshold =
-      currentIndex >= 0 ? Number(levels[currentIndex].diamondToOpen || 0) : 0;
-    const nextLevelThreshold = Number(
-      levels[currentIndex + 1]?.diamondToOpen || previousLevelThreshold,
-    );
-
-    if (nextLevelThreshold <= previousLevelThreshold) {
-      return 100;
-    }
-
-    // Calculate progress only inside current level window.
-    const progress =
-      ((totalDiamonds - previousLevelThreshold) /
-        (nextLevelThreshold - previousLevelThreshold)) *
-      100;
-
-    return Math.min(100, Math.max(0, progress)); // Ensure progress is between 0 and 100
   };
 };
 

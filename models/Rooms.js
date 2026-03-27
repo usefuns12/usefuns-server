@@ -77,6 +77,10 @@ const RoomSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    treasureBoxCurrentLevelDiamonds: {
+      type: Number,
+      default: 0,
+    },
     totalDiamondsUsed: {
       type: Number,
       default: 0,
