@@ -109,7 +109,6 @@ const customerSchema = new mongoose.Schema(
     },
     oldName: {
       type: String,
-      required: true,
       trim: true,
     },
     countryCode: {
@@ -147,7 +146,6 @@ const customerSchema = new mongoose.Schema(
     },
     oldProfileImage: {
       type: String,
-      required: true,
     },
 
     // Social Connections
