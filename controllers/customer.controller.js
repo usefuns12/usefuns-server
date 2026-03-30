@@ -2723,6 +2723,7 @@ const getGifts = async (req, res) => {
           giftId: "$_id.giftId",
           name: "$_id.name",
           thumbnail: "$_id.thumbnail",
+          resource: "$_id.resource",
           totalSent: { $ifNull: ["$totalSent", 0] }, // Ensure 0 if no sent gifts
           totalReceived: { $ifNull: ["$totalReceived", 0] }, // Ensure 0 if no received gifts
           totalDiamondsSent: { $ifNull: ["$totalDiamondsSent", 0] },
