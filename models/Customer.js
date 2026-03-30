@@ -107,6 +107,11 @@ const customerSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    oldName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     countryCode: {
       type: String,
       required: true,
@@ -137,6 +142,10 @@ const customerSchema = new mongoose.Schema(
       default: null,
     },
     profileImage: {
+      type: String,
+      required: true,
+    },
+    oldProfileImage: {
       type: String,
       required: true,
     },
@@ -321,7 +330,7 @@ const customerSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 customerSchema.set("toObject", { getters: true });
@@ -412,7 +421,7 @@ customerSchema.statics.changepassword = async function (email, oldpwd, newpwd) {
     customer = await this.findOneAndUpdate(
       { username },
       { pwd: await bcrypt.hash(newpwd, 9) },
-      { new: true }
+      { new: true },
     );
   }
 
@@ -423,7 +432,7 @@ customerSchema.statics.resetpassword = async function (id, newpwd) {
   const customer = await this.findOneAndUpdate(
     { _id: id },
     { pwd: await bcrypt.hash(newpwd, 9) },
-    { new: true }
+    { new: true },
   );
   if (!customer) {
     throw new Error("Invalid user.");

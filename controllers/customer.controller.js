@@ -2657,6 +2657,7 @@ const getGifts = async (req, res) => {
             giftId: "$gift._id",
             name: "$gift.name",
             thumbnail: "$gift.thumbnail",
+            resource: "$gift.resource",
           },
           totalSent: {
             $sum: {
