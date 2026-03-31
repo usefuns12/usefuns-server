@@ -599,6 +599,7 @@ const configure = async (app, server) => {
           },
           levelRewards,
           lastGiftDetails,
+          roomId,
         });
       }
     };
@@ -919,6 +920,7 @@ const configure = async (app, server) => {
                 message: "Better luck next time!",
                 treasureBoxLevel: currentLevel,
                 lastGiftDetails,
+                roomId,
               });
             }
             continue;
@@ -1036,6 +1038,7 @@ const configure = async (app, server) => {
                   items: giftedItems,
                   treasureBoxLevel: currentLevel,
                   lastGiftDetails,
+                  roomId,
                 });
               }
             } else {
@@ -1099,6 +1102,7 @@ const configure = async (app, server) => {
                     message: `You have received a ${finalItemdata.name} as a gift!`,
                     treasureBoxLevel: currentLevel,
                     lastGiftDetails,
+                    roomId,
                   });
                 }
               } else if (randomItem.diamondAmount) {
@@ -1128,6 +1132,7 @@ const configure = async (app, server) => {
                       "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089129-removebg-preview.png",
                     treasureBoxLevel: currentLevel,
                     lastGiftDetails,
+                    roomId,
                   });
                 }
               } else if (randomItem.beansAmount) {
@@ -1157,6 +1162,7 @@ const configure = async (app, server) => {
                       "https://usefun-uploads.s3.ap-south-1.amazonaws.com/beans.png",
                     treasureBoxLevel: currentLevel,
                     lastGiftDetails,
+                    roomId,
                   });
                 }
               } else if (randomItem.xp) {
@@ -1190,6 +1196,7 @@ const configure = async (app, server) => {
                       "https://usefun-uploads.s3.ap-south-1.amazonaws.com/1000089358-removebg-preview.png",
                     treasureBoxLevel: currentLevel,
                     lastGiftDetails,
+                    roomId,
                   });
                 }
               }
