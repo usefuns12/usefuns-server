@@ -600,6 +600,7 @@ const configure = async (app, server) => {
           levelRewards,
           lastGiftDetails,
           roomId,
+          roomData,
         });
       }
     };
@@ -921,6 +922,7 @@ const configure = async (app, server) => {
                 treasureBoxLevel: currentLevel,
                 lastGiftDetails,
                 roomId,
+                roomData: room, // Include room data for context
               });
             }
             continue;
@@ -1039,6 +1041,7 @@ const configure = async (app, server) => {
                   treasureBoxLevel: currentLevel,
                   lastGiftDetails,
                   roomId,
+                  roomData: room, // Include room data for context
                 });
               }
             } else {
@@ -1103,6 +1106,7 @@ const configure = async (app, server) => {
                     treasureBoxLevel: currentLevel,
                     lastGiftDetails,
                     roomId,
+                    roomData: room, // Include room data for context
                   });
                 }
               } else if (randomItem.diamondAmount) {
@@ -1133,6 +1137,7 @@ const configure = async (app, server) => {
                     treasureBoxLevel: currentLevel,
                     lastGiftDetails,
                     roomId,
+                    roomData: room, // Include room data for context
                   });
                 }
               } else if (randomItem.beansAmount) {
@@ -1163,6 +1168,7 @@ const configure = async (app, server) => {
                     treasureBoxLevel: currentLevel,
                     lastGiftDetails,
                     roomId,
+                    roomData: room, // Include room data for context
                   });
                 }
               } else if (randomItem.xp) {
@@ -1197,6 +1203,7 @@ const configure = async (app, server) => {
                     treasureBoxLevel: currentLevel,
                     lastGiftDetails,
                     roomId,
+                    roomData: room, // Include room data for context
                   });
                 }
               }
