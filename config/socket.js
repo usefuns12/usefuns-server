@@ -416,6 +416,8 @@ const configure = async (app, server) => {
         treasureBoxLevelWiseWinners: 1,
       }).lean();
 
+      const fullRoomData = await models.Room.findById(roomId).lean();
+
       const levelWiseWinnersRaw = roomData?.treasureBoxLevelWiseWinners || {};
       const levelWiseWinners =
         levelWiseWinnersRaw instanceof Map
@@ -600,7 +602,7 @@ const configure = async (app, server) => {
           levelRewards,
           lastGiftDetails,
           roomId,
-          roomData,
+          roomData: fullRoomData,
         });
       }
     };
