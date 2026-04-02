@@ -716,7 +716,7 @@ const updateCustomer = async (req, res) => {
 
     io.to(id).emit("userDataUpdate", userData);
     // broadcast updated user data to all connected clients
-    io.emit("userDataUpdate", userData);
+    io.emit("allUserDataUpdate", userData);
     res.status(200).json({ success: true, message: "Updated successfully." });
   } catch (error) {
     logger.error(error);
