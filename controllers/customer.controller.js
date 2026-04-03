@@ -804,6 +804,8 @@ const setDefaultItem = async (req, res) => {
     }
 
     io.to(userId).emit("userDataUpdate", userData);
+    io.emit("allUserDataUpdate", userData);
+
     res.status(200).json({
       success: true,
       message: `${type} updated successfully.`,
