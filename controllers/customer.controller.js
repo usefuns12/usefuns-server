@@ -2947,6 +2947,8 @@ const purchaseSpecialId = async (req, res) => {
       uses: "Shop",
     });
 
+    io.emit("allUserDataUpdate", user);
+
     res.status(200).json({
       success: true,
       message: `Special ID '${specialId}' purchased successfully, valid for ${validityDays} days.`,
