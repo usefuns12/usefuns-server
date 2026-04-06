@@ -615,7 +615,8 @@ const updateRoom = async (req, res) => {
     const roomObj = roomData.toObject();
     roomObj.ownerUserData = ownerUserData || null;
 
-    io.to(id).emit("roomDataUpdate", roomObj);
+    // io.to(id).emit("roomDataUpdate", roomObj);
+    io.emit("roomDataUpdate", roomObj);
     res.status(200).json({ success: true, message: "Updated successfully." });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });

@@ -3589,6 +3589,9 @@ const toggleMysteryMen = async (req, res) => {
     }
 
     await user.save();
+
+    io.emit("allUserDataUpdate", user);
+
     if (!user) {
       return res
         .status(404)
