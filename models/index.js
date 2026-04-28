@@ -39,19 +39,19 @@ const models = {
   Ranking: require("./Ranking"),
   User: require("./User"),
   Notification: require("./Notification"),
-  // HostSalaryCycle: require("./HostSalaryCycle"),
-  // AgencyCommissionCycle: require("./AgencyCommissionCycle"),
+  HostSalaryCycle: require("./HostSalaryCycle"),
+  AgencyCommissionCycle: require("./AgencyCommissionCycle"),
 
-  // // 🔹 STEP 5-6 Models (Alerts, Disputes, Fraud)
-  // Alert: require("./Alert"),
-  // Dispute: require("./Dispute"),
-  // FraudAction: require("./FraudAction"),
+  // 🔹 STEP 5-6 Models (Alerts, Disputes, Fraud)
+  Alert: require("./Alert"),
+  Dispute: require("./Dispute"),
+  FraudAction: require("./FraudAction"),
 
-  // // 🔹 STEP 8 Models (Policy Management)
-  // PolicySnapshot: require("./PolicySnapshot"),
+  // 🔹 STEP 8 Models (Policy Management)
+  PolicySnapshot: require("./PolicySnapshot"),
 
-  // // 🔹 Additional Models
-  // RoomGame: require("./RoomGame"),
+  // 🔹 Additional Models
+  RoomGame: require("./RoomGame"),
   TreasureBoxLevel: require("./TreasureBoxLevel"),
 };
 

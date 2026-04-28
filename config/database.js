@@ -1,7 +1,8 @@
 const mongoose = require("mongoose");
 const dburi = process.env.MONGO_URL;
 const { scheduleUsedDiamondTask } = require("../scheduler/scheduler");
-// const { scheduleWalletUnlock } = require("../scheduler/walletUnlock.scheduler");
+const { scheduleWalletUnlock } = require("../scheduler/walletUnlock.scheduler");
+const { startSalaryCycleCron } = require("../services/salaryCycle.service");
 
 mongoose
   .connect(dburi, {
@@ -18,6 +19,9 @@ mongoose
     scheduleUsedDiamondTask();
 
     // 🔓 STEP 3: Schedule wallet unlock job (runs daily at 2:00 AM)
-    // scheduleWalletUnlock();
+    scheduleWalletUnlock();
+
+    // Salary cycle processing job (runs daily at 12:00 AM)
+    startSalaryCycleCron();
   })
   .catch((err) => console.log(err));

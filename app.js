@@ -67,6 +67,18 @@ app.use((req, res, next) => {
 require("./scheduler/kickCleaner");
 require("./scheduler/revertExpiredSpecialIds");
 
+// ✅ STEP 5.4: Daily health check scheduler
+const { scheduleDailyHealthCheck } = require("./scheduler/dailyHealthCheck");
+scheduleDailyHealthCheck();
+
+// ✅ STEP 5.7: Daily alert digest scheduler
+const { scheduleAlertDigest } = require("./scheduler/alertDigest.scheduler");
+scheduleAlertDigest();
+
+// ✅ STEP 6: Hourly fraud action expiry scheduler
+const { scheduleFraudActionExpiry } = require("./scheduler/expireFraudActions");
+scheduleFraudActionExpiry();
+
 // Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);

@@ -1,0 +1,2033 @@
+{
+	"info": {
+		"_postman_id": "bdfd1048-4598-4717-b28f-25b9e5b73219",
+		"name": "User & Role API",
+		"description": "Postman collection for User, Role, Agency, and Host endpoints (updated with Host & Request APIs)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "35812166",
+		"_collection_link": "https://alkb22.postman.co/workspace/Team-Workspace~c712612c-4fee-48ca-8a85-f54178f9b3e0/collection/35812166-bdfd1048-4598-4717-b28f-25b9e5b73219?action=share&source=collection_link&creator=35812166"
+	},
+	"item": [
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "Get All Notifications",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/notifications/getAll",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"notifications",
+								"getAll"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Notification",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "multipart/form-data"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "title",
+									"value": "Test Notification",
+									"type": "text"
+								},
+								{
+									"key": "message",
+									"value": "This is a test message",
+									"type": "text"
+								},
+								{
+									"key": "notificationType",
+									"value": "info",
+									"type": "text"
+								},
+								{
+									"key": "sentBy",
+									"value": "68a8165c488e4f4743b02f2f",
+									"type": "text"
+								},
+								{
+									"key": "data",
+									"value": "{\"redirect\":\"/dashboard\"}",
+									"type": "text"
+								},
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/notifications/add",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"notifications",
+								"add"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Notification",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "multipart/form-data"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "_id",
+									"value": "67912aa1e01e3f215d881234",
+									"type": "text"
+								},
+								{
+									"key": "title",
+									"value": "Updated Notification Title",
+									"type": "text"
+								},
+								{
+									"key": "message",
+									"value": "Updated message",
+									"type": "text"
+								},
+								{
+									"key": "notificationType",
+									"value": "success",
+									"type": "text"
+								},
+								{
+									"key": "data",
+									"value": "{\"redirect\":\"/settings\"}",
+									"type": "text"
+								},
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								}
+							]
+						},
+						"url": {
+							"raw": "{{baseURL}}/notifications/update/67912aa1e01e3f215d881234",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"notifications",
+								"update",
+								"67912aa1e01e3f215d881234"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Notification",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/notifications/delete/67912aa1e01e3f215d881234",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"notifications",
+								"delete",
+								"67912aa1e01e3f215d881234"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customerEmail\": \"john@example.com\",\n  \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/auth/login",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseURL}}/auth/profile",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"auth",
+								"profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseURL}}/auth/logout",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"auth",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Admin Zone (Restricted Example)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseURL}}/auth/admin-zone",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"auth",
+								"admin-zone"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Create User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customerId\": \"68a0814888cb68e0a5ab6298\",\n  \"roleId\": \"68a6b5af5ed2a73734c3c45e\",\n  \"parents\": [],\n  \"password\": \"secure123\",\n  \"country\": \"India\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/users/create",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"users",
+								"create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/users/:id",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"users",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "68a8165c488e4f4743b02f2f"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/users?role=country-admin",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"users"
+							],
+							"query": [
+								{
+									"key": "role",
+									"value": "country-admin"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update User",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"country\": \"USA\",\n  \"isActive\": false\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/users/:id",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"users",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete User",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/users/:id",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"users",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Roles",
+			"item": [
+				{
+					"name": "Init Roles",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{baseURL}}/roles/init",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"roles",
+								"init"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Roles",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/roles",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"roles"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Agencies",
+			"item": [
+				{
+					"name": "Create Agency",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"agencyId\": 102,\n  \"code\": \"AG102\",\n  \"name\": \"Super Agency 2\",\n  \"ownerUserId\": \"68a8165c488e4f4743b02f2f\",\n  \"country\": \"India\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/agencies/create",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"agencies",
+								"create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Agency By ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/agencies/getAgencyDetails/:id",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"agencies",
+								"getAgencyDetails",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "693129e927e7b6149a97b963"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Agency By ID Copy",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/agencies/getAgencyDetails/:id",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"agencies",
+								"getAgencyDetails",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "693129e927e7b6149a97b963"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Agencies By Owner",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/agencies/owner/:ownerUserId",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"agencies",
+								"owner",
+								":ownerUserId"
+							],
+							"variable": [
+								{
+									"key": "ownerUserId"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Invite Host to Agency",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fromAgencyId\": \"68a81a37d68ef3fd9cd9c710\",\n  \"toHostId\": \"68a8165c488e4f4743b02f2f\",\n  \"roomId\": \"68a81b45e43fdbfd9cd9a999\",\n  \"message\": \"Please join our agency\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/agencies/invite-host",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"agencies",
+								"invite-host"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Hosts",
+			"item": [
+				{
+					"name": "Create Host",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"customerRef\": \"68a0814888cb68e0a5ab6298\",\n    \"agencyId\": \"68a0814888cb68e0a5ab6298\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/hosts/create",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"hosts",
+								"create"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Hosts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/hosts?agencyId=&status=",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"hosts"
+							],
+							"query": [
+								{
+									"key": "agencyId",
+									"value": ""
+								},
+								{
+									"key": "status",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Host Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/hosts/getHostDetails/:id",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"hosts",
+								"getHostDetails",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Join Requests",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/hosts/requests?agencyId=&hostId=&status=&customerId=&type=",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"hosts",
+								"requests"
+							],
+							"query": [
+								{
+									"key": "agencyId",
+									"value": ""
+								},
+								{
+									"key": "hostId",
+									"value": ""
+								},
+								{
+									"key": "status",
+									"value": ""
+								},
+								{
+									"key": "customerId",
+									"value": ""
+								},
+								{
+									"key": "type",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Send Request From Customer → Agency",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"customerId\": \"68a0814888cb68e0a5ab6298\",\n  \"agencyId\": \"68a81a37d68ef3fd9cd9c710\",\n  \"message\": \"Please accept my request\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/hosts/request/customer",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"hosts",
+								"request",
+								"customer"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Accept / Reject Request by Agency",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"accepted\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/hosts/request/:requestId/agency-action",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"hosts",
+								"request",
+								":requestId",
+								"agency-action"
+							],
+							"variable": [
+								{
+									"key": "requestId"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Send Request From Agency → Customer",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"agencyId\": \"693129e927e7b6149a97b963\",\n  \"customerId\": \"68a0814888cb68e0a5ab6298\",\n  \"message\": \"Join our agency\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/hosts/request/from-agency",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"hosts",
+								"request",
+								"from-agency"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Host sends “Left Agency” request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"hostId\": \"68e768028533e120a0585e9e\",\n  \"message\": \"Left agency\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/hosts/leave-agency",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"hosts",
+								"leave-agency"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Accept / Reject Request by Customer",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"accepted\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/hosts/request/693905a55ac4a93fa680589f/customer-action",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"hosts",
+								"request",
+								"693905a55ac4a93fa680589f",
+								"customer-action"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Agency accepts or rejects “Left Agency” request",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"action\": \"accept\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/hosts/left-request/:requestId",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"hosts",
+								"left-request",
+								":requestId"
+							],
+							"variable": [
+								{
+									"key": "requestId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getUnassignedUsers",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/user/getUnassignedUsers",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"user",
+								"getUnassignedUsers"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getUnassignedUsers Copy",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/user/getUnassignedUsersWithJoinStatus",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"user",
+								"getUnassignedUsersWithJoinStatus"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Admin Salary Management",
+			"description": "Admin endpoints for managing salary cycles, agency commissions, and transaction unlocking",
+			"item": [
+				{
+					"name": "Salary Cycles",
+					"item": [
+						{
+							"name": "Get All Salary Cycles",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/salary-cycles?page=1&limit=20",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "salary-cycles"],
+									"query": [
+										{"key": "page", "value": "1"},
+										{"key": "limit", "value": "20"},
+										{"key": "status", "value": "completed", "disabled": true},
+										{"key": "hostId", "value": "", "disabled": true}
+									]
+								},
+								"description": "Get paginated list of salary cycles with optional filters"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Salary Cycle Stats",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/salary-cycles/stats",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "salary-cycles", "stats"]
+								},
+								"description": "Get aggregated statistics for salary cycles (totals by status, amounts)"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Salary Cycle By ID",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/salary-cycles/:id",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "salary-cycles", ":id"],
+									"variable": [{"key": "id", "value": ""}]
+								},
+								"description": "Get detailed information about a specific salary cycle including calculations"
+							},
+							"response": []
+						},
+						{
+							"name": "Recalculate Salary Cycle",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Policy change adjustment\"\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/salary-cycles/:id/recalculate",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "salary-cycles", ":id", "recalculate"],
+									"variable": [{"key": "id", "value": ""}]
+								},
+								"description": "Recalculate a salary cycle with current policy (creates adjustment transaction)"
+							},
+							"response": []
+						},
+						{
+							"name": "Hold Salary Cycle",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Pending investigation\"\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/salary-cycles/:id/hold",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "salary-cycles", ":id", "hold"],
+									"variable": [{"key": "id", "value": ""}]
+								},
+								"description": "Put salary cycle on hold (prevents payout)"
+							},
+							"response": []
+						},
+						{
+							"name": "Release Salary Cycle",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Investigation cleared\"\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/salary-cycles/:id/release",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "salary-cycles", ":id", "release"],
+									"variable": [{"key": "id", "value": ""}]
+								},
+								"description": "Release a held salary cycle"
+							},
+							"response": []
+						},
+						{
+							"name": "Force Payout Salary Cycle",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Manual intervention required\"\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/salary-cycles/:id/force-payout",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "salary-cycles", ":id", "force-payout"],
+									"variable": [{"key": "id", "value": ""}]
+								},
+								"description": "Force payout of a salary cycle (bypasses normal checks)"
+							},
+							"response": []
+						},
+						{
+							"name": "Reverse Salary Payment",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Error in calculation detected\"\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/salary-cycles/:id/reverse",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "salary-cycles", ":id", "reverse"],
+									"variable": [{"key": "id", "value": ""}]
+								},
+								"description": "Reverse a completed salary payment (creates reversal transaction)"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Agency Commissions",
+					"item": [
+						{
+							"name": "Get All Agency Commissions",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/agency-commissions?page=1&limit=20",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "agency-commissions"],
+									"query": [
+										{"key": "page", "value": "1"},
+										{"key": "limit", "value": "20"},
+										{"key": "status", "value": "", "disabled": true},
+										{"key": "agencyId", "value": "", "disabled": true}
+									]
+								},
+								"description": "Get paginated list of agency commission cycles"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Agency Commission Stats",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/agency-commissions/stats",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "agency-commissions", "stats"]
+								},
+								"description": "Get aggregated statistics for agency commissions"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Agency Commission By ID",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/agency-commissions/:id",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "agency-commissions", ":id"],
+									"variable": [{"key": "id", "value": ""}]
+								},
+								"description": "Get detailed information about a specific agency commission cycle"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Transaction Management",
+					"item": [
+						{
+							"name": "Unlock Transaction Funds",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Funds released after review\"\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/transactions/:id/unlock",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "transactions", ":id", "unlock"],
+									"variable": [{"key": "id", "value": ""}]
+								},
+								"description": "Unlock previously locked transaction funds (makes them withdrawable)"
+							},
+							"response": []
+						},
+						{
+							"name": "Relock Transaction Funds",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"reason\": \"Additional review required\"\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/transactions/:id/relock",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "transactions", ":id", "relock"],
+									"variable": [{"key": "id", "value": ""}]
+								},
+								"description": "Re-lock previously unlocked transaction funds"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Wallet Lock Status",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseURL}}/admin/salary/wallet-lock-status/:userId",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "salary", "wallet-lock-status", ":userId"],
+									"variable": [{"key": "userId", "value": ""}]
+								},
+								"description": "Get complete wallet lock status for a user (locked amounts, pending unlocks)"
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Disputes",
+			"description": "Dispute management for salary and commission calculations",
+			"item": [
+				{
+					"name": "User - Raise Dispute",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"cycleId\": \"\",\n  \"cycleType\": \"salary\",\n  \"reason\": \"I believe my salary calculation is incorrect\",\n  \"expectedAmount\": 5000,\n  \"evidence\": \"Screenshots attached showing discrepancy\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/disputes",
+							"host": ["{{baseURL}}"],
+							"path": ["disputes"]
+						},
+						"description": "Raise a new dispute for salary or commission cycle"
+					},
+					"response": []
+				},
+				{
+					"name": "User - Get My Disputes",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/disputes/my?status=pending",
+							"host": ["{{baseURL}}"],
+							"path": ["disputes", "my"],
+							"query": [{"key": "status", "value": "pending"}]
+						},
+						"description": "Get all disputes raised by the authenticated user"
+					},
+					"response": []
+				},
+				{
+					"name": "User - Get Dispute Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/disputes/:id",
+							"host": ["{{baseURL}}"],
+							"path": ["disputes", ":id"],
+							"variable": [{"key": "id", "value": ""}]
+						},
+						"description": "Get detailed information about a specific dispute"
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - List All Disputes",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/disputes/admin/all?status=pending&page=1&limit=20",
+							"host": ["{{baseURL}}"],
+							"path": ["disputes", "admin", "all"],
+							"query": [
+								{"key": "status", "value": "pending"},
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "20"},
+								{"key": "cycleType", "value": "", "disabled": true}
+							]
+						},
+						"description": "Admin: Get all disputes with filtering options"
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Review Dispute",
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"adminNotes\": \"Under review, checking calculation logs\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/disputes/admin/:id/review",
+							"host": ["{{baseURL}}"],
+							"path": ["disputes", "admin", ":id", "review"],
+							"variable": [{"key": "id", "value": ""}]
+						},
+						"description": "Admin: Mark dispute as under review"
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Simulate Recalculation",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/disputes/admin/:id/simulate-recalculation",
+							"host": ["{{baseURL}}"],
+							"path": ["disputes", "admin", ":id", "simulate-recalculation"],
+							"variable": [{"key": "id", "value": ""}]
+						},
+						"description": "Admin: Preview recalculation result without applying changes"
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Resolve with Recalculation",
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"adminNotes\": \"Calculation error confirmed, recalculating with correct policy\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/disputes/admin/:id/resolve/recalculate",
+							"host": ["{{baseURL}}"],
+							"path": ["disputes", "admin", ":id", "resolve", "recalculate"],
+							"variable": [{"key": "id", "value": ""}]
+						},
+						"description": "Admin: Resolve dispute by recalculating and creating adjustment transaction"
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Reject Dispute",
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"adminNotes\": \"Calculation verified to be correct, no adjustment needed\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/disputes/admin/:id/resolve/reject",
+							"host": ["{{baseURL}}"],
+							"path": ["disputes", "admin", ":id", "resolve", "reject"],
+							"variable": [{"key": "id", "value": ""}]
+						},
+						"description": "Admin: Reject dispute (calculation was correct)"
+					},
+					"response": []
+				},
+				{
+					"name": "Admin - Approve Adjustment",
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"adminNotes\": \"Manual adjustment approved\",\n  \"adjustmentAmount\": 500\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/disputes/admin/:id/resolve/approve",
+							"host": ["{{baseURL}}"],
+							"path": ["disputes", "admin", ":id", "resolve", "approve"],
+							"variable": [{"key": "id", "value": ""}]
+						},
+						"description": "Admin: Approve dispute with custom adjustment amount"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Alerts",
+			"description": "Alert monitoring and management system for anomaly detection",
+			"item": [
+				{
+					"name": "List Alerts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/alerts?status=pending&severity=high&page=1&limit=20",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "alerts"],
+							"query": [
+								{"key": "status", "value": "pending"},
+								{"key": "severity", "value": "high"},
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "20"},
+								{"key": "type", "value": "", "disabled": true},
+								{"key": "referenceType", "value": "", "disabled": true}
+							]
+						},
+						"description": "Get all alerts with filtering by status, severity, type"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Alert Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/alerts/stats/summary",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "alerts", "stats", "summary"]
+						},
+						"description": "Get aggregated alert statistics (counts by status, severity, type)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Alert Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/alerts/:id",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "alerts", ":id"],
+							"variable": [{"key": "id", "value": ""}]
+						},
+						"description": "Get detailed information about a specific alert"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Entity Alerts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/alerts/entity/:referenceType/:referenceId",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "alerts", "entity", ":referenceType", ":referenceId"],
+							"variable": [
+								{"key": "referenceType", "value": "host"},
+								{"key": "referenceId", "value": ""}
+							]
+						},
+						"description": "Get all alerts for a specific entity (host, user, agency, wallet)"
+					},
+					"response": []
+				},
+				{
+					"name": "Acknowledge Alert",
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"note\": \"Reviewing this issue\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/admin/alerts/:id/acknowledge",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "alerts", ":id", "acknowledge"],
+							"variable": [{"key": "id", "value": ""}]
+						},
+						"description": "Mark alert as acknowledged (admin is aware)"
+					},
+					"response": []
+				},
+				{
+					"name": "Resolve Alert",
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"note\": \"Issue resolved by blocking user\",\n  \"actions\": [\"User blocked\", \"Wallet frozen\"]\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/admin/alerts/:id/resolve",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "alerts", ":id", "resolve"],
+							"variable": [{"key": "id", "value": ""}]
+						},
+						"description": "Mark alert as resolved with resolution notes"
+					},
+					"response": []
+				},
+				{
+					"name": "Bulk Acknowledge Alerts",
+					"request": {
+						"method": "PATCH",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"alertIds\": [\"\", \"\"],\n  \"note\": \"Bulk review in progress\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/admin/alerts/bulk/acknowledge",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "alerts", "bulk", "acknowledge"]
+						},
+						"description": "Acknowledge multiple alerts at once"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Old Resolved Alerts",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/alerts/bulk/delete?olderThan=90",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "alerts", "bulk", "delete"],
+							"query": [{"key": "olderThan", "value": "90", "description": "Days"}]
+						},
+						"description": "Delete resolved alerts older than specified days (cleanup)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "KPIs & Dashboards",
+			"description": "Admin dashboard metrics and system health monitoring",
+			"item": [
+				{
+					"name": "Dashboard Summary",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/kpi/dashboard",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "kpi", "dashboard"]
+						},
+						"description": "High-level overview: active users/hosts/agencies, financials, alerts, disputes, gifts"
+					},
+					"response": []
+				},
+				{
+					"name": "System Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/kpi/system-health",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "kpi", "system-health"]
+						},
+						"description": "Overall system health: DB status, cron health, stuck cycles, wallet mismatches, critical alerts"
+					},
+					"response": []
+				},
+				{
+					"name": "Wallet Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/kpi/wallets",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "kpi", "wallets"]
+						},
+						"description": "Wallet health metrics: total/locked/withdrawable amounts, distribution, mismatches"
+					},
+					"response": []
+				},
+				{
+					"name": "Salary Cycle Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/kpi/salary-cycles",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "kpi", "salary-cycles"]
+						},
+						"description": "Salary cycle status and anomalies: by status, zero salary, recent cycles, stuck cycles"
+					},
+					"response": []
+				},
+				{
+					"name": "Gift Anomalies",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/kpi/gift-anomalies",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "kpi", "gift-anomalies"]
+						},
+						"description": "Gift velocity and loop detection: high volume senders, gift loops, receiver spikes"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Fraud Management",
+			"description": "Fraud detection and action management system",
+			"item": [
+				{
+					"name": "List Fraud Actions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/fraud/actions?status=active&page=1&limit=20",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "fraud", "actions"],
+							"query": [
+								{"key": "status", "value": "active"},
+								{"key": "page", "value": "1"},
+								{"key": "limit", "value": "20"},
+								{"key": "targetType", "value": "", "disabled": true},
+								{"key": "type", "value": "", "disabled": true}
+							]
+						},
+						"description": "Get all fraud actions with filtering by status, type, target"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Fraud Action Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/fraud/actions/:id",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "fraud", "actions", ":id"],
+							"variable": [{"key": "id", "value": ""}]
+						},
+						"description": "Get detailed fraud action with full audit trail"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Target Fraud Actions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/fraud/target/:targetType/:targetRef",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "fraud", "target", ":targetType", ":targetRef"],
+							"variable": [
+								{"key": "targetType", "value": "user"},
+								{"key": "targetRef", "value": ""}
+							]
+						},
+						"description": "Get all fraud actions for a specific target (user, host, wallet, device)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Fraud Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/fraud/stats",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "fraud", "stats"]
+						},
+						"description": "Get fraud statistics (actions by type, status, trends)"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Manual Fraud Action",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"gift_block\",\n  \"targetType\": \"user\",\n  \"targetRef\": \"\",\n  \"durationHours\": 24,\n  \"reason\": \"Suspicious activity detected\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/admin/fraud/actions",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "fraud", "actions"]
+						},
+						"description": "Create manual fraud action (block user/host/wallet/device). durationHours: 0 = no expiry"
+					},
+					"response": []
+				},
+				{
+					"name": "Release Fraud Action",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"User appealed successfully\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/admin/fraud/actions/:id/release",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "fraud", "actions", ":id", "release"],
+							"variable": [{"key": "id", "value": ""}]
+						},
+						"description": "Release a fraud action (make it inactive)"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Queue Management",
+			"description": "Admin APIs for background job queue monitoring and management",
+			"item": [
+				{
+					"name": "Get All Queue Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/queues/stats",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "queues", "stats"]
+						},
+						"description": "Get statistics for all queues (waiting, active, completed, failed jobs)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Specific Queue Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/queues/:queueName/stats",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "queues", ":queueName", "stats"],
+							"variable": [{"key": "queueName", "value": "salary"}]
+						},
+						"description": "Get statistics for specific queue (salary, commission, wallet-unlock, etc.)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Queue Jobs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/queues/:queueName/jobs?status=waiting&limit=20&start=0",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "queues", ":queueName", "jobs"],
+							"query": [
+								{"key": "status", "value": "waiting", "description": "waiting|active|completed|failed|delayed"},
+								{"key": "limit", "value": "20"},
+								{"key": "start", "value": "0"}
+							],
+							"variable": [{"key": "queueName", "value": "salary"}]
+						},
+						"description": "Get jobs in a specific queue filtered by status"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Job Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/queues/:queueName/jobs/:jobId",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "queues", ":queueName", "jobs", ":jobId"],
+							"variable": [
+								{"key": "queueName", "value": "salary"},
+								{"key": "jobId", "value": ""}
+							]
+						},
+						"description": "Get detailed information about a specific job"
+					},
+					"response": []
+				},
+				{
+					"name": "Retry Failed Job",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/queues/:queueName/jobs/:jobId/retry",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "queues", ":queueName", "jobs", ":jobId", "retry"],
+							"variable": [
+								{"key": "queueName", "value": "salary"},
+								{"key": "jobId", "value": ""}
+							]
+						},
+						"description": "Retry a failed job"
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Job",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/queues/:queueName/jobs/:jobId",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "queues", ":queueName", "jobs", ":jobId"],
+							"variable": [
+								{"key": "queueName", "value": "salary"},
+								{"key": "jobId", "value": ""}
+							]
+						},
+						"description": "Remove a job from the queue (waiting or failed jobs only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Clean Queue",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"grace\": 86400000,\n  \"status\": \"completed\"\n}"
+						},
+						"url": {
+							"raw": "{{baseURL}}/admin/queues/:queueName/clean",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "queues", ":queueName", "clean"],
+							"variable": [{"key": "queueName", "value": "salary"}]
+						},
+						"description": "Clean old jobs from queue. grace: time in ms, status: completed|failed"
+					},
+					"response": []
+				},
+				{
+					"name": "Pause Queue",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/queues/:queueName/pause",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "queues", ":queueName", "pause"],
+							"variable": [{"key": "queueName", "value": "salary"}]
+						},
+						"description": "Pause queue processing (stop processing new jobs)"
+					},
+					"response": []
+				},
+				{
+					"name": "Resume Queue",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/admin/queues/:queueName/resume",
+							"host": ["{{baseURL}}"],
+							"path": ["admin", "queues", ":queueName", "resume"],
+							"variable": [{"key": "queueName", "value": "salary"}]
+						},
+						"description": "Resume queue processing"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Policy Management",
+			"description": "Policy configuration and salary/commission management",
+			"item": [
+				{
+					"name": "Policies",
+					"item": [
+						{
+							"name": "Create Host Salary Policy",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"baseRate\": 0.5,\n  \"bonusThresholds\": [\n    {\"minHours\": 20, \"bonus\": 500},\n    {\"minHours\": 40, \"bonus\": 1000}\n  ],\n  \"lockDuration\": 14,\n  \"effectiveFrom\": \"2025-01-01T00:00:00Z\"\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/policies/policy/host-salary",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "policies", "policy", "host-salary"]
+								},
+								"description": "Create new host salary policy with rates and bonuses"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Agency Commission Policy",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"commissionRate\": 0.15,\n  \"bonusThresholds\": [\n    {\"minRevenue\": 10000, \"bonus\": 1000}\n  ],\n  \"effectiveFrom\": \"2025-01-01T00:00:00Z\"\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/policies/policy/agency-commission",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "policies", "policy", "agency-commission"]
+								},
+								"description": "Create new agency commission policy"
+							},
+							"response": []
+						},
+						{
+							"name": "Get All Policies",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseURL}}/admin/policies/policy",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "policies", "policy"]
+								},
+								"description": "Get all salary and commission policies"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Salary Cycles",
+					"item": [
+						{
+							"name": "Process Salary Cycles",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"month\": 12,\n  \"year\": 2025\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/policies/salary/process-cycles",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "policies", "salary", "process-cycles"]
+								},
+								"description": "Process salary cycles for all hosts for specified month/year"
+							},
+							"response": []
+						},
+						{
+							"name": "Pay All Salaries",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"month\": 12,\n  \"year\": 2025\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/policies/salary/pay-all",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "policies", "salary", "pay-all"]
+								},
+								"description": "Execute payout for all approved salary cycles"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Salary Stats",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseURL}}/admin/policies/salary/stats?month=12&year=2025",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "policies", "salary", "stats"],
+									"query": [
+										{"key": "month", "value": "12"},
+										{"key": "year", "value": "2025"}
+									]
+								},
+								"description": "Get salary statistics for specified period"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Commissions",
+					"item": [
+						{
+							"name": "Calculate Commissions",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"month\": 12,\n  \"year\": 2025\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/policies/commission/calculate",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "policies", "commission", "calculate"]
+								},
+								"description": "Calculate commissions for all agencies for specified month/year"
+							},
+							"response": []
+						},
+						{
+							"name": "Pay All Commissions",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"month\": 12,\n  \"year\": 2025\n}"
+								},
+								"url": {
+									"raw": "{{baseURL}}/admin/policies/commission/pay-all",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "policies", "commission", "pay-all"]
+								},
+								"description": "Execute payout for all approved commissions"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Commission Stats",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{baseURL}}/admin/policies/commission/stats?month=12&year=2025",
+									"host": ["{{baseURL}}"],
+									"path": ["admin", "policies", "commission", "stats"],
+									"query": [
+										{"key": "month", "value": "12"},
+										{"key": "year", "value": "2025"}
+									]
+								},
+								"description": "Get commission statistics for specified period"
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": "https://api.usefuns.com/api/v1",
+			"type": "default"
+		}
+	]
+}

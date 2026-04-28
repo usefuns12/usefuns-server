@@ -28,6 +28,10 @@ const giftTransactionSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    isValidForSalary: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true, // includes createdAt and updatedAt

@@ -21,13 +21,13 @@ const notificationRoutes = require("./notification.router");
 const treasureboxRoutes = require("./treasurebox.router");
 
 // Additional routes
-// const adminSalaryRoutes = require("./admin.salary.routes");
-// const disputeRoutes = require("./dispute.routes");
-// const alertRoutes = require("./alert.routes");
-// const kpiRoutes = require("./kpi.routes");
-// const fraudRoutes = require("./fraud.routes");
-// const queueRoutes = require("./queue.routes");
-// const policyRoutes = require("./policy.routes");
+const adminSalaryRoutes = require("./admin.salary.routes");
+const disputeRoutes = require("./dispute.routes");
+const alertRoutes = require("./alert.routes");
+const kpiRoutes = require("./kpi.routes");
+const fraudRoutes = require("./fraud.routes");
+const queueRoutes = require("./queue.routes");
+const policyRoutes = require("./policy.routes");
 
 const express = require("express");
 const router = express.Router();
@@ -56,15 +56,14 @@ router.use("/hosts", hostRoutes);
 router.use("/auth", userAuthRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/treasurebox", treasureboxRoutes);
-
 // Additional feature routes
-// router.use("/admin/salary", adminSalaryRoutes);
-// router.use("/disputes", disputeRoutes);
-// router.use("/admin/disputes", disputeRoutes);
-// router.use("/admin/alerts", alertRoutes);
-// router.use("/admin/kpi", kpiRoutes);
-// router.use("/admin/fraud", fraudRoutes);
-// router.use("/admin/queues", queueRoutes);
-// router.use("/admin/policies", policyRoutes);
+router.use("/admin/salary", adminSalaryRoutes);
+router.use("/disputes", disputeRoutes);
+router.use("/admin/disputes", disputeRoutes);
+router.use("/admin/alerts", alertRoutes);
+router.use("/admin/kpi", kpiRoutes);
+router.use("/admin/fraud", fraudRoutes);
+router.use("/admin/queues", queueRoutes);
+router.use("/admin/policies", policyRoutes);
 
 module.exports = router;

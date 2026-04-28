@@ -3,6 +3,7 @@ const logger = require("../classes").Logger(__filename);
 const mongoose = require("mongoose");
 const moment = require("moment");
 const { cleanupS3Files } = require("../utils/s3FileManager");
+const { trackGiftForSalary } = require("../services/giftTracking.service");
 
 const getRooms = async (req, res) => {
   try {
@@ -1284,6 +1285,13 @@ const sendGift = async (req, res) => {
 
     const { quantity, cashbackAmount } = quantityData;
 
+    const room = await models.Room.findById(roomId).select(
+      "countryCode name roomImage",
+    );
+    if (!room) {
+      return res.status(404).json({ message: "Room not found." });
+    }
+
     const selectedGift =
       await models.Gift.findById(giftId).populate("categoryId");
     if (!selectedGift) {
@@ -1401,14 +1409,14 @@ const sendGift = async (req, res) => {
       gift: selectedGift,
     });
 
-    // 🧾 Save GiftTransaction
-    const giftTransaction = await models.GiftTransaction.create({
-      sender: senderId,
-      receiver: receiverId,
-      gift: selectedGift._id,
-      totalDiamonds: actualReceiverBeans, // Optional: rename to totalBeans later
-      countryCode: sender.countryCode,
-      giftTime: new Date(),
+    // 🧾 Save GiftTransaction + Salary tracking metadata
+    await trackGiftForSalary({
+      senderId,
+      receiverId,
+      giftId: selectedGift._id,
+      totalDiamonds: actualReceiverBeans,
+      senderCountryCode: sender.countryCode,
+      receiverCountryCode: receiver.countryCode,
     });
 
     // ✅ STEP 5.4: Check for gift anomalies (fire-and-forget)
@@ -1462,7 +1470,7 @@ const sendGift = async (req, res) => {
       { _id: 1 },
     ); // only fetch IDs for efficiency
 
-    const roomData = await models.Room.findById(roomId);
+    const roomData = room;
     const senderData = await models.Customer.findById(senderId);
     const receiverData = await models.Customer.findById(receiverId);
 
