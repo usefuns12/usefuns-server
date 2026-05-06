@@ -41,7 +41,14 @@ exports.getSalaryCycles = async (req, res) => {
         .sort(sort)
         .skip(skip)
         .limit(parseInt(limit))
-        .populate("hostId", "hostName customerRef totalHostTimeHours")
+        .populate({
+          path: "hostId",
+          select: "hostId customerRef totalHostTimeHours",
+          populate: {
+            path: "customerRef",
+            select: "name userId"
+          }
+        })
         .lean(),
       HostSalaryCycle.countDocuments(filter),
     ]);
@@ -79,11 +86,17 @@ exports.getSalaryCycleById = async (req, res) => {
     const cycle = await HostSalaryCycle.findById(id)
       .populate({
         path: "hostId",
-        select: "hostName customerRef totalHostTimeHours agencyRef",
-        populate: {
-          path: "agencyRef",
-          select: "agencyName ownerUserId",
-        },
+        select: "hostId customerRef totalHostTimeHours agencyRef",
+        populate: [
+          {
+            path: "customerRef",
+            select: "name userId"
+          },
+          {
+            path: "agencyRef",
+            select: "agencyName"
+          }
+        ]
       })
       .lean();
 
@@ -199,7 +212,14 @@ exports.getAgencyCommissionById = async (req, res) => {
       const hostCycles = await HostSalaryCycle.find({
         _id: { $in: cycle.calculation.hostCycles },
       })
-        .populate("hostId", "hostName customerRef")
+        .populate({
+          path: "hostId",
+          select: "hostId customerRef",
+          populate: {
+            path: "customerRef",
+            select: "name userId"
+          }
+        })
         .lean();
 
       cycle.contributingHosts = hostCycles;
