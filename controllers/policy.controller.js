@@ -22,6 +22,7 @@ const {
 exports.createHostSalaryPolicy = async (req, res) => {
   try {
     const {
+      noDayLimits,
       minDays,
       maxDays,
       diamondTarget,
@@ -30,10 +31,8 @@ exports.createHostSalaryPolicy = async (req, res) => {
       reward,
     } = req.body;
 
-    // Validation
+    // Validation - make minDays and maxDays optional if noDayLimits is true
     if (
-      !minDays ||
-      !maxDays ||
       !diamondTarget ||
       !hourSlabs ||
       !Array.isArray(hourSlabs)
@@ -41,16 +40,27 @@ exports.createHostSalaryPolicy = async (req, res) => {
       return res.status(400).json({
         success: false,
         message:
-          "Missing required fields: minDays, maxDays, diamondTarget, hourSlabs",
+          "Missing required fields: diamondTarget, hourSlabs",
       });
     }
 
-    if (minDays < 1 || maxDays < minDays) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid days: minDays must be >= 1 and maxDays must be >= minDays",
-      });
+    // Only validate minDays/maxDays if noDayLimits is false
+    if (!noDayLimits) {
+      if (!minDays || !maxDays) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "minDays and maxDays required when no day limits is OFF",
+        });
+      }
+
+      if (minDays < 1 || maxDays < minDays) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Invalid days: minDays must be >= 1 and maxDays must be >= minDays",
+        });
+      }
     }
 
     // Validate hour slabs
@@ -68,8 +78,9 @@ exports.createHostSalaryPolicy = async (req, res) => {
       {
         type: "hostSalary",
         hostSalary: {
-          minDays,
-          maxDays,
+          noDayLimits: noDayLimits || false,
+          minDays: noDayLimits ? null : minDays,
+          maxDays: noDayLimits ? null : maxDays,
           diamondTarget,
           hourSlabs,
           vipFullSalaryOnTarget:

@@ -35,14 +35,14 @@ async function processSalaryCycles() {
       return;
     }
 
-    const { minDays, maxDays } = policy.hostSalary;
+    const { noDayLimits, minDays, maxDays } = policy.hostSalary;
 
     // Find all active hosts
     const activeHosts = await Host.find({ status: "active" }).lean();
     console.log(`📊 Found ${activeHosts.length} active hosts`);
 
     for (const host of activeHosts) {
-      await processHostCycle(host._id, host.agencyId, minDays, maxDays);
+      await processHostCycle(host._id, host.agencyId, noDayLimits, minDays, maxDays);
     }
 
     console.log("✅ Salary cycle processing completed");
@@ -55,7 +55,7 @@ async function processSalaryCycles() {
 /**
  * Process salary cycle for a specific host
  */
-async function processHostCycle(hostId, agencyId, minDays, maxDays) {
+async function processHostCycle(hostId, agencyId, noDayLimits, minDays, maxDays) {
   try {
     // Check for existing pending cycle
     let cycle = await HostSalaryCycle.findOne({
@@ -87,6 +87,12 @@ async function processHostCycle(hostId, agencyId, minDays, maxDays) {
     // Check if cycle should be closed
     const cycleAgeMs = now - cycle.cycleStart;
     const cycleAgeDays = cycleAgeMs / (1000 * 60 * 60 * 24);
+
+    // Skip day validation if noDayLimits is true
+    if (noDayLimits) {
+      // Don't enforce day limits, just return
+      return;
+    }
 
     if (cycleAgeDays >= minDays && cycleAgeDays <= maxDays) {
       // Close the cycle

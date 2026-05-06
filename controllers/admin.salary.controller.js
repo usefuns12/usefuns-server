@@ -43,7 +43,7 @@ exports.getSalaryCycles = async (req, res) => {
         .limit(parseInt(limit))
         .populate({
           path: "hostId",
-          select: "hostId customerRef totalHostTimeHours",
+          select: "hostId customerRef totalHostTimeHours agencyId",
           populate: {
             path: "customerRef",
             select: "name userId"
@@ -86,14 +86,14 @@ exports.getSalaryCycleById = async (req, res) => {
     const cycle = await HostSalaryCycle.findById(id)
       .populate({
         path: "hostId",
-        select: "hostId customerRef totalHostTimeHours agencyRef",
+        select: "hostId customerRef totalHostTimeHours agencyId",
         populate: [
           {
             path: "customerRef",
             select: "name userId"
           },
           {
-            path: "agencyRef",
+            path: "agencyId",
             select: "agencyName"
           }
         ]
@@ -214,7 +214,7 @@ exports.getAgencyCommissionById = async (req, res) => {
       })
         .populate({
           path: "hostId",
-          select: "hostId customerRef",
+          select: "hostId customerRef agencyId",
           populate: {
             path: "customerRef",
             select: "name userId"

@@ -11,6 +11,11 @@ const PolicySchema = new mongoose.Schema(
 
     // 🔹 Host Salary Rules
     hostSalary: {
+      noDayLimits: {
+        type: Boolean,
+        default: false,
+        description: "If true, minDays and maxDays restrictions are ignored"
+      },
       minDays: Number,
       maxDays: Number,
 
