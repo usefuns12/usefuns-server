@@ -14,7 +14,7 @@ const PolicySchema = new mongoose.Schema(
       noDayLimits: {
         type: Boolean,
         default: false,
-        description: "If true, minDays and maxDays restrictions are ignored"
+        description: "If true, minDays and maxDays restrictions are ignored",
       },
       minDays: Number,
       maxDays: Number,
@@ -61,7 +61,7 @@ const PolicySchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Policy", PolicySchema);

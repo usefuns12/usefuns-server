@@ -32,15 +32,10 @@ exports.createHostSalaryPolicy = async (req, res) => {
     } = req.body;
 
     // Validation - make minDays and maxDays optional if noDayLimits is true
-    if (
-      !diamondTarget ||
-      !hourSlabs ||
-      !Array.isArray(hourSlabs)
-    ) {
+    if (!diamondTarget || !hourSlabs || !Array.isArray(hourSlabs)) {
       return res.status(400).json({
         success: false,
-        message:
-          "Missing required fields: diamondTarget, hourSlabs",
+        message: "Missing required fields: diamondTarget, hourSlabs",
       });
     }
 
@@ -49,8 +44,7 @@ exports.createHostSalaryPolicy = async (req, res) => {
       if (!minDays || !maxDays) {
         return res.status(400).json({
           success: false,
-          message:
-            "minDays and maxDays required when no day limits is OFF",
+          message: "minDays and maxDays required when no day limits is OFF",
         });
       }
 

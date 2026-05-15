@@ -42,7 +42,13 @@ async function processSalaryCycles() {
     console.log(`📊 Found ${activeHosts.length} active hosts`);
 
     for (const host of activeHosts) {
-      await processHostCycle(host._id, host.agencyId, noDayLimits, minDays, maxDays);
+      await processHostCycle(
+        host._id,
+        host.agencyId,
+        noDayLimits,
+        minDays,
+        maxDays,
+      );
     }
 
     console.log("✅ Salary cycle processing completed");
@@ -55,7 +61,13 @@ async function processSalaryCycles() {
 /**
  * Process salary cycle for a specific host
  */
-async function processHostCycle(hostId, agencyId, noDayLimits, minDays, maxDays) {
+async function processHostCycle(
+  hostId,
+  agencyId,
+  noDayLimits,
+  minDays,
+  maxDays,
+) {
   try {
     // Check for existing pending cycle
     let cycle = await HostSalaryCycle.findOne({

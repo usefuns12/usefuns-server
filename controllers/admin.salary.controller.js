@@ -46,8 +46,8 @@ exports.getSalaryCycles = async (req, res) => {
           select: "hostId customerRef totalHostTimeHours agencyId",
           populate: {
             path: "customerRef",
-            select: "name userId"
-          }
+            select: "name userId",
+          },
         })
         .lean(),
       HostSalaryCycle.countDocuments(filter),
@@ -90,13 +90,13 @@ exports.getSalaryCycleById = async (req, res) => {
         populate: [
           {
             path: "customerRef",
-            select: "name userId"
+            select: "name userId",
           },
           {
             path: "agencyId",
-            select: "agencyName"
-          }
-        ]
+            select: "agencyName",
+          },
+        ],
       })
       .lean();
 
@@ -217,8 +217,8 @@ exports.getAgencyCommissionById = async (req, res) => {
           select: "hostId customerRef agencyId",
           populate: {
             path: "customerRef",
-            select: "name userId"
-          }
+            select: "name userId",
+          },
         })
         .lean();
 
