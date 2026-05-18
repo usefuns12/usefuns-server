@@ -36,65 +36,54 @@ exports.getSalaryCycles = async (req, res) => {
     const skip = (page - 1) * limit;
     const sort = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
 
-    // Execute query using aggregation to avoid per-document populate overhead
-    const [cycles, total] = await Promise.all([
-      HostSalaryCycle.aggregate([
-        { $match: filter },
-        { $sort: sort },
-        { $skip: skip },
-        { $limit: parseInt(limit) },
-        {
-          $lookup: {
-            from: "hosts",
-            localField: "hostId",
-            foreignField: "_id",
-            as: "hostDoc",
-          },
-        },
-        {
-          $unwind: {
-            path: "$hostDoc",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $lookup: {
-            from: "customers",
-            localField: "hostDoc.customerRef",
-            foreignField: "_id",
-            as: "customerDoc",
-          },
-        },
-        {
-          $unwind: {
-            path: "$customerDoc",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $addFields: {
-            hostId: {
-              _id: "$hostDoc._id",
-              hostId: "$hostDoc.hostId",
-              totalHostTimeHours: "$hostDoc.totalHostTimeHours",
-              agencyId: "$hostDoc.agencyId",
-              customerRef: {
-                _id: "$customerDoc._id",
-                name: "$customerDoc.name",
-                userId: "$customerDoc.userId",
-              },
-            },
-          },
-        },
-        {
-          $project: {
-            hostDoc: 0,
-            customerDoc: 0,
-          },
-        },
-      ]),
-      HostSalaryCycle.countDocuments(filter),
+    // Use batched hydration instead of per-row populate/lookups for faster rendering
+    const [cycleDocs, total] = await Promise.all([
+      HostSalaryCycle.find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Object.keys(filter).length === 0
+        ? HostSalaryCycle.estimatedDocumentCount()
+        : HostSalaryCycle.countDocuments(filter),
     ]);
+
+    const hostIds = [...new Set(cycleDocs.map((cycle) => String(cycle.hostId)))];
+    const hosts = await Host.find({ _id: { $in: hostIds } })
+      .select("hostId customerRef totalHostTimeHours agencyId")
+      .lean();
+
+    const customerIds = [...new Set(hosts.map((host) => String(host.customerRef)))];
+    const customers = await models.Customer.find({ _id: { $in: customerIds } })
+      .select("name userId")
+      .lean();
+
+    const hostMap = new Map(hosts.map((host) => [String(host._id), host]));
+    const customerMap = new Map(customers.map((customer) => [String(customer._id), customer]));
+
+    const cycles = cycleDocs.map((cycle) => {
+      const host = hostMap.get(String(cycle.hostId));
+      const customer = host ? customerMap.get(String(host.customerRef)) : null;
+
+      return {
+        ...cycle,
+        hostId: host
+          ? {
+              _id: host._id,
+              hostId: host.hostId,
+              totalHostTimeHours: host.totalHostTimeHours,
+              agencyId: host.agencyId,
+              customerRef: customer
+                ? {
+                    _id: customer._id,
+                    name: customer.name,
+                    userId: customer.userId,
+                  }
+                : null,
+            }
+          : null,
+      };
+    });
 
     res.json({
       success: true,
@@ -251,45 +240,40 @@ exports.getAgencyCommissions = async (req, res) => {
     const skip = (page - 1) * limit;
     const sort = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
 
-    // Execute query using aggregation to keep list rendering fast
-    const [cycles, total] = await Promise.all([
-      AgencyCommissionCycle.aggregate([
-        { $match: filter },
-        { $sort: sort },
-        { $skip: skip },
-        { $limit: parseInt(limit) },
-        {
-          $lookup: {
-            from: "agencies",
-            localField: "agencyId",
-            foreignField: "_id",
-            as: "agencyDoc",
-          },
-        },
-        {
-          $unwind: {
-            path: "$agencyDoc",
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $addFields: {
-            agencyId: {
-              _id: "$agencyDoc._id",
-              agencyName: "$agencyDoc.agencyName",
-              ownerUserId: "$agencyDoc.ownerUserId",
-              countryCode: "$agencyDoc.countryCode",
-            },
-          },
-        },
-        {
-          $project: {
-            agencyDoc: 0,
-          },
-        },
-      ]),
-      AgencyCommissionCycle.countDocuments(filter),
+    // Use batched hydration instead of per-row populate/lookups for faster rendering
+    const [cycleDocs, total] = await Promise.all([
+      AgencyCommissionCycle.find(filter)
+        .sort(sort)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Object.keys(filter).length === 0
+        ? AgencyCommissionCycle.estimatedDocumentCount()
+        : AgencyCommissionCycle.countDocuments(filter),
     ]);
+
+    const agencyIds = [...new Set(cycleDocs.map((cycle) => String(cycle.agencyId)))];
+    const agencies = await Agency.find({ _id: { $in: agencyIds } })
+      .select("agencyName ownerUserId countryCode")
+      .lean();
+
+    const agencyMap = new Map(agencies.map((agency) => [String(agency._id), agency]));
+
+    const cycles = cycleDocs.map((cycle) => {
+      const agency = agencyMap.get(String(cycle.agencyId));
+
+      return {
+        ...cycle,
+        agencyId: agency
+          ? {
+              _id: agency._id,
+              agencyName: agency.agencyName,
+              ownerUserId: agency.ownerUserId,
+              countryCode: agency.countryCode,
+            }
+          : null,
+      };
+    });
 
     res.json({
       success: true,
