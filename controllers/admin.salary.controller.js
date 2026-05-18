@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const models = require("../models");
 const HostSalaryCycle = models.HostSalaryCycle;
 const AgencyCommissionCycle = models.AgencyCommissionCycle;
@@ -35,21 +36,63 @@ exports.getSalaryCycles = async (req, res) => {
     const skip = (page - 1) * limit;
     const sort = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
 
-    // Execute query
+    // Execute query using aggregation to avoid per-document populate overhead
     const [cycles, total] = await Promise.all([
-      HostSalaryCycle.find(filter)
-        .sort(sort)
-        .skip(skip)
-        .limit(parseInt(limit))
-        .populate({
-          path: "hostId",
-          select: "hostId customerRef totalHostTimeHours agencyId",
-          populate: {
-            path: "customerRef",
-            select: "name userId",
+      HostSalaryCycle.aggregate([
+        { $match: filter },
+        { $sort: sort },
+        { $skip: skip },
+        { $limit: parseInt(limit) },
+        {
+          $lookup: {
+            from: "hosts",
+            localField: "hostId",
+            foreignField: "_id",
+            as: "hostDoc",
           },
-        })
-        .lean(),
+        },
+        {
+          $unwind: {
+            path: "$hostDoc",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $lookup: {
+            from: "customers",
+            localField: "hostDoc.customerRef",
+            foreignField: "_id",
+            as: "customerDoc",
+          },
+        },
+        {
+          $unwind: {
+            path: "$customerDoc",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $addFields: {
+            hostId: {
+              _id: "$hostDoc._id",
+              hostId: "$hostDoc.hostId",
+              totalHostTimeHours: "$hostDoc.totalHostTimeHours",
+              agencyId: "$hostDoc.agencyId",
+              customerRef: {
+                _id: "$customerDoc._id",
+                name: "$customerDoc.name",
+                userId: "$customerDoc.userId",
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            hostDoc: 0,
+            customerDoc: 0,
+          },
+        },
+      ]),
       HostSalaryCycle.countDocuments(filter),
     ]);
 
@@ -83,22 +126,78 @@ exports.getSalaryCycleById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const cycle = await HostSalaryCycle.findById(id)
-      .populate({
-        path: "hostId",
-        select: "hostId customerRef totalHostTimeHours agencyId",
-        populate: [
-          {
-            path: "customerRef",
-            select: "name userId",
+    const cycleList = await HostSalaryCycle.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      {
+        $lookup: {
+          from: "hosts",
+          localField: "hostId",
+          foreignField: "_id",
+          as: "hostDoc",
+        },
+      },
+      {
+        $unwind: {
+          path: "$hostDoc",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "customers",
+          localField: "hostDoc.customerRef",
+          foreignField: "_id",
+          as: "customerDoc",
+        },
+      },
+      {
+        $unwind: {
+          path: "$customerDoc",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "agencies",
+          localField: "hostDoc.agencyId",
+          foreignField: "_id",
+          as: "agencyDoc",
+        },
+      },
+      {
+        $unwind: {
+          path: "$agencyDoc",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          hostId: {
+            _id: "$hostDoc._id",
+            hostId: "$hostDoc.hostId",
+            totalHostTimeHours: "$hostDoc.totalHostTimeHours",
+            agencyId: {
+              _id: "$agencyDoc._id",
+              agencyName: "$agencyDoc.agencyName",
+            },
+            customerRef: {
+              _id: "$customerDoc._id",
+              name: "$customerDoc.name",
+              userId: "$customerDoc.userId",
+            },
           },
-          {
-            path: "agencyId",
-            select: "agencyName",
-          },
-        ],
-      })
-      .lean();
+        },
+      },
+      {
+        $project: {
+          hostDoc: 0,
+          customerDoc: 0,
+          agencyDoc: 0,
+        },
+      },
+    ]);
+
+    const cycle = cycleList[0] || null;
 
     if (!cycle) {
       return res.status(404).json({
@@ -152,14 +251,43 @@ exports.getAgencyCommissions = async (req, res) => {
     const skip = (page - 1) * limit;
     const sort = { [sortBy]: sortOrder === "asc" ? 1 : -1 };
 
-    // Execute query
+    // Execute query using aggregation to keep list rendering fast
     const [cycles, total] = await Promise.all([
-      AgencyCommissionCycle.find(filter)
-        .sort(sort)
-        .skip(skip)
-        .limit(parseInt(limit))
-        .populate("agencyId", "agencyName ownerUserId countryCode")
-        .lean(),
+      AgencyCommissionCycle.aggregate([
+        { $match: filter },
+        { $sort: sort },
+        { $skip: skip },
+        { $limit: parseInt(limit) },
+        {
+          $lookup: {
+            from: "agencies",
+            localField: "agencyId",
+            foreignField: "_id",
+            as: "agencyDoc",
+          },
+        },
+        {
+          $unwind: {
+            path: "$agencyDoc",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $addFields: {
+            agencyId: {
+              _id: "$agencyDoc._id",
+              agencyName: "$agencyDoc.agencyName",
+              ownerUserId: "$agencyDoc.ownerUserId",
+              countryCode: "$agencyDoc.countryCode",
+            },
+          },
+        },
+        {
+          $project: {
+            agencyDoc: 0,
+          },
+        },
+      ]),
       AgencyCommissionCycle.countDocuments(filter),
     ]);
 
@@ -193,12 +321,40 @@ exports.getAgencyCommissionById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const cycle = await AgencyCommissionCycle.findById(id)
-      .populate({
-        path: "agencyId",
-        select: "agencyName ownerUserId countryCode",
-      })
-      .lean();
+    const cycleList = await AgencyCommissionCycle.aggregate([
+      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+      {
+        $lookup: {
+          from: "agencies",
+          localField: "agencyId",
+          foreignField: "_id",
+          as: "agencyDoc",
+        },
+      },
+      {
+        $unwind: {
+          path: "$agencyDoc",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $addFields: {
+          agencyId: {
+            _id: "$agencyDoc._id",
+            agencyName: "$agencyDoc.agencyName",
+            ownerUserId: "$agencyDoc.ownerUserId",
+            countryCode: "$agencyDoc.countryCode",
+          },
+        },
+      },
+      {
+        $project: {
+          agencyDoc: 0,
+        },
+      },
+    ]);
+
+    const cycle = cycleList[0] || null;
 
     if (!cycle) {
       return res.status(404).json({
