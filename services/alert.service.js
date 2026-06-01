@@ -3,6 +3,7 @@ const Alert = models.Alert;
 const Host = models.Host;
 const Agency = models.Agency;
 const User = models.User;
+const Customer = models.Customer;
 const Wallet = models.Wallet;
 const Transaction = models.Transaction;
 const HostSalaryCycle = models.HostSalaryCycle;
@@ -12,6 +13,49 @@ const notificationService = require("./notification.service");
 const fraudEngine = require("./fraudEngine.service");
 
 const logger = console; // Replace with actual logger
+
+function formatNameId(name, id) {
+  const cleanName = String(name || "").trim();
+  const cleanId = String(id || "").trim();
+  if (cleanName && cleanId) return `${cleanName} (${cleanId})`;
+  return cleanName || cleanId || "N/A";
+}
+
+async function getCustomerLabel(customerId) {
+  if (!customerId) return "N/A";
+  const customer = await Customer.findById(customerId)
+    .select("name userId")
+    .lean();
+  if (!customer) return String(customerId);
+  return formatNameId(customer.name || customer.userId, customer._id);
+}
+
+async function getHostLabel(hostId) {
+  if (!hostId) return "N/A";
+  const host = await Host.findById(hostId).select("hostId customerRef").lean();
+  if (!host) return String(hostId);
+  const customerName =
+    typeof host.customerRef === "object"
+      ? host.customerRef?.name || host.hostId
+      : host.hostId;
+  return formatNameId(customerName, host._id);
+}
+
+async function getAgencyLabel(agencyId) {
+  if (!agencyId) return "N/A";
+  const agency = await Agency.findById(agencyId).select("name agencyId").lean();
+  if (!agency) return String(agencyId);
+  return formatNameId(agency.name || agency.agencyId, agency._id);
+}
+
+async function getUserLabel(userId) {
+  if (!userId) return "N/A";
+  const user = await User.findById(userId).select("customerRef").lean();
+  if (!user) return String(userId);
+  return user.customerRef
+    ? await getCustomerLabel(user.customerRef)
+    : String(userId);
+}
 
 /**
  * Alert Service - Detects anomalies and creates alerts
@@ -123,6 +167,7 @@ async function detectZeroSalary() {
       if (cycles.length >= 2) {
         const lastCycle = cycles[0];
         const prevCycle = cycles[1];
+        const hostLabel = await getHostLabel(host._id);
 
         // Both cycles have 0 salary
         if (lastCycle.salaryUcoins === 0 && prevCycle.salaryUcoins === 0) {
@@ -131,7 +176,7 @@ async function detectZeroSalary() {
             severity: "high",
             referenceType: "host",
             referenceId: host._id,
-            message: `Host ${host.name} has 0 salary for 2 consecutive cycles`,
+            message: `${hostLabel} has 0 salary for 2 consecutive cycles`,
             meta: {
               cycles: [
                 {
@@ -175,6 +220,7 @@ async function detectSalaryDrop() {
       if (cycles.length >= 2) {
         const lastCycle = cycles[0];
         const prevCycle = cycles[1];
+        const hostLabel = await getHostLabel(host._id);
 
         // Skip if previous was 0 (can't calculate percentage drop)
         if (prevCycle.salaryUcoins === 0) continue;
@@ -191,7 +237,7 @@ async function detectSalaryDrop() {
             severity: "high",
             referenceType: "host",
             referenceId: host._id,
-            message: `Host ${host.name} salary dropped ${dropPercent.toFixed(
+            message: `${hostLabel} salary dropped ${dropPercent.toFixed(
               1,
             )}% (${prevCycle.salaryUcoins} → ${lastCycle.salaryUcoins})`,
             meta: {
@@ -228,6 +274,7 @@ async function detectVIPAnomaly() {
       }).sort({ endDate: -1 });
 
       if (!lastCycle) continue;
+      const hostLabel = await getHostLabel(host._id);
 
       // Check if salary is present but hours = 0
       if (lastCycle.salaryUcoins > 0 && lastCycle.hours === 0) {
@@ -236,7 +283,7 @@ async function detectVIPAnomaly() {
           severity: "medium",
           referenceType: "host",
           referenceId: host._id,
-          message: `VIP Host ${host.name} received ${lastCycle.salaryUcoins} U-coins but worked 0 hours`,
+          message: `${hostLabel} received ${lastCycle.salaryUcoins} U-coins but worked 0 hours`,
           meta: {
             cycleId: lastCycle._id,
             salary: lastCycle.salaryUcoins,
@@ -284,14 +331,13 @@ async function detectCommissionDrop() {
           100;
 
         if (dropPercent > 40 && lastCycle.commissionUcoins > 0) {
+          const agencyLabel = await getAgencyLabel(agency._id);
           await createAlert({
             type: "commission_drop",
             severity: "high",
             referenceType: "agency",
             referenceId: agency._id,
-            message: `Agency ${
-              agency.name
-            } commission dropped ${dropPercent.toFixed(1)}% (${
+            message: `${agencyLabel} commission dropped ${dropPercent.toFixed(1)}% (${
               prevCycle.commissionUcoins
             } → ${lastCycle.commissionUcoins})`,
             meta: {
@@ -351,6 +397,7 @@ async function detectGiftVelocity() {
 
       const avg24h = last24hGifts / 24; // Per hour average
       const spike = giver.count / (avg24h || 1);
+      const giverLabel = await getCustomerLabel(giver._id);
 
       // Alert if 10x average
       if (spike > 10) {
@@ -359,7 +406,7 @@ async function detectGiftVelocity() {
           severity: "high",
           referenceType: "user",
           referenceId: giver._id,
-          message: `User sent ${
+          message: `${giverLabel} sent ${
             giver.count
           } gifts in last hour (${spike.toFixed(1)}x average), ${
             giver.totalDiamonds
@@ -407,12 +454,14 @@ async function detectGiftLoop() {
     ]);
 
     for (const loop of loops) {
+      const senderLabel = await getCustomerLabel(loop._id.senderId);
+      const receiverLabel = await getCustomerLabel(loop._id.receiverId);
       await createAlert({
         type: "gift_loop",
         severity: "medium",
         referenceType: "user",
         referenceId: loop._id.senderId,
-        message: `User has gifted same host ${loop.count} times (${loop.totalDiamonds} diamonds)`,
+        message: `${senderLabel} has gifted ${receiverLabel} ${loop.count} times (${loop.totalDiamonds} diamonds)`,
         meta: {
           senderId: loop._id.senderId,
           receiverId: loop._id.receiverId,
@@ -433,12 +482,13 @@ async function detectGiftLoop() {
  */
 async function detectSelfGift(senderId, receiverId) {
   if (senderId.toString() === receiverId.toString()) {
+    const senderLabel = await getCustomerLabel(senderId);
     await createAlert({
       type: "self_gift",
       severity: "low",
       referenceType: "user",
       referenceId: senderId,
-      message: `User attempted to gift themselves`,
+      message: `${senderLabel} attempted to gift themselves`,
       meta: { senderId, receiverId },
       deduplicationKey: `self_gift_${senderId}`,
     });
@@ -567,15 +617,14 @@ async function detectStuckCycle() {
 
     for (const cycle of stuckCycles) {
       const hoursStuck = (now - cycle.createdAt) / (60 * 60 * 1000);
+      const hostLabel = await getHostLabel(cycle.hostId);
 
       await createAlert({
         type: "cycle_stuck",
         severity: "high",
         referenceType: "cycle",
         referenceId: cycle._id,
-        message: `Salary cycle for host ${
-          cycle.hostId
-        } stuck in pending for ${hoursStuck.toFixed(1)} hours`,
+        message: `Salary cycle for ${hostLabel} stuck in pending for ${hoursStuck.toFixed(1)} hours`,
         meta: {
           cycleId: cycle._id,
           hostId: cycle.hostId,

@@ -352,91 +352,134 @@ async function getGiftAnomalies(req, res) {
     const last24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const last7Days = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
+    const [highVolumeSenders, giftLoops, highVolumReceivers, trend] =
+      await Promise.all([
+        GiftTransaction.aggregate([
+          {
+            $match: { createdAt: { $gte: last24h } },
+          },
+          {
+            $group: {
+              _id: "$sender",
+              count: { $sum: 1 },
+              diamonds: { $sum: "$totalDiamonds" },
+            },
+          },
+          {
+            $match: { count: { $gte: 10 } },
+          },
+          {
+            $sort: { count: -1 },
+          },
+          {
+            $limit: 10,
+          },
+        ]),
+        GiftTransaction.aggregate([
+          {
+            $group: {
+              _id: {
+                sender: "$sender",
+                receiver: "$receiver",
+              },
+              count: { $sum: 1 },
+              diamonds: { $sum: "$totalDiamonds" },
+            },
+          },
+          {
+            $match: { count: { $gte: 5 } },
+          },
+          {
+            $sort: { count: -1 },
+          },
+          {
+            $limit: 20,
+          },
+        ]),
+        GiftTransaction.aggregate([
+          {
+            $match: { createdAt: { $gte: last24h } },
+          },
+          {
+            $group: {
+              _id: "$receiver",
+              count: { $sum: 1 },
+              totalDiamonds: { $sum: "$totalDiamonds" },
+            },
+          },
+          {
+            $sort: { count: -1 },
+          },
+          {
+            $limit: 10,
+          },
+        ]),
+        GiftTransaction.aggregate([
+          {
+            $match: { createdAt: { $gte: last7Days } },
+          },
+          {
+            $group: {
+              _id: {
+                $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+              },
+              count: { $sum: 1 },
+              diamonds: { $sum: "$totalDiamonds" },
+            },
+          },
+          {
+            $sort: { _id: 1 },
+          },
+        ]),
+      ]);
+
+    const customerIds = [
+      ...new Set(
+        [
+          ...highVolumeSenders.map((entry) => entry._id),
+          ...giftLoops.flatMap((entry) => [
+            entry._id?.sender,
+            entry._id?.receiver,
+          ]),
+          ...highVolumReceivers.map((entry) => entry._id),
+        ]
+          .filter(Boolean)
+          .map((value) => String(value)),
+      ),
+    ];
+
+    const customers = await models.Customer.find({ _id: { $in: customerIds } })
+      .select("name userId")
+      .lean();
+
+    const customerMap = new Map(
+      customers.map((customer) => [String(customer._id), customer]),
+    );
+
+    const getCustomerLabel = (customerId) => {
+      const customer = customerMap.get(String(customerId));
+      if (!customer) return String(customerId || "-");
+      return customer.name
+        ? `${customer.name} (${customer._id})`
+        : customer.userId || String(customer._id);
+    };
+
     const stats = {
-      // High volume senders (last 24h)
-      highVolumeSenders: await GiftTransaction.aggregate([
-        {
-          $match: { createdAt: { $gte: last24h } },
-        },
-        {
-          $group: {
-            _id: "$sender",
-            count: { $sum: 1 },
-            diamonds: { $sum: "$totalDiamonds" },
-          },
-        },
-        {
-          $match: { count: { $gte: 10 } },
-        },
-        {
-          $sort: { count: -1 },
-        },
-        {
-          $limit: 10,
-        },
-      ]),
-
-      // Gift loops detected
-      giftLoops: await GiftTransaction.aggregate([
-        {
-          $group: {
-            _id: {
-              sender: "$sender",
-              receiver: "$receiver",
-            },
-            count: { $sum: 1 },
-            diamonds: { $sum: "$totalDiamonds" },
-          },
-        },
-        {
-          $match: { count: { $gte: 5 } },
-        },
-        {
-          $sort: { count: -1 },
-        },
-        {
-          $limit: 20,
-        },
-      ]),
-
-      // Receivers with spike in gifts
-      highVolumReceivers: await GiftTransaction.aggregate([
-        {
-          $match: { createdAt: { $gte: last24h } },
-        },
-        {
-          $group: {
-            _id: "$receiver",
-            count: { $sum: 1 },
-            totalDiamonds: { $sum: "$totalDiamonds" },
-          },
-        },
-        {
-          $sort: { count: -1 },
-        },
-        {
-          $limit: 10,
-        },
-      ]),
-
-      // Total gifts and diamonds (trend)
-      trend: await GiftTransaction.aggregate([
-        {
-          $match: { createdAt: { $gte: last7Days } },
-        },
-        {
-          $group: {
-            _id: {
-              $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
-            },
-            count: { $sum: 1 },
-            diamonds: { $sum: "$totalDiamonds" },
-          },
-        },
-        {
-          $sort: { _id: 1 },
-        },
-      ]),
+      highVolumeSenders: highVolumeSenders.map((entry) => ({
+        ...entry,
+        senderName: getCustomerLabel(entry._id),
+      })),
+      giftLoops: giftLoops.map((entry) => ({
+        ...entry,
+        senderName: getCustomerLabel(entry._id?.sender),
+        receiverName: getCustomerLabel(entry._id?.receiver),
+        patternLabel: `${getCustomerLabel(entry._id?.sender)} -> ${getCustomerLabel(entry._id?.receiver)}`,
+      })),
+      highVolumReceivers: highVolumReceivers.map((entry) => ({
+        ...entry,
+        receiverName: getCustomerLabel(entry._id),
+      })),
+      trend,
     };
 
     res.json({ success: true, data: stats });

@@ -30,12 +30,12 @@ function scheduleFraudActionExpiry() {
 
       if (processedCount > 0) {
         logger.info(
-          `[FraudScheduler] Processed ${processedCount} expired fraud actions`
+          `[FraudScheduler] Processed ${processedCount} expired fraud actions`,
         );
       }
     } catch (error) {
-      logger.error(
-        `[FraudScheduler] Error processing expired actions: ${error.message}`
+      logger.info(
+        `[FraudScheduler] Error processing expired actions: ${error.message}`,
       );
       // Never throw - keep scheduler running
     }

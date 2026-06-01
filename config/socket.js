@@ -4,6 +4,7 @@ const models = require("../models");
 const constants = require("../utils/constants.json");
 const xpSeries = constants.xpSeries.map((value) => BigInt(value));
 const moment = require("moment");
+const hostTracking = require("../services/hostTracking.service");
 
 const configure = async (app, server) => {
   const io = require("socket.io")(server, {
@@ -43,6 +44,14 @@ const configure = async (app, server) => {
           currentJoinedRoomId: new mongoose.Types.ObjectId(roomId),
         });
 
+        // Check if user is room owner (host) and track it
+        const room = await models.Room.findById(roomId).select("ownerId").lean();
+        if (room && room.ownerId.toString() === userId.toString()) {
+          // Start tracking host presence in room
+          await hostTracking.onHostMicJoin(userId, roomId);
+          logger.info(`Host ${userId} joined mic in room ${roomId}`);
+        }
+
         logger.info(`Updated currentJoinedRoomId for user ${userId}`);
       } catch (error) {
         logger.error(`Error in joinRoom: ${error.message}`);
@@ -77,6 +86,14 @@ const configure = async (app, server) => {
       }
 
       try {
+        // Check if user is room owner (host) and stop tracking
+        const room = await models.Room.findById(roomId).select("ownerId").lean();
+        if (room && room.ownerId.toString() === userId.toString()) {
+          // Stop tracking host presence and calculate session time
+          await hostTracking.onHostMicLeave(userId, roomId);
+          logger.info(`Host ${userId} left mic in room ${roomId}`);
+        }
+
         socket.leave(roomId);
         console.log(`User ${socket.id} left room ${roomId} (${userId})`);
 
@@ -106,6 +123,57 @@ const configure = async (app, server) => {
         );
       } catch (error) {
         logger.error(`Error leaving room ${roomId} (${userId}):`, error);
+      }
+    });
+
+    /******************** Host Mic On/Off Events ********************/
+    socket.on("hostMicOn", async () => {
+      try {
+        const userId = socket.data.userId;
+        const roomId = socket.data.roomId;
+
+        if (!userId || !roomId) {
+          logger.warn(`hostMicOn event triggered without userId or roomId`);
+          return;
+        }
+
+        // Track when host turns mic on
+        await hostTracking.onHostMicJoin(userId, roomId);
+        logger.info(`Host ${userId} turned mic ON in room ${roomId}`);
+        
+        // Emit event to all users in room to show host is now live on mic
+        io.to(roomId).emit("hostMicStatus", {
+          userId,
+          status: "on",
+          timestamp: new Date(),
+        });
+      } catch (error) {
+        logger.error(`Error in hostMicOn: ${error.message}`);
+      }
+    });
+
+    socket.on("hostMicOff", async () => {
+      try {
+        const userId = socket.data.userId;
+        const roomId = socket.data.roomId;
+
+        if (!userId || !roomId) {
+          logger.warn(`hostMicOff event triggered without userId or roomId`);
+          return;
+        }
+
+        // Track when host turns mic off and calculate session time
+        await hostTracking.onHostMicLeave(userId, roomId);
+        logger.info(`Host ${userId} turned mic OFF in room ${roomId}`);
+        
+        // Emit event to all users in room to show host mic is off
+        io.to(roomId).emit("hostMicStatus", {
+          userId,
+          status: "off",
+          timestamp: new Date(),
+        });
+      } catch (error) {
+        logger.error(`Error in hostMicOff: ${error.message}`);
       }
     });
 

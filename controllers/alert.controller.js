@@ -1,6 +1,168 @@
 const models = require("../models");
 const Alert = models.Alert;
+const Host = models.Host;
+const Agency = models.Agency;
+const User = models.User;
+const Customer = models.Customer;
+const HostSalaryCycle = models.HostSalaryCycle;
 const logger = console; // Replace with actual logger
+
+function formatNameId(name, id) {
+  const cleanName = String(name || "").trim();
+  const cleanId = String(id || "").trim();
+  if (cleanName && cleanId) return `${cleanName} (${cleanId})`;
+  return cleanName || cleanId || "N/A";
+}
+
+async function getCustomerLabel(customerId) {
+  if (!customerId) return "N/A";
+  const customer = await Customer.findById(customerId)
+    .select("name userId")
+    .lean();
+  if (!customer) return String(customerId);
+  return formatNameId(customer.name || customer.userId, customer._id);
+}
+
+async function getCustomerName(customerId) {
+  if (!customerId) return null;
+  const customer = await Customer.findById(customerId)
+    .select("name userId")
+    .lean();
+  return customer?.name || customer?.userId || null;
+}
+
+async function getHostLabel(hostId) {
+  if (!hostId) return "N/A";
+  const host = await Host.findById(hostId).select("hostId customerRef").lean();
+
+  if (!host) return String(hostId);
+  const hostName = await getCustomerName(host.customerRef);
+
+  return formatNameId(hostName || host.hostId, host._id);
+}
+
+async function getAgencyLabel(agencyId) {
+  if (!agencyId) return "N/A";
+  const agency = await Agency.findById(agencyId).select("name agencyId").lean();
+  if (!agency) return String(agencyId);
+  return formatNameId(agency.name || agency.agencyId, agency._id);
+}
+
+async function getUserLabel(userId) {
+  if (!userId) return "N/A";
+  const user = await User.findById(userId).select("customerRef").lean();
+  if (!user) return String(userId);
+  return user.customerRef
+    ? await getCustomerLabel(user.customerRef)
+    : String(userId);
+}
+
+async function getCycleLabel(cycleId) {
+  if (!cycleId) return "N/A";
+  const cycle = await HostSalaryCycle.findById(cycleId).select("hostId").lean();
+  if (!cycle) return String(cycleId);
+  const hostName = await getHostName(cycle.hostId);
+  return formatNameId(`Salary Cycle for ${hostName || "Host"}`, cycle._id);
+}
+
+async function getHostName(hostId) {
+  if (!hostId) return null;
+  const host = await Host.findById(hostId).select("hostId customerRef").lean();
+  if (!host) return null;
+  return (await getCustomerName(host.customerRef)) || host.hostId || null;
+}
+
+async function enrichAlert(alert) {
+  const referenceResolvers = {
+    host: () => getHostLabel(alert.referenceId),
+    agency: () => getAgencyLabel(alert.referenceId),
+    user: () => getUserLabel(alert.referenceId),
+    cycle: () => getCycleLabel(alert.referenceId),
+    wallet: () => Promise.resolve(formatNameId("Wallet", alert.referenceId)),
+    cron: () => Promise.resolve(formatNameId("Cron", alert.referenceId)),
+  };
+
+  let referenceLabel = null;
+
+  if (referenceResolvers[alert.referenceType]) {
+    referenceLabel = await referenceResolvers[alert.referenceType]();
+  }
+
+  if (!referenceLabel || referenceLabel === String(alert.referenceId)) {
+    if (alert.referenceType === "user") {
+      referenceLabel = await getCustomerLabel(alert.referenceId);
+    } else {
+      referenceLabel = formatNameId(alert.referenceType, alert.referenceId);
+    }
+  }
+
+  const acknowledgedByLabel = alert.acknowledgedBy
+    ? await getUserLabel(alert.acknowledgedBy)
+    : null;
+
+  const resolvedByLabel = alert.resolvedBy
+    ? await getUserLabel(alert.resolvedBy)
+    : null;
+
+  const messageTokens = new Map();
+  const addToken = (value, label) => {
+    if (!value || !label) return;
+    messageTokens.set(String(value), String(label));
+  };
+
+  addToken(alert.referenceId, referenceLabel);
+  if (alert.meta?.hostId) {
+    addToken(alert.meta.hostId, await getHostLabel(alert.meta.hostId));
+  }
+
+  if (alert.meta?.senderId) {
+    addToken(alert.meta.senderId, await getCustomerLabel(alert.meta.senderId));
+  }
+  if (alert.meta?.receiverId) {
+    addToken(
+      alert.meta.receiverId,
+      await getCustomerLabel(alert.meta.receiverId),
+    );
+  }
+  if (alert.meta?.userId) {
+    addToken(alert.meta.userId, await getCustomerLabel(alert.meta.userId));
+  }
+  if (alert.meta?.cycleId) {
+    addToken(alert.meta.cycleId, await getCycleLabel(alert.meta.cycleId));
+  }
+  if (alert.meta?.previousCycleId) {
+    addToken(
+      alert.meta.previousCycleId,
+      await getCycleLabel(alert.meta.previousCycleId),
+    );
+  }
+  if (alert.meta?.currentCycleId) {
+    addToken(
+      alert.meta.currentCycleId,
+      await getCycleLabel(alert.meta.currentCycleId),
+    );
+  }
+
+  const displayMessage =
+    typeof alert.message === "string"
+      ? Array.from(messageTokens.entries()).reduce(
+          (text, [rawValue, label]) =>
+            text.replace(
+              new RegExp(rawValue.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"),
+              label,
+            ),
+          alert.message,
+        )
+      : alert.message;
+
+  return {
+    ...alert,
+    referenceLabel,
+    acknowledgedByLabel,
+    resolvedByLabel,
+    displayMessage,
+  };
+}
 
 /**
  * Alert Controller - Admin APIs for managing alerts
@@ -43,10 +205,12 @@ async function listAlerts(req, res) {
       .skip((page - 1) * limit)
       .lean();
 
+    const enrichedAlerts = await Promise.all(alerts.map(enrichAlert));
+
     res.json({
       success: true,
       data: {
-        alerts,
+        alerts: enrichedAlerts,
         pagination: {
           current: page,
           limit,
@@ -91,7 +255,7 @@ async function getAlert(req, res) {
       return res.status(404).json({ success: false, error: "Alert not found" });
     }
 
-    res.json({ success: true, data: alert });
+    res.json({ success: true, data: await enrichAlert(alert) });
   } catch (err) {
     logger.error("Error getting alert:", err.message);
     res.status(500).json({ success: false, error: err.message });
@@ -188,7 +352,7 @@ async function resolveAlert(req, res) {
     await alert.save();
 
     logger.info(
-      `Alert ${alert._id} resolved by ${req.user._id}. Note: ${note}`
+      `Alert ${alert._id} resolved by ${req.user._id}. Note: ${note}`,
     );
 
     res.json({ success: true, data: alert });
@@ -233,11 +397,11 @@ async function acknowledgeMultiple(req, res) {
             note: note || "Bulk acknowledged",
           },
         },
-      }
+      },
     );
 
     logger.info(
-      `${result.modifiedCount} alerts acknowledged by ${req.user._id}`
+      `${result.modifiedCount} alerts acknowledged by ${req.user._id}`,
     );
 
     res.json({
@@ -269,7 +433,7 @@ async function deleteAlerts(req, res) {
     const result = await Alert.deleteMany(filter);
 
     logger.info(
-      `Deleted ${result.deletedCount} ${status} alerts older than ${daysOld} days`
+      `Deleted ${result.deletedCount} ${status} alerts older than ${daysOld} days`,
     );
 
     res.json({

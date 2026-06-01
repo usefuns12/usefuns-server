@@ -16,7 +16,7 @@ function normalizeObjectId(value) {
 async function hydrateSalaryCycles(cycleDocs) {
   const hostIds = [
     ...new Set(
-      cycleDocs.map((cycle) => normalizeObjectId(cycle.hostId)).filter(Boolean)
+      cycleDocs.map((cycle) => normalizeObjectId(cycle.hostId)).filter(Boolean),
     ),
   ];
 
@@ -26,7 +26,7 @@ async function hydrateSalaryCycles(cycleDocs) {
 
   const customerIds = [
     ...new Set(
-      hosts.map((host) => normalizeObjectId(host.customerRef)).filter(Boolean)
+      hosts.map((host) => normalizeObjectId(host.customerRef)).filter(Boolean),
     ),
   ];
 
@@ -36,7 +36,7 @@ async function hydrateSalaryCycles(cycleDocs) {
 
   const hostMap = new Map(hosts.map((host) => [String(host._id), host]));
   const customerMap = new Map(
-    customers.map((customer) => [String(customer._id), customer])
+    customers.map((customer) => [String(customer._id), customer]),
   );
 
   return cycleDocs.map((cycle) => {
@@ -70,7 +70,9 @@ async function hydrateSalaryCycles(cycleDocs) {
 async function hydrateCommissionCycles(cycleDocs) {
   const agencyIds = [
     ...new Set(
-      cycleDocs.map((cycle) => normalizeObjectId(cycle.agencyId)).filter(Boolean)
+      cycleDocs
+        .map((cycle) => normalizeObjectId(cycle.agencyId))
+        .filter(Boolean),
     ),
   ];
 
@@ -78,7 +80,9 @@ async function hydrateCommissionCycles(cycleDocs) {
     .select("agencyName ownerUserId countryCode")
     .lean();
 
-  const agencyMap = new Map(agencies.map((agency) => [String(agency._id), agency]));
+  const agencyMap = new Map(
+    agencies.map((agency) => [String(agency._id), agency]),
+  );
 
   return cycleDocs.map((cycle) => {
     const agencyId = normalizeObjectId(cycle.agencyId);
