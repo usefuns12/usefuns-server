@@ -10,7 +10,10 @@ async function onHostMicJoin(hostId, roomId) {
   try {
     const Room = require("../models/Rooms");
     await Room.findByIdAndUpdate(roomId, {
-      lastHostJoinedAt: new Date(),
+      $set: {
+        lastHostJoinedAt: new Date(),
+        hostingTimeCurrentSession: 0,
+      },
     });
     console.log(`Host ${hostId} joined mic in room ${roomId}`);
   } catch (error) {
@@ -60,16 +63,20 @@ async function onHostMicLeave(hostId, roomId) {
             gifts: 0,
           },
         },
-        { upsert: true }
+        { upsert: true },
       );
 
       console.log(
-        `Host ${hostId} left mic. Added ${diffHours.toFixed(2)} hours`
+        `Host ${hostId} left mic. Added ${diffHours.toFixed(2)} hours`,
       );
     }
 
     // Clear the lastHostJoinedAt
     await Room.findByIdAndUpdate(roomId, {
+      $set: {
+        hostingTimeCurrentSession: diffMs / 1000,
+        hostingTimeLastSession: diffMs / 1000,
+      },
       $unset: { lastHostJoinedAt: 1 },
     });
   } catch (error) {

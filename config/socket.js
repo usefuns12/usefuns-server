@@ -3,7 +3,7 @@ const { default: mongoose } = require("mongoose");
 const models = require("../models");
 const constants = require("../utils/constants.json");
 const xpSeries = constants.xpSeries.map((value) => BigInt(value));
-const moment = require("moment");
+// moment removed; seat-based tracking handles time calculation
 const hostTracking = require("../services/hostTracking.service");
 
 const configure = async (app, server) => {
@@ -12,6 +12,16 @@ const configure = async (app, server) => {
       origin: "*",
     },
   });
+
+  const getHostContext = async (userId) => {
+    if (!userId) return null;
+
+    const host = await models.Host.findOne({ customerRef: userId })
+      .select("_id customerRef hostId")
+      .lean();
+
+    return host || null;
+  };
 
   app.set("io", io);
   global.io = io;
@@ -44,12 +54,14 @@ const configure = async (app, server) => {
           currentJoinedRoomId: new mongoose.Types.ObjectId(roomId),
         });
 
-        // Check if user is room owner (host) and track it
-        const room = await models.Room.findById(roomId).select("ownerId").lean();
-        if (room && room.ownerId.toString() === userId.toString()) {
-          // Start tracking host presence in room
-          await hostTracking.onHostMicJoin(userId, roomId);
-          logger.info(`Host ${userId} joined mic in room ${roomId}`);
+        // If this customer is a host, mark socket as host (time tracking will follow seat events)
+        const hostContext = await getHostContext(userId);
+        if (hostContext) {
+          socket.data.hostId = hostContext._id.toString();
+          socket.data.isHost = true;
+          logger.info(
+            `Host ${hostContext.hostId} (${hostContext._id}) joined room ${roomId}`,
+          );
         }
 
         logger.info(`Updated currentJoinedRoomId for user ${userId}`);
@@ -86,12 +98,14 @@ const configure = async (app, server) => {
       }
 
       try {
-        // Check if user is room owner (host) and stop tracking
-        const room = await models.Room.findById(roomId).select("ownerId").lean();
-        if (room && room.ownerId.toString() === userId.toString()) {
-          // Stop tracking host presence and calculate session time
-          await hostTracking.onHostMicLeave(userId, roomId);
-          logger.info(`Host ${userId} left mic in room ${roomId}`);
+        // If this customer is a host, just log; seatOff will handle time calculation
+        const hostContext =
+          socket.data.isHost && socket.data.hostId
+            ? { _id: socket.data.hostId }
+            : await getHostContext(userId);
+
+        if (hostContext?._id) {
+          logger.info(`Host ${userId} left room ${roomId}`);
         }
 
         socket.leave(roomId);
@@ -126,57 +140,6 @@ const configure = async (app, server) => {
       }
     });
 
-    /******************** Host Mic On/Off Events ********************/
-    socket.on("hostMicOn", async () => {
-      try {
-        const userId = socket.data.userId;
-        const roomId = socket.data.roomId;
-
-        if (!userId || !roomId) {
-          logger.warn(`hostMicOn event triggered without userId or roomId`);
-          return;
-        }
-
-        // Track when host turns mic on
-        await hostTracking.onHostMicJoin(userId, roomId);
-        logger.info(`Host ${userId} turned mic ON in room ${roomId}`);
-        
-        // Emit event to all users in room to show host is now live on mic
-        io.to(roomId).emit("hostMicStatus", {
-          userId,
-          status: "on",
-          timestamp: new Date(),
-        });
-      } catch (error) {
-        logger.error(`Error in hostMicOn: ${error.message}`);
-      }
-    });
-
-    socket.on("hostMicOff", async () => {
-      try {
-        const userId = socket.data.userId;
-        const roomId = socket.data.roomId;
-
-        if (!userId || !roomId) {
-          logger.warn(`hostMicOff event triggered without userId or roomId`);
-          return;
-        }
-
-        // Track when host turns mic off and calculate session time
-        await hostTracking.onHostMicLeave(userId, roomId);
-        logger.info(`Host ${userId} turned mic OFF in room ${roomId}`);
-        
-        // Emit event to all users in room to show host mic is off
-        io.to(roomId).emit("hostMicStatus", {
-          userId,
-          status: "off",
-          timestamp: new Date(),
-        });
-      } catch (error) {
-        logger.error(`Error in hostMicOff: ${error.message}`);
-      }
-    });
-
     /******************** Seat On/Off Events ********************/
     socket.on("seatOn", async () => {
       try {
@@ -189,6 +152,24 @@ const configure = async (app, server) => {
         io.to(userId).emit("userDataUpdate", userData);
 
         logger.info(`User ${userId} sat on seat in room`);
+
+        // If this user is a host and currently in a room, start host seat-based tracking
+        try {
+          const roomId = socket.data.roomId;
+          const hostContext =
+            socket.data.isHost && socket.data.hostId
+              ? { _id: socket.data.hostId }
+              : await getHostContext(userId);
+
+          if (hostContext?._id && roomId) {
+            await hostTracking.onHostMicJoin(hostContext._id, roomId);
+            logger.info(
+              `Host ${userId} seated in room ${roomId}, started tracking`,
+            );
+          }
+        } catch (seatErr) {
+          logger.error(`Error starting host seat tracking: ${seatErr.message}`);
+        }
       } catch (error) {
         logger.error(`Error in seatOn: ${error.message}`);
       }
@@ -204,6 +185,24 @@ const configure = async (app, server) => {
         io.to(userId).emit("userDataUpdate", userData);
 
         logger.info(`User ${userId} left seat in room`);
+
+        // If this user is a host and currently in a room, stop host seat-based tracking
+        try {
+          const roomId = socket.data.roomId;
+          const hostContext =
+            socket.data.isHost && socket.data.hostId
+              ? { _id: socket.data.hostId }
+              : await getHostContext(userId);
+
+          if (hostContext?._id && roomId) {
+            await hostTracking.onHostMicLeave(hostContext._id, roomId);
+            logger.info(
+              `Host ${userId} stood up in room ${roomId}, stopped tracking`,
+            );
+          }
+        } catch (seatErr) {
+          logger.error(`Error stopping host seat tracking: ${seatErr.message}`);
+        }
       } catch (error) {
         logger.error(`Error in seatOff: ${error.message}`);
       }
@@ -270,23 +269,7 @@ const configure = async (app, server) => {
           },
         );
 
-        if (room.ownerId === userId) {
-          if (room.lastHostJoinedAt !== null) {
-            const currentHostTime = moment().diff(
-              moment(room.lastHostJoinedAt),
-              "seconds",
-            );
-            await models.Room.updateOne(
-              { _id: roomId },
-              {
-                $set: {
-                  hostingTimeCurrentSession: currentHostTime,
-                  lastHostJoinedAt: null,
-                },
-              },
-            );
-          }
-        }
+        // Seat-based host timing now drives hostingTime values; skip legacy room-level updates here.
 
         console.log(
           `Client ${socket.id} has been removed from room ${roomId} (${userId})`,
