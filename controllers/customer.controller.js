@@ -567,6 +567,7 @@ const getCustomersById = async (req, res) => {
           select:
             "roomId name announcement roomImage hostingTimeCurrentSession",
         })
+        .populate("hostRef")
         .lean();
     } else {
       customer = await models.Customer.findOne({ userId: id })
@@ -575,6 +576,7 @@ const getCustomersById = async (req, res) => {
           select:
             "roomId name announcement roomImage hostingTimeCurrentSession",
         })
+        .populate("hostRef")
         .lean();
     }
 
