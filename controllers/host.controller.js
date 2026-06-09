@@ -517,7 +517,10 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
       });
     }
 
-    const request = await models.JoinRequest.findById(requestId);
+    const request = await models.JoinRequest.findById(requestId)
+      .populate("agencyId")
+      .populate("customerId")
+      .populate("hostId");
     if (!request) {
       return res.status(404).json({
         success: false,
