@@ -20,11 +20,19 @@ const sendNotificationToCustomer = async ({
   const customer = await Customer.findById(customerId).select("deviceToken");
 
   if (!customer) {
-    throw new Error("Customer not found");
+    return {
+      success: false,
+      skipped: true,
+      reason: "Customer not found",
+    };
   }
 
   if (!customer.deviceToken) {
-    throw new Error("Device token not found for this user");
+    return {
+      success: true,
+      skipped: true,
+      reason: "Device token not available; notification skipped",
+    };
   }
 
   // 2. Create notification payload
