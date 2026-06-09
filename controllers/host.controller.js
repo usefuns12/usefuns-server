@@ -3,6 +3,13 @@ const models = require("../models");
 const mongoose = require("mongoose");
 const notificationService = require("../utils/notificationService");
 
+const toIdString = (value) => {
+  if (!value) return null;
+  if (typeof value === "string") return value;
+  if (typeof value.toString === "function") return value.toString();
+  return String(value);
+};
+
 /**
  * Create a new Host
  * -------------------------------
@@ -73,7 +80,7 @@ const createHost = async (req, res) => {
     const agencyUpdate = await models.Agency.findByIdAndUpdate(
       agencyId,
       { $push: { hosts: newHost._id } },
-      { new: true }
+      { new: true },
     );
 
     await newHost.populate("customerRef");
@@ -82,7 +89,7 @@ const createHost = async (req, res) => {
     // update all room owned by customer to roomType 'host'
     await models.Room.updateMany(
       { ownerId: customerRef },
-      { roomType: "host" }
+      { roomType: "host" },
     );
 
     return res.status(201).json({
@@ -477,7 +484,7 @@ const sendRequestFromAgency = async (req, res) => {
       },
     });
 
-    io.to(customer._id.toString()).emit("notificationUpdate", notification);
+    io.to(toIdString(customer._id)).emit("notificationUpdate", notification);
 
     res.status(201).json({
       success: true,
@@ -528,36 +535,44 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
     request.status = status;
     await request.save();
 
+    const agencyCustomerId =
+      request.agencyId?.customerRef?._id ||
+      request.agencyId?.customerRef ||
+      null;
+    const agencyId = request.agencyId?._id || request.agencyId || null;
+
     // send notification to agency about acceptance/rejection
 
     const notification = await models.Notification.create({
-      sentTo: [request.agencyId.customerRef],
+      sentTo: agencyCustomerId ? [agencyCustomerId] : [],
       notificationType: "agency",
       title: `Host Request ${status === "accepted" ? "Accepted" : "Rejected"}`,
       message: `Your host request to customer has been ${status}.`,
       data: {
-        requestId: request._id.toString(),
-        customerId: request.customerId.toString(),
-        agencyId: request.agencyId.toString(),
+        requestId: toIdString(request._id),
+        customerId: toIdString(request.customerId),
+        agencyId: toIdString(agencyId),
       },
-      image: request.agencyId.logo || null,
+      image: request.agencyId?.logo || null,
     });
 
     // push notification
-    await notificationService.sendNotificationToCustomer({
-      customerId: request.agencyId.customerRef,
-      title: `Host Request ${status === "accepted" ? "Accepted" : "Rejected"}`,
-      body: `Your host request to customer has been ${status}.`,
-      data: {
-        requestId: request._id.toString(),
-        customerId: request.customerId.toString(),
-        agencyId: request.agencyId.toString(),
-      },
-    });
-    io.to(request.agencyId.customerRef.toString()).emit(
-      "notificationUpdate",
-      notification
-    );
+    if (agencyCustomerId) {
+      await notificationService.sendNotificationToCustomer({
+        customerId: agencyCustomerId,
+        title: `Host Request ${status === "accepted" ? "Accepted" : "Rejected"}`,
+        body: `Your host request to customer has been ${status}.`,
+        data: {
+          requestId: toIdString(request._id),
+          customerId: toIdString(request.customerId),
+          agencyId: toIdString(agencyId),
+        },
+      });
+      io.to(toIdString(agencyCustomerId)).emit(
+        "notificationUpdate",
+        notification,
+      );
+    }
 
     if (status === "rejected") {
       // remove fromAgency requests if any
@@ -595,7 +610,7 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
         const agencyUpdate = await models.Agency.findByIdAndUpdate(
           request.agencyId,
           { $push: { hosts: newHost._id } },
-          { new: true }
+          { new: true },
         );
 
         await newHost.populate("customerRef");
@@ -614,7 +629,7 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
       // update all room owned by customer to roomType 'host'
       await models.Room.updateMany(
         { ownerId: request.customerId },
-        { roomType: "host" }
+        { roomType: "host" },
       );
 
       // create request for admin to review host addition
@@ -630,8 +645,8 @@ const acceptOrRejectRequestByCustomer = async (req, res) => {
               ? ownerUser.parents[ownerUser.parents.length - 1]
               : null
             : ownerUser.role && ownerUser.role.name === "Admin"
-            ? ownerUser._id
-            : null,
+              ? ownerUser._id
+              : null,
         message: "Request for admin to review new host addition",
         status: "pending",
       });
@@ -707,33 +722,36 @@ const sendLeftAgencyRequest = async (req, res) => {
     });
 
     // Notify agency customer
-    const agencyOwnerId = host.agencyId.customerRef;
+    const agencyOwnerId =
+      host.agencyId?.customerRef?._id || host.agencyId?.customerRef || null;
     const notification = await models.Notification.create({
-      sentTo: [agencyOwnerId],
+      sentTo: agencyOwnerId ? [agencyOwnerId] : [],
       notificationType: "agency",
       title: "Host Left Agency Request",
       message: `Host with ID ${host.hostId} has requested to leave your agency.`,
       data: {
-        requestId: newReq._id.toString(),
-        hostId: host._id.toString(),
-        agencyId: host.agencyId._id.toString(),
+        requestId: toIdString(newReq._id),
+        hostId: toIdString(host._id),
+        agencyId: toIdString(host.agencyId?._id || host.agencyId),
       },
-      image: host.agencyId.logo || null,
+      image: host.agencyId?.logo || null,
     });
 
     // push notification
-    await notificationService.sendNotificationToCustomer({
-      customerId: agencyOwnerId,
-      title: "Host Left Agency Request",
-      body: `Host with ID ${host.hostId} has requested to leave your agency.`,
-      data: {
-        requestId: newReq._id.toString(),
-        hostId: host._id.toString(),
-        agencyId: host.agencyId._id.toString(),
-      },
-    });
+    if (agencyOwnerId) {
+      await notificationService.sendNotificationToCustomer({
+        customerId: agencyOwnerId,
+        title: "Host Left Agency Request",
+        body: `Host with ID ${host.hostId} has requested to leave your agency.`,
+        data: {
+          requestId: toIdString(newReq._id),
+          hostId: toIdString(host._id),
+          agencyId: toIdString(host.agencyId?._id || host.agencyId),
+        },
+      });
 
-    io.to(agencyOwnerId.toString()).emit("notificationUpdate", notification);
+      io.to(toIdString(agencyOwnerId)).emit("notificationUpdate", notification);
+    }
 
     res.status(201).json({
       success: true,
@@ -820,7 +838,7 @@ const respondToLeftRequest = async (req, res) => {
     // Update Agency to remove host from its list
     await models.Agency.updateOne(
       { _id: host.agencyId },
-      { $pull: { hosts: host._id } }
+      { $pull: { hosts: host._id } },
     );
 
     // Delete host record
@@ -829,7 +847,7 @@ const respondToLeftRequest = async (req, res) => {
     // update all room owned by customer to roomType 'normal'
     await models.Room.updateMany(
       { ownerId: customer._id },
-      { roomType: "normal" }
+      { roomType: "normal" },
     );
 
     // Update request status
@@ -853,10 +871,10 @@ const respondToLeftRequest = async (req, res) => {
         hostId: host._id.toString(),
         agencyId: request.agencyId._id.toString(),
       },
-      image: request.agencyId.logo || null,
+      image: request.agencyId?.logo || null,
     });
 
-    io.to(customer._id.toString()).emit("notificationUpdate", notification);
+    io.to(toIdString(customer._id)).emit("notificationUpdate", notification);
 
     // push notification
     await notificationService.sendNotificationToCustomer({
@@ -909,7 +927,7 @@ const deleteHost = async (req, res) => {
     if (host.agencyId) {
       await models.Agency.updateOne(
         { _id: host.agencyId },
-        { $pull: { hosts: host._id } } // remove reference if stored
+        { $pull: { hosts: host._id } }, // remove reference if stored
       );
     }
 
