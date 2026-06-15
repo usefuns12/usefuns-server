@@ -1033,21 +1033,27 @@ const sendLeftAgencyRequest = async (req, res) => {
       });
     }
 
+    const now = new Date();
+
+    if (!isLeaveApplicationWindow(now)) {
+      return res.status(400).json({
+        success: false,
+        message: "You can only apply for leaving agency from 10th to 20th of every month",
+      });
+    }
+
     // 🔹 Prevent duplicate left requests
-    const existing = await models.JoinRequest.findOne({
-      type: "leftRequest",
-      hostId: host._id,
-      agencyId: host.agencyId._id,
-      status: "pending",
-    });
+    const existing = await hasAlreadyAppliedThisMonth(host._id, now);
 
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: "A leave request is already pending for this host",
+        message: "You already used your one leave application chance for this month",
         status: existing.status,
       });
     }
+
+    const eligibility = await getHostLeaveEligibility(host);
 
     // 🔹 Create new left request
     const newReq = await models.JoinRequest.create({
@@ -1055,7 +1061,30 @@ const sendLeftAgencyRequest = async (req, res) => {
       agencyId: host.agencyId._id,
       hostId: host._id,
       message: message || "Request to leave the agency",
+      status: eligibility.canLeaveWithoutOwnerApproval ? "accepted" : "pending",
     });
+
+    if (eligibility.canLeaveWithoutOwnerApproval) {
+      await removeHostFromAgency(host, newReq);
+
+      const ownerMessage = `Host with ID ${host.hostId} left your agency automatically because they met the leave conditions.`;
+      await notifyHostLeftAgency({
+        host,
+        customerId: host.agencyId?.customerRef?._id || host.agencyId?.customerRef || null,
+        agencyId: host.agencyId?._id || host.agencyId,
+        message: ownerMessage,
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "Host left agency successfully without owner approval",
+        data: {
+          request: newReq,
+          eligibility,
+          autoApproved: true,
+        },
+      });
+    }
 
     // Notify agency customer
     const agencyOwnerId =
@@ -1091,8 +1120,13 @@ const sendLeftAgencyRequest = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Left agency request sent successfully",
-      data: newReq,
+      message:
+        "Leave request sent successfully. Agency owner approval is required.",
+      data: {
+        request: newReq,
+        eligibility,
+        autoApproved: false,
+      },
     });
   } catch (error) {
     console.error("Error creating left agency request:", error);
@@ -1161,66 +1195,13 @@ const respondToLeftRequest = async (req, res) => {
       });
     }
 
-    // Update Customer to remove Host link
-    const customer = await models.Customer.findById(host.customerRef);
+    const { customerId, agencyId } = await removeHostFromAgency(host, request);
 
-    if (customer) {
-      customer.isHost = false;
-      customer.hostRef = null;
-      customer.agencyId = null;
-      await customer.save();
-    }
-
-    // Update Agency to remove host from its list
-    await models.Agency.updateOne(
-      { _id: host.agencyId },
-      { $pull: { hosts: host._id } },
-    );
-
-    // Delete host record
-    await models.Host.findByIdAndDelete(host._id);
-
-    // update all room owned by customer to roomType 'normal'
-    await models.Room.updateMany(
-      { ownerId: customer._id },
-      { roomType: "normal" },
-    );
-
-    // Update request status
-    request.status = "accepted";
-    await request.save();
-
-    // remove fromAgency requests if any
-    await models.JoinRequest.deleteMany({
-      type: "fromAgency",
-      agencyId: request.agencyId._id,
-      customerId: request.customerId._id,
-    });
-
-    // notify host customer
-    const notification = await models.Notification.create({
-      sentTo: [customer._id],
-      notificationType: "agency",
-      title: "Left Agency Request Accepted",
+    await notifyHostLeftAgency({
+      host,
+      customerId,
+      agencyId,
       message: `Your request to leave agency ${request.agencyId.name} has been accepted.`,
-      data: {
-        hostId: host._id.toString(),
-        agencyId: request.agencyId._id.toString(),
-      },
-      image: request.agencyId?.logo || null,
-    });
-
-    io.to(toIdString(customer._id)).emit("notificationUpdate", notification);
-
-    // push notification
-    await notificationService.sendNotificationToCustomer({
-      customerId: customer._id,
-      title: "Left Agency Request Accepted",
-      body: `Your request to leave agency ${request.agencyId.name} has been accepted.`,
-      data: {
-        hostId: host._id.toString(),
-        agencyId: request.agencyId._id.toString(),
-      },
     });
 
     res.status(200).json({
@@ -1342,6 +1323,143 @@ const getHostDashboardStats = async (req, res) => {
       message: error.message,
     });
   }
+};
+
+const getWeeksBetween = (fromDate, toDate) => {
+  const from = new Date(fromDate);
+  const to = new Date(toDate);
+  const diffMs = to.getTime() - from.getTime();
+  return diffMs / (1000 * 60 * 60 * 24 * 7);
+};
+
+const isLeaveApplicationWindow = (date = new Date()) => {
+  const day = date.getDate();
+  return day >= 10 && day <= 20;
+};
+
+const hasAlreadyAppliedThisMonth = async (hostId, date = new Date()) => {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+
+  const existing = await models.JoinRequest.findOne({
+    type: "leftRequest",
+    hostId,
+    createdAt: { $gte: start, $lt: end },
+  }).select("_id status createdAt");
+
+  return existing;
+};
+
+const getHostLeaveEligibility = async (host) => {
+  const now = new Date();
+  const joinDate = host.joinDate || host.createdAt || now;
+  const joinedWeeks = getWeeksBetween(joinDate, now);
+  const joinedAtLeast24Weeks = joinedWeeks >= 24;
+
+  const twentyFourWeeksAgo = new Date(now);
+  twentyFourWeeksAgo.setDate(twentyFourWeeksAgo.getDate() - 24 * 7);
+
+  const salaryCycles = await models.HostSalaryCycle.find({
+    hostId: host._id,
+    cycleStart: { $gte: twentyFourWeeksAgo, $lte: now },
+  })
+    .select("salaryUcoins")
+    .lean();
+
+  const accumulatedSalary = salaryCycles.reduce(
+    (total, cycle) => total + safeNumber(cycle.salaryUcoins),
+    0,
+  );
+
+  return {
+    joinedWeeks,
+    joinedAtLeast24Weeks,
+    accumulatedSalary,
+    meetsSalaryCap: accumulatedSalary < 200000,
+    canLeaveWithoutOwnerApproval:
+      joinedAtLeast24Weeks && accumulatedSalary < 200000,
+  };
+};
+
+const removeHostFromAgency = async (host, request = null) => {
+  const customerId = host.customerRef?._id || host.customerRef;
+  const agencyId = host.agencyId?._id || host.agencyId;
+
+  if (customerId) {
+    const customer = await models.Customer.findById(customerId);
+    if (customer) {
+      customer.isHost = false;
+      customer.hostRef = null;
+      customer.agencyId = null;
+      await customer.save();
+    }
+  }
+
+  if (agencyId) {
+    await models.Agency.updateOne(
+      { _id: agencyId },
+      { $pull: { hosts: host._id } },
+    );
+
+    await models.JoinRequest.deleteMany({
+      type: "fromAgency",
+      agencyId,
+      customerId,
+    });
+  }
+
+  await models.JoinRequest.deleteMany({
+    type: "requestForAdminToReviewHost",
+    hostId: host._id,
+  });
+
+  await models.Host.findByIdAndDelete(host._id);
+
+  if (customerId) {
+    await models.Room.updateMany(
+      { ownerId: customerId },
+      { roomType: "normal" },
+    );
+  }
+
+  if (request) {
+    request.status = "accepted";
+    await request.save();
+  }
+
+  return { customerId, agencyId };
+};
+
+const notifyHostLeftAgency = async ({ host, customerId, agencyId, message }) => {
+  const agency = agencyId ? await models.Agency.findById(agencyId).lean() : null;
+
+  const notification = await models.Notification.create({
+    sentTo: customerId ? [customerId] : [],
+    notificationType: "agency",
+    title: "Left Agency Request Accepted",
+    message,
+    data: {
+      hostId: toIdString(host._id),
+      agencyId: toIdString(agencyId),
+    },
+    image: agency?.logo || null,
+  });
+
+  if (customerId) {
+    io.to(toIdString(customerId)).emit("notificationUpdate", notification);
+
+    await notificationService.sendNotificationToCustomer({
+      customerId,
+      title: "Left Agency Request Accepted",
+      body: message,
+      data: {
+        hostId: toIdString(host._id),
+        agencyId: toIdString(agencyId),
+      },
+    });
+  }
+
+  return notification;
 };
 
 module.exports = {
