@@ -10,6 +10,338 @@ const toIdString = (value) => {
   return String(value);
 };
 
+const safeNumber = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
+
+const pad2 = (value) => String(value).padStart(2, "0");
+
+const startOfDay = (date) => {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  return result;
+};
+
+const endOfDay = (date) => {
+  const result = new Date(date);
+  result.setHours(23, 59, 59, 999);
+  return result;
+};
+
+const startOfWeek = (date) => {
+  const result = startOfDay(date);
+  const day = result.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  result.setDate(result.getDate() + diff);
+  return result;
+};
+
+const endOfWeek = (date) => {
+  const result = startOfWeek(date);
+  result.setDate(result.getDate() + 6);
+  return endOfDay(result);
+};
+
+const startOfMonth = (date) => {
+  const result = startOfDay(date);
+  result.setDate(1);
+  return result;
+};
+
+const endOfMonth = (date) => {
+  const result = startOfMonth(date);
+  result.setMonth(result.getMonth() + 1);
+  result.setDate(0);
+  return endOfDay(result);
+};
+
+const getMonthLabel = (date) =>
+  new Intl.DateTimeFormat("en", { month: "short" }).format(new Date(date));
+
+const getDayLabel = (date) => {
+  const d = new Date(date);
+  return `${pad2(d.getDate())} ${getMonthLabel(d)}`;
+};
+
+const getWeekLabel = (date) => {
+  const start = startOfWeek(date);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  return `${pad2(start.getMonth() + 1)}.${pad2(start.getDate())}-${pad2(
+    end.getMonth() + 1,
+  )}.${pad2(end.getDate())}`;
+};
+
+const getMonthKey = (date) => {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+};
+
+const getDayKey = (date) => {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+};
+
+const getWeekKey = (date) => startOfWeek(date).toISOString().slice(0, 10);
+
+const resolveHostDocument = async (hostId) => {
+  if (!hostId) return null;
+
+  if (mongoose.isValidObjectId(hostId)) {
+    return models.Host.findById(hostId)
+      .populate(
+        "customerRef",
+        "name userId profileImage countryCode currentJoinedRoomId onSeat diamonds beans",
+      )
+      .populate("agencyId", "agencyName logo ownerUserId countryCode")
+      .lean();
+  }
+
+  return models.Host.findOne({ hostId })
+    .populate(
+      "customerRef",
+      "name userId profileImage countryCode currentJoinedRoomId onSeat diamonds beans",
+    )
+    .populate("agencyId", "agencyName logo ownerUserId countryCode")
+    .lean();
+};
+
+const getHostStatDateRange = (period, startDate, endDate) => {
+  const now = new Date();
+  const normalizedStartDate = startDate ? new Date(startDate) : null;
+  const normalizedEndDate = endDate ? new Date(endDate) : null;
+
+  if (normalizedStartDate || normalizedEndDate) {
+    return {
+      from: normalizedStartDate
+        ? startOfDay(normalizedStartDate)
+        : startOfDay(now),
+      to: normalizedEndDate ? endOfDay(normalizedEndDate) : endOfDay(now),
+    };
+  }
+
+  if (period === "weekly") {
+    return {
+      from: startOfWeek(now),
+      to: endOfWeek(now),
+    };
+  }
+
+  if (period === "monthly") {
+    return {
+      from: startOfMonth(now),
+      to: endOfMonth(now),
+    };
+  }
+
+  return {
+    from: startOfMonth(now),
+    to: endOfDay(now),
+  };
+};
+
+const groupHostStats = (stats, period) => {
+  const grouped = new Map();
+
+  stats.forEach((item) => {
+    const date = item.date || item.createdAt || new Date();
+    const key =
+      period === "weekly"
+        ? getWeekKey(date)
+        : period === "monthly"
+          ? getMonthKey(date)
+          : getDayKey(date);
+
+    const label =
+      period === "weekly"
+        ? getWeekLabel(date)
+        : period === "monthly"
+          ? getMonthLabel(date)
+          : getDayLabel(date);
+
+    const current = grouped.get(key) || {
+      key,
+      label,
+      visitors: 0,
+      selfHostingHours: 0,
+      selfHostingMinutes: 0,
+      roomGifts: 0,
+    };
+
+    current.visitors += safeNumber(item.visitors);
+    current.selfHostingHours += safeNumber(item.hostTimeHours);
+    current.roomGifts += safeNumber(item.gifts);
+    current.selfHostingMinutes = Math.round(current.selfHostingHours * 60);
+
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values()).sort((a, b) =>
+    a.key.localeCompare(b.key),
+  );
+};
+
+const buildHostDashboardSummary = async (hostId) => {
+  const host = await resolveHostDocument(hostId);
+
+  if (!host) {
+    return null;
+  }
+
+  const [wallet, policy, latestCycle, currentRoom] = await Promise.all([
+    models.Wallet.findOne({
+      $or: [
+        { userRef: host.customerRef?._id || host.customerRef },
+        { userId: host.customerRef?.userId },
+      ],
+    })
+      .select(
+        "diamonds beans ucoins lockedUcoins withdrawableUcoins fiatBalance status lastTopUpAt lastWithdrawAt",
+      )
+      .lean(),
+    models.Policy.findOne({ type: "hostSalary" }).lean(),
+    models.HostSalaryCycle.findOne({ hostId: host._id })
+      .sort({ cycleEnd: -1, createdAt: -1 })
+      .lean(),
+    host.customerRef?.currentJoinedRoomId
+      ? models.Room.findById(host.customerRef.currentJoinedRoomId)
+          .select(
+            "roomId roomType name announcement roomImage noOfSeats activeUsers totalGifts visitorsCount selfHostingCount hostingTimeCurrentSession hostingTimeLastSession countryCode agencyId hostId isActive",
+          )
+          .lean()
+      : Promise.resolve(null),
+  ]);
+
+  const bonusTarget = safeNumber(policy?.hostSalary?.diamondTarget);
+  const bonusProgress = safeNumber(
+    latestCycle?.validDiamonds ?? latestCycle?.totalDiamonds,
+  );
+
+  return {
+    host: {
+      _id: host._id,
+      hostId: host.hostId,
+      joinDate: host.joinDate,
+      status: host.status,
+      customerRef: host.customerRef,
+      agencyId: host.agencyId,
+      totalHostTimeHours: safeNumber(host.totalHostTimeHours),
+      giftsReceivedTotal: safeNumber(host.giftsReceivedTotal),
+    },
+    wallet: wallet
+      ? {
+          diamonds: safeNumber(wallet.diamonds),
+          beans: safeNumber(wallet.beans),
+          ucoins: safeNumber(wallet.ucoins),
+          lockedUcoins: safeNumber(wallet.lockedUcoins),
+          withdrawableUcoins: safeNumber(wallet.withdrawableUcoins),
+          fiatBalance: safeNumber(wallet.fiatBalance),
+          status: wallet.status,
+          lastTopUpAt: wallet.lastTopUpAt,
+          lastWithdrawAt: wallet.lastWithdrawAt,
+        }
+      : null,
+    currentRoom: currentRoom
+      ? {
+          ...currentRoom,
+          hostingTimeCurrentSessionMinutes: Math.round(
+            safeNumber(currentRoom.hostingTimeCurrentSession) / 60,
+          ),
+          hostingTimeLastSessionMinutes: Math.round(
+            safeNumber(currentRoom.hostingTimeLastSession) / 60,
+          ),
+        }
+      : null,
+    bonus: {
+      currentBonus: safeNumber(latestCycle?.salaryUcoins),
+      currentCycleStatus: latestCycle?.status || null,
+      currentCycleId: latestCycle?._id || null,
+      bonusProgress,
+      bonusTarget,
+      bonusRemaining: Math.max(bonusTarget - bonusProgress, 0),
+      rewardEnabled: Boolean(policy?.hostSalary?.reward?.enabled),
+      rewardGranted: Boolean(latestCycle?.rewardGranted),
+    },
+    policy: policy
+      ? {
+          version: policy.version || 1,
+          diamondTarget: bonusTarget,
+          hourSlabs: policy.hostSalary?.hourSlabs || [],
+          reward: policy.hostSalary?.reward || null,
+        }
+      : null,
+  };
+};
+
+const buildHostDashboardStats = async ({
+  hostId,
+  period,
+  startDate,
+  endDate,
+}) => {
+  const host = await resolveHostDocument(hostId);
+
+  if (!host) {
+    return null;
+  }
+
+  const { from, to } = getHostStatDateRange(period, startDate, endDate);
+
+  const stats = await models.HostStat.find({
+    hostId: host._id,
+    date: { $gte: from, $lte: to },
+  })
+    .sort({ date: 1 })
+    .lean();
+
+  const rows = groupHostStats(stats, period);
+
+  const totals = rows.reduce(
+    (accumulator, row) => {
+      accumulator.visitors += safeNumber(row.visitors);
+      accumulator.selfHostingHours += safeNumber(row.selfHostingHours);
+      accumulator.selfHostingMinutes += safeNumber(row.selfHostingMinutes);
+      accumulator.roomGifts += safeNumber(row.roomGifts);
+      return accumulator;
+    },
+    {
+      visitors: 0,
+      selfHostingHours: 0,
+      selfHostingMinutes: 0,
+      roomGifts: 0,
+    },
+  );
+
+  const currentCycle = await models.HostSalaryCycle.findOne({
+    hostId: host._id,
+  })
+    .sort({ cycleEnd: -1, createdAt: -1 })
+    .lean();
+
+  return {
+    period,
+    from,
+    to,
+    totals,
+    rows,
+    currentCycle: currentCycle
+      ? {
+          _id: currentCycle._id,
+          status: currentCycle.status,
+          cycleStart: currentCycle.cycleStart,
+          cycleEnd: currentCycle.cycleEnd,
+          totalDiamonds: safeNumber(currentCycle.totalDiamonds),
+          validDiamonds: safeNumber(currentCycle.validDiamonds),
+          totalHostHours: safeNumber(currentCycle.totalHostHours),
+          salaryPercentage: safeNumber(currentCycle.salaryPercentage),
+          salaryUcoins: safeNumber(currentCycle.salaryUcoins),
+          rewardGranted: Boolean(currentCycle.rewardGranted),
+        }
+      : null,
+  };
+};
+
 /**
  * Create a new Host
  * -------------------------------
@@ -947,10 +1279,76 @@ const deleteHost = async (req, res) => {
   }
 };
 
+const getHostDashboardSummary = async (req, res) => {
+  try {
+    const { hostId } = req.params;
+
+    const summary = await buildHostDashboardSummary(hostId);
+    if (!summary) {
+      return res.status(404).json({
+        success: false,
+        message: "Host not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: summary,
+    });
+  } catch (error) {
+    console.error("Error fetching host dashboard summary:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const getHostDashboardStats = async (req, res) => {
+  try {
+    const { hostId } = req.params;
+    const { period = "daily", startDate, endDate } = req.query;
+
+    if (!["daily", "weekly", "monthly"].includes(period)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid period. Must be daily, weekly, or monthly.",
+      });
+    }
+
+    const stats = await buildHostDashboardStats({
+      hostId,
+      period,
+      startDate,
+      endDate,
+    });
+
+    if (!stats) {
+      return res.status(404).json({
+        success: false,
+        message: "Host not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: stats,
+    });
+  } catch (error) {
+    console.error("Error fetching host dashboard stats:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   createHost,
   getAllHosts,
   getHostDetails,
+  getHostDashboardSummary,
+  getHostDashboardStats,
   sendLeftAgencyRequest,
   getAllRequests,
   sendRequestFromCustomer,

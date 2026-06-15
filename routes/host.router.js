@@ -25,6 +25,10 @@ router.get("/by-agency-owner", userAuth, hostController.getHostsByAgencyOwner);
 // Get Host details by ID (MongoDB _id or hostId)
 router.get("/getHostDetails/:id", hostController.getHostDetails);
 
+// Host dashboard data for app screens
+router.get("/dashboard/:hostId", hostController.getHostDashboardSummary);
+router.get("/dashboard/:hostId/stats", hostController.getHostDashboardStats);
+
 // Get all requests (agencyId/hostId/status as query params)
 router.get("/requests", hostController.getAllRequests);
 
@@ -34,7 +38,7 @@ router.post("/request/from-customer", hostController.sendRequestFromCustomer);
 // Agency accepts/rejects customer request
 router.put(
   "/request/:requestId/agency-action",
-  hostController.acceptOrRejectRequestByAgency
+  hostController.acceptOrRejectRequestByAgency,
 );
 
 // Agency sends request to customer
@@ -43,7 +47,7 @@ router.post("/request/from-agency", hostController.sendRequestFromAgency);
 // Customer accepts/rejects agency request
 router.put(
   "/request/:requestId/customer-action",
-  hostController.acceptOrRejectRequestByCustomer
+  hostController.acceptOrRejectRequestByCustomer,
 );
 
 router.post("/leave-agency", hostController.sendLeftAgencyRequest);
