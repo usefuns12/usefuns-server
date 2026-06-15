@@ -1038,7 +1038,8 @@ const sendLeftAgencyRequest = async (req, res) => {
     if (!isLeaveApplicationWindow(now)) {
       return res.status(400).json({
         success: false,
-        message: "You can only apply for leaving agency from 10th to 20th of every month",
+        message:
+          "You can only apply for leaving agency from 10th to 20th of every month",
       });
     }
 
@@ -1048,7 +1049,8 @@ const sendLeftAgencyRequest = async (req, res) => {
     if (existing) {
       return res.status(400).json({
         success: false,
-        message: "You already used your one leave application chance for this month",
+        message:
+          "You already used your one leave application chance for this month",
         status: existing.status,
       });
     }
@@ -1070,7 +1072,8 @@ const sendLeftAgencyRequest = async (req, res) => {
       const ownerMessage = `Host with ID ${host.hostId} left your agency automatically because they met the leave conditions.`;
       await notifyHostLeftAgency({
         host,
-        customerId: host.agencyId?.customerRef?._id || host.agencyId?.customerRef || null,
+        customerId:
+          host.agencyId?.customerRef?._id || host.agencyId?.customerRef || null,
         agencyId: host.agencyId?._id || host.agencyId,
         message: ownerMessage,
       });
@@ -1430,8 +1433,15 @@ const removeHostFromAgency = async (host, request = null) => {
   return { customerId, agencyId };
 };
 
-const notifyHostLeftAgency = async ({ host, customerId, agencyId, message }) => {
-  const agency = agencyId ? await models.Agency.findById(agencyId).lean() : null;
+const notifyHostLeftAgency = async ({
+  host,
+  customerId,
+  agencyId,
+  message,
+}) => {
+  const agency = agencyId
+    ? await models.Agency.findById(agencyId).lean()
+    : null;
 
   const notification = await models.Notification.create({
     sentTo: customerId ? [customerId] : [],
