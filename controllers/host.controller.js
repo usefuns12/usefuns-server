@@ -94,7 +94,7 @@ const resolveHostDocument = async (hostId) => {
         "customerRef",
         "name userId profileImage countryCode currentJoinedRoomId onSeat diamonds beans",
       )
-      .populate("agencyId", "agencyName logo ownerUserId countryCode")
+      .populate("agencyId")
       .lean();
   }
 
@@ -103,7 +103,7 @@ const resolveHostDocument = async (hostId) => {
       "customerRef",
       "name userId profileImage countryCode currentJoinedRoomId onSeat diamonds beans",
     )
-    .populate("agencyId", "agencyName logo ownerUserId countryCode")
+    .populate("agencyId")
     .lean();
 };
 
@@ -209,6 +209,7 @@ const buildHostDashboardSummary = async (hostId) => {
           .select(
             "roomId roomType name announcement roomImage noOfSeats activeUsers totalGifts visitorsCount selfHostingCount hostingTimeCurrentSession hostingTimeLastSession countryCode agencyId hostId isActive",
           )
+          .populate("agencyId")
           .lean()
       : Promise.resolve(null),
   ]);
