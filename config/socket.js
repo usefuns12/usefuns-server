@@ -42,7 +42,10 @@ const configure = async (app, server) => {
     return null;
   };
 
-  const finalizeHostTimeIfNeeded = async ({ userId, roomId, source }) => {
+  const finalizeHostTimeIfNeeded = async (
+    socket,
+    { userId, roomId, source },
+  ) => {
     if (!userId || !roomId) return;
 
     const hostContext =
@@ -139,7 +142,7 @@ const configure = async (app, server) => {
 
       try {
         // If this customer is a host, close the host timer here as a fallback.
-        await finalizeHostTimeIfNeeded({
+        await finalizeHostTimeIfNeeded(socket, {
           userId,
           roomId,
           source: "leaveRoom",
@@ -290,7 +293,7 @@ const configure = async (app, server) => {
 
       try {
         // Ensure host time is finalized even if the client disconnects before seatOff.
-        await finalizeHostTimeIfNeeded({
+        await finalizeHostTimeIfNeeded(socket, {
           userId,
           roomId,
           source: "disconnect",
