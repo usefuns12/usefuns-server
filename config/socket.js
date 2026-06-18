@@ -16,11 +16,30 @@ const configure = async (app, server) => {
   const getHostContext = async (userId) => {
     if (!userId) return null;
 
+    // Primary lookup: Host document referencing this customer
     const host = await models.Host.findOne({ customerRef: userId })
       .select("_id customerRef hostId")
       .lean();
 
-    return host || null;
+    if (host) return host;
+
+    // Fallback: some flows set hostRef on customer rather than Host.customerRef
+    try {
+      const customer = await models.Customer.findById(userId)
+        .select("hostRef isHost")
+        .lean();
+
+      if (customer && customer.hostRef) {
+        const hostByRef = await models.Host.findById(customer.hostRef)
+          .select("_id customerRef hostId")
+          .lean();
+        if (hostByRef) return hostByRef;
+      }
+    } catch (e) {
+      logger.warn(`getHostContext fallback lookup failed: ${e.message}`);
+    }
+
+    return null;
   };
 
   app.set("io", io);
@@ -161,6 +180,13 @@ const configure = async (app, server) => {
               ? { _id: socket.data.hostId }
               : await getHostContext(userId);
 
+          // Debug: log host detection result
+          if (!hostContext) {
+            logger.info(
+              `seatOn: no hostContext for user=${userId}, socket.hostId=${socket.data.hostId}, roomId=${roomId}`,
+            );
+          }
+
           if (hostContext?._id && roomId) {
             await hostTracking.onHostMicJoin(hostContext._id, roomId);
             logger.info(
@@ -193,6 +219,12 @@ const configure = async (app, server) => {
             socket.data.isHost && socket.data.hostId
               ? { _id: socket.data.hostId }
               : await getHostContext(userId);
+
+          if (!hostContext) {
+            logger.info(
+              `seatOff: no hostContext for user=${userId}, socket.hostId=${socket.data.hostId}, roomId=${roomId}`,
+            );
+          }
 
           if (hostContext?._id && roomId) {
             await hostTracking.onHostMicLeave(hostContext._id, roomId);

@@ -1,5 +1,6 @@
 const Host = require("../models/Host");
 const HostStat = require("../models/HostStat");
+const logger = require("../classes").Logger(__filename);
 
 /**
  * Track when host joins mic in a room
@@ -9,15 +10,18 @@ const HostStat = require("../models/HostStat");
 async function onHostMicJoin(hostId, roomId) {
   try {
     const Room = require("../models/Rooms");
+    const now = new Date();
     await Room.findByIdAndUpdate(roomId, {
       $set: {
-        lastHostJoinedAt: new Date(),
+        lastHostJoinedAt: now,
         hostingTimeCurrentSession: 0,
       },
     });
-    console.log(`Host ${hostId} joined mic in room ${roomId}`);
+    logger.info(
+      `onHostMicJoin: host=${hostId} room=${roomId} at ${now.toISOString()}`,
+    );
   } catch (error) {
-    console.error("Error tracking host mic join:", error);
+    logger.error("Error tracking host mic join:", error);
   }
 }
 
@@ -32,7 +36,7 @@ async function onHostMicLeave(hostId, roomId) {
     const room = await Room.findById(roomId);
 
     if (!room || !room.lastHostJoinedAt) {
-      console.warn("No lastHostJoinedAt found for room:", roomId);
+      logger.warn(`No lastHostJoinedAt found for room: ${roomId}`);
       return;
     }
 
@@ -40,11 +44,24 @@ async function onHostMicLeave(hostId, roomId) {
     const diffMs = now - room.lastHostJoinedAt;
     const diffHours = diffMs / (1000 * 60 * 60); // Convert to hours
 
+    logger.info(
+      `onHostMicLeave: host=${hostId} room=${roomId} lastHostJoinedAt=${room.lastHostJoinedAt.toISOString()} now=${now.toISOString()} diffMs=${diffMs} diffHours=${diffHours}`,
+    );
+
     if (diffHours > 0) {
+      // Read previous total for logging
+      const hostDoc = await Host.findById(hostId).lean();
+      const prevTotal = hostDoc?.totalHostTimeHours || 0;
+
       // Update Host total hours
       await Host.findByIdAndUpdate(hostId, {
         $inc: { totalHostTimeHours: diffHours },
       });
+
+      const newTotal = prevTotal + diffHours;
+      logger.info(
+        `Updated Host ${hostId} totalHostTimeHours: ${prevTotal} -> ${newTotal}`,
+      );
 
       // Update HostStat for current period
       const today = new Date();
@@ -66,8 +83,8 @@ async function onHostMicLeave(hostId, roomId) {
         { upsert: true },
       );
 
-      console.log(
-        `Host ${hostId} left mic. Added ${diffHours.toFixed(2)} hours`,
+      logger.info(
+        `HostStat updated for host=${hostId} date=${today.toISOString()} addedHours=${diffHours}`,
       );
     }
 
@@ -80,7 +97,7 @@ async function onHostMicLeave(hostId, roomId) {
       $unset: { lastHostJoinedAt: 1 },
     });
   } catch (error) {
-    console.error("Error tracking host mic leave:", error);
+    logger.error("Error tracking host mic leave:", error);
   }
 }
 
