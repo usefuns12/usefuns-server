@@ -42,6 +42,27 @@ const configure = async (app, server) => {
     return null;
   };
 
+  const finalizeHostTimeIfNeeded = async ({ userId, roomId, source }) => {
+    if (!userId || !roomId) return;
+
+    const hostContext =
+      socket.data.isHost && socket.data.hostId
+        ? { _id: socket.data.hostId }
+        : await getHostContext(userId);
+
+    if (!hostContext?._id) {
+      logger.info(
+        `${source}: no hostContext for user=${userId}, socket.hostId=${socket.data.hostId}, roomId=${roomId}`,
+      );
+      return;
+    }
+
+    logger.info(
+      `${source}: finalizing host time for host=${hostContext._id} user=${userId} room=${roomId}`,
+    );
+    await hostTracking.onHostMicLeave(hostContext._id, roomId);
+  };
+
   app.set("io", io);
   global.io = io;
 
@@ -117,15 +138,14 @@ const configure = async (app, server) => {
       }
 
       try {
-        // If this customer is a host, just log; seatOff will handle time calculation
-        const hostContext =
-          socket.data.isHost && socket.data.hostId
-            ? { _id: socket.data.hostId }
-            : await getHostContext(userId);
+        // If this customer is a host, close the host timer here as a fallback.
+        await finalizeHostTimeIfNeeded({
+          userId,
+          roomId,
+          source: "leaveRoom",
+        });
 
-        if (hostContext?._id) {
-          logger.info(`Host ${userId} left room ${roomId}`);
-        }
+        logger.info(`Host ${userId} left room ${roomId}`);
 
         socket.leave(roomId);
         console.log(`User ${socket.id} left room ${roomId} (${userId})`);
@@ -269,6 +289,13 @@ const configure = async (app, server) => {
       }
 
       try {
+        // Ensure host time is finalized even if the client disconnects before seatOff.
+        await finalizeHostTimeIfNeeded({
+          userId,
+          roomId,
+          source: "disconnect",
+        });
+
         socket.leave(roomId);
         console.log(`User ${socket.id} left room ${roomId} (${userId})`);
 
@@ -301,7 +328,7 @@ const configure = async (app, server) => {
           },
         );
 
-        // Seat-based host timing now drives hostingTime values; skip legacy room-level updates here.
+        // Seat-based host timing now drives hostingTime values; leave/disconnect acts as fallback.
 
         console.log(
           `Client ${socket.id} has been removed from room ${roomId} (${userId})`,
