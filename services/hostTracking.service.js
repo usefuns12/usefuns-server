@@ -20,8 +20,10 @@ async function onHostMicJoin(hostId, roomId) {
     logger.info(
       `onHostMicJoin: host=${hostId} room=${roomId} at ${now.toISOString()}`,
     );
+    return now;
   } catch (error) {
     logger.error("Error tracking host mic join:", error);
+    return null;
   }
 }
 
@@ -30,22 +32,29 @@ async function onHostMicJoin(hostId, roomId) {
  * @param {ObjectId} hostId - The host's ID
  * @param {ObjectId} roomId - The room's ID
  */
-async function onHostMicLeave(hostId, roomId) {
+async function onHostMicLeave(hostId, roomId, options = {}) {
   try {
     const Room = require("../models/Rooms");
     const room = await Room.findById(roomId);
+    const fallbackJoinedAt = options.fallbackJoinedAt
+      ? new Date(options.fallbackJoinedAt)
+      : null;
 
-    if (!room || !room.lastHostJoinedAt) {
-      logger.warn(`No lastHostJoinedAt found for room: ${roomId}`);
+    const startedAt = room?.lastHostJoinedAt || fallbackJoinedAt;
+
+    if (!room || !startedAt) {
+      logger.warn(
+        `No lastHostJoinedAt found for room: ${roomId} (host=${hostId}, fallback=${fallbackJoinedAt ? fallbackJoinedAt.toISOString() : "null"})`,
+      );
       return;
     }
 
     const now = new Date();
-    const diffMs = now - room.lastHostJoinedAt;
+    const diffMs = now - startedAt;
     const diffHours = diffMs / (1000 * 60 * 60); // Convert to hours
 
     logger.info(
-      `onHostMicLeave: host=${hostId} room=${roomId} lastHostJoinedAt=${room.lastHostJoinedAt.toISOString()} now=${now.toISOString()} diffMs=${diffMs} diffHours=${diffHours}`,
+      `onHostMicLeave: host=${hostId} room=${roomId} startedAt=${startedAt.toISOString()} now=${now.toISOString()} diffMs=${diffMs} diffHours=${diffHours}${room.lastHostJoinedAt ? " source=room" : " source=fallback"}`,
     );
 
     if (diffHours > 0) {
@@ -96,8 +105,16 @@ async function onHostMicLeave(hostId, roomId) {
       },
       $unset: { lastHostJoinedAt: 1 },
     });
+
+    return {
+      startedAt,
+      diffMs,
+      diffHours,
+      usedFallback: !room.lastHostJoinedAt && Boolean(fallbackJoinedAt),
+    };
   } catch (error) {
     logger.error("Error tracking host mic leave:", error);
+    return null;
   }
 }
 

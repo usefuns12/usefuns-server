@@ -63,7 +63,9 @@ const configure = async (app, server) => {
     logger.info(
       `${source}: finalizing host time for host=${hostContext._id} user=${userId} room=${roomId}`,
     );
-    await hostTracking.onHostMicLeave(hostContext._id, roomId);
+    await hostTracking.onHostMicLeave(hostContext._id, roomId, {
+      fallbackJoinedAt: socket.data.hostJoinedAt,
+    });
   };
 
   app.set("io", io);
@@ -107,7 +109,10 @@ const configure = async (app, server) => {
           );
 
           if (!socket.data.hostTimingStarted) {
-            await hostTracking.onHostMicJoin(hostContext._id, roomId);
+            socket.data.hostJoinedAt = await hostTracking.onHostMicJoin(
+              hostContext._id,
+              roomId,
+            );
             socket.data.hostTimingStarted = true;
             logger.info(
               `joinRoom: started fallback host timing for host=${hostContext._id} room=${roomId}`,
@@ -156,6 +161,7 @@ const configure = async (app, server) => {
           source: "leaveRoom",
         });
         socket.data.hostTimingStarted = false;
+        socket.data.hostJoinedAt = null;
 
         logger.info(`Host ${userId} left room ${roomId}`);
 
@@ -221,7 +227,10 @@ const configure = async (app, server) => {
 
           if (hostContext?._id && roomId) {
             if (!socket.data.hostTimingStarted) {
-              await hostTracking.onHostMicJoin(hostContext._id, roomId);
+              socket.data.hostJoinedAt = await hostTracking.onHostMicJoin(
+                hostContext._id,
+                roomId,
+              );
               socket.data.hostTimingStarted = true;
               logger.info(
                 `Host ${userId} seated in room ${roomId}, started tracking`,
@@ -266,8 +275,11 @@ const configure = async (app, server) => {
           }
 
           if (hostContext?._id && roomId) {
-            await hostTracking.onHostMicLeave(hostContext._id, roomId);
+            await hostTracking.onHostMicLeave(hostContext._id, roomId, {
+              fallbackJoinedAt: socket.data.hostJoinedAt,
+            });
             socket.data.hostTimingStarted = false;
+            socket.data.hostJoinedAt = null;
             logger.info(
               `Host ${userId} stood up in room ${roomId}, stopped tracking`,
             );
@@ -316,6 +328,7 @@ const configure = async (app, server) => {
           source: "disconnect",
         });
         socket.data.hostTimingStarted = false;
+        socket.data.hostJoinedAt = null;
 
         socket.leave(roomId);
         console.log(`User ${socket.id} left room ${roomId} (${userId})`);
