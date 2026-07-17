@@ -107,6 +107,54 @@ const resolveHostDocument = async (hostId) => {
     .lean();
 };
 
+const getAgencyOwnerScope = async (ownerUserId) => {
+  const ownerUser = await models.User.findById(ownerUserId)
+    .select("children")
+    .lean();
+
+  const childUserIds = Array.isArray(ownerUser?.children)
+    ? ownerUser.children
+    : [];
+
+  const ownerScopeIds = [ownerUserId, ...childUserIds]
+    .filter(Boolean)
+    .map(toIdString);
+
+  const agencies = await models.Agency.find({
+    ownerUserId: { $in: ownerScopeIds },
+  })
+    .select("_id agencyId name ownerUserId status logo country stats hosts")
+    .lean();
+
+  return {
+    ownerScopeIds,
+    agencyIds: agencies.map((agency) => toIdString(agency._id)),
+    agencies,
+  };
+};
+
+const getAgencyOwnerHostScope = async (ownerUserId, hostId) => {
+  const [ownerScope, host] = await Promise.all([
+    getAgencyOwnerScope(ownerUserId),
+    resolveHostDocument(hostId),
+  ]);
+
+  if (!host) {
+    return { ownerScope, host: null, isAllowed: false };
+  }
+
+  const hostAgencyId = toIdString(host.agencyId?._id || host.agencyId);
+  const isAllowed = hostAgencyId
+    ? ownerScope.agencyIds.includes(hostAgencyId)
+    : false;
+
+  return {
+    ownerScope,
+    host,
+    isAllowed,
+  };
+};
+
 const getHostStatDateRange = (period, startDate, endDate) => {
   const now = new Date();
   const normalizedStartDate = startDate ? new Date(startDate) : null;
@@ -475,27 +523,139 @@ const getAllHosts = async (req, res) => {
 const getHostsByAgencyOwner = async (req, res) => {
   try {
     const { status } = req.query;
-    const ownerUserId = req.user._id;
+    const ownerUserId =
+      req.user?._id || req.query.ownerUserId || req.body.ownerUserId;
 
-    const filter = {};
+    if (!ownerUserId) {
+      return res.status(400).json({
+        success: false,
+        message: "ownerUserId is required",
+      });
+    }
+
+    const { agencies, agencyIds } = await getAgencyOwnerScope(ownerUserId);
+
+    if (!agencyIds.length) {
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        totalAgencies: agencies.length,
+        data: [],
+        agencies,
+      });
+    }
+
+    const filter = {
+      agencyId: { $in: agencyIds },
+    };
+
     if (status) filter.status = status;
-
-    // 🔹 Find agencies owned by the user
-    const agencies = await models.Agency.find({ ownerUserId });
-    const agencyIds = agencies.map((agency) => agency._id);
-    filter.agencyId = { $in: agencyIds };
 
     const hosts = await models.Host.find(filter)
       .populate("customerRef")
-      .populate("agencyId");
+      .populate("agencyId")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const agencySummary = agencies.map((agency) => {
+      const agencyId = toIdString(agency._id);
+      const agencyHosts = hosts.filter(
+        (host) => toIdString(host.agencyId?._id || host.agencyId) === agencyId,
+      );
+
+      return {
+        _id: agency._id,
+        agencyId: agency.agencyId,
+        name: agency.name,
+        status: agency.status,
+        totalHosts: agencyHosts.length,
+        activeHosts: agencyHosts.filter((host) => host.status === "active")
+          .length,
+      };
+    });
 
     return res.status(200).json({
       success: true,
       count: hosts.length,
+      totalAgencies: agencies.length,
       data: hosts,
+      agencies: agencySummary,
     });
   } catch (error) {
     console.error("Error fetching hosts:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+const getHostDetailsByAgencyOwner = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { period = "monthly", startDate, endDate } = req.query;
+
+    if (!["daily", "weekly", "monthly"].includes(period)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid period. Must be daily, weekly, or monthly.",
+      });
+    }
+
+    const ownerUserId =
+      req.user?._id || req.query.ownerUserId || req.body.ownerUserId;
+
+    if (!ownerUserId) {
+      return res.status(400).json({
+        success: false,
+        message: "ownerUserId is required",
+      });
+    }
+
+    const { ownerScope, host, isAllowed } = await getAgencyOwnerHostScope(
+      ownerUserId,
+      id,
+    );
+
+    if (!host) {
+      return res.status(404).json({
+        success: false,
+        message: "Host not found",
+      });
+    }
+
+    if (!isAllowed) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this host",
+      });
+    }
+
+    const [summary, stats, leaveEligibility] = await Promise.all([
+      buildHostDashboardSummary(host._id),
+      buildHostDashboardStats({
+        hostId: host._id,
+        period,
+        startDate,
+        endDate,
+      }),
+      getHostLeaveEligibility(host),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        ownerScope: {
+          ownerUserId: toIdString(ownerUserId),
+          agencyIds: ownerScope.agencyIds,
+        },
+        host: summary,
+        statistics: stats,
+        leaveEligibility,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching host details for agency owner:", error);
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -1478,6 +1638,7 @@ module.exports = {
   getHostDetails,
   getHostDashboardSummary,
   getHostDashboardStats,
+  getHostDetailsByAgencyOwner,
   sendLeftAgencyRequest,
   getAllRequests,
   sendRequestFromCustomer,

@@ -11,7 +11,6 @@
 
 const express = require("express");
 const hostController = require("../controllers/host.controller");
-const { userAuth } = require("../middlewares/auth");
 const router = express.Router();
 
 // Create Host
@@ -20,7 +19,8 @@ router.post("/create", hostController.createHost);
 // Get all Hosts (optional filters: ?agencyId=xxx&status=active)
 router.get("/", hostController.getAllHosts);
 
-router.get("/by-agency-owner", userAuth, hostController.getHostsByAgencyOwner);
+router.get("/by-agency-owner", hostController.getHostsByAgencyOwner);
+router.get("/by-agency-owner/:id", hostController.getHostDetailsByAgencyOwner);
 
 // Get Host details by ID (MongoDB _id or hostId)
 router.get("/getHostDetails/:id", hostController.getHostDetails);
