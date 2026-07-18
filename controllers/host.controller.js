@@ -1319,7 +1319,7 @@ const respondToLeftRequest = async (req, res) => {
       .populate("hostId");
 
     if (!request) {
-      return res.status(404).json({
+      return res.status(200).json({
         success: false,
         message: "Request not found",
       });
