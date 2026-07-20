@@ -21,6 +21,10 @@ router.get("/", hostController.getAllHosts);
 
 router.get("/by-agency-owner", hostController.getHostsByAgencyOwner);
 router.get("/by-agency-owner/:id", hostController.getHostDetailsByAgencyOwner);
+router.post(
+  "/by-agency-owner/manage-host",
+  hostController.manageHostByAgencyOwner,
+);
 
 // Get Host details by ID (MongoDB _id or hostId)
 router.get("/getHostDetails/:id", hostController.getHostDetails);

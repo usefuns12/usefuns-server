@@ -663,6 +663,129 @@ const getHostDetailsByAgencyOwner = async (req, res) => {
   }
 };
 
+const manageHostByAgencyOwner = async (req, res) => {
+  try {
+    const ownerUserId =
+      req.user?._id || req.query.ownerUserId || req.body.ownerUserId;
+    const { agencyId, customerRef, hostId } = req.body;
+
+    if (!ownerUserId) {
+      return res.status(400).json({
+        success: false,
+        message: "ownerUserId is required",
+      });
+    }
+
+    if (!agencyId || !customerRef) {
+      return res.status(400).json({
+        success: false,
+        message: "agencyId and customerRef are required",
+      });
+    }
+
+    const { agencyIds } = await getAgencyOwnerScope(ownerUserId);
+    if (!agencyIds.includes(toIdString(agencyId))) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this agency",
+      });
+    }
+
+    const agency = await models.Agency.findById(agencyId);
+    if (!agency) {
+      return res.status(404).json({
+        success: false,
+        message: "Agency not found",
+      });
+    }
+
+    let host = null;
+    if (hostId) {
+      host = await resolveHostDocument(hostId);
+    }
+
+    if (!host) {
+      host = await models.Host.findOne({ customerRef })
+        .populate("customerRef")
+        .populate("agencyId");
+    }
+
+    if (
+      host &&
+      toIdString(host.agencyId?._id || host.agencyId) === toIdString(agencyId)
+    ) {
+      await removeHostFromAgency(host);
+
+      return res.status(200).json({
+        success: true,
+        action: "removed",
+        message: "Host removed from agency successfully",
+        data: {
+          hostId: toIdString(host._id),
+          customerRef: toIdString(customerRef),
+          agencyId: toIdString(agencyId),
+        },
+      });
+    }
+
+    if (host) {
+      return res.status(409).json({
+        success: false,
+        message: "Host already exists for this customer",
+      });
+    }
+
+    const customer = await models.Customer.findById(customerRef);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: "Customer not found",
+      });
+    }
+
+    const lastHost = await models.Host.findOne().sort({ hostId: -1 });
+    const newHostId = lastHost ? Number(lastHost.hostId) + 1 : 10001;
+
+    const newHost = await models.Host.create({
+      customerRef,
+      hostId: newHostId,
+      joinDate: new Date(),
+      agencyId,
+      status: "active",
+    });
+
+    customer.isHost = true;
+    customer.hostRef = newHost._id;
+    await customer.save();
+
+    await models.Agency.updateOne(
+      { _id: agencyId },
+      { $addToSet: { hosts: newHost._id } },
+    );
+
+    await newHost.populate("customerRef");
+    await newHost.populate("agencyId");
+
+    await models.Room.updateMany(
+      { ownerId: customerRef },
+      { roomType: "host" },
+    );
+
+    return res.status(201).json({
+      success: true,
+      action: "created",
+      message: "Host created and linked to agency successfully",
+      data: newHost,
+    });
+  } catch (error) {
+    console.error("Error managing host by agency owner:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 /**
  * Get Host Details by ID
  * -------------------------------
@@ -1639,6 +1762,7 @@ module.exports = {
   getHostDashboardSummary,
   getHostDashboardStats,
   getHostDetailsByAgencyOwner,
+  manageHostByAgencyOwner,
   sendLeftAgencyRequest,
   getAllRequests,
   sendRequestFromCustomer,
