@@ -1318,13 +1318,13 @@ const sendLeftAgencyRequest = async (req, res) => {
 
     const now = new Date();
 
-    if (!isLeaveApplicationWindow(now)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "You can only apply for leaving agency from 10th to 20th of every month",
-      });
-    }
+    // if (!isLeaveApplicationWindow(now)) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message:
+    //       "You can only apply for leaving agency from 10th to 20th of every month",
+    //   });
+    // }
 
     // 🔹 Prevent duplicate left requests
     const existing = await hasAlreadyAppliedThisMonth(host._id, now);
