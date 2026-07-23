@@ -1326,15 +1326,24 @@ const sendLeftAgencyRequest = async (req, res) => {
     //   });
     // }
 
-    // 🔹 Prevent duplicate left requests
-    const existing = await hasAlreadyAppliedThisMonth(host._id, now);
+    const { targetAssigned } = await isHostTargetAssigned(host);
+
+    // 🔹 Prevent duplicate pending left requests only
+    const existing = await hasPendingLeftRequest(host._id, now);
 
     if (existing) {
       return res.status(400).json({
         success: false,
-        message:
-          "You already used your one leave application chance for this month",
+        message: "You already have a pending leave request",
         status: existing.status,
+      });
+    }
+
+    if (targetAssigned) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "You have already used your one leave application chance for this month.",
       });
     }
 
@@ -1466,6 +1475,19 @@ const respondToLeftRequest = async (req, res) => {
       request.status = "rejected";
       await request.save();
 
+      const host = await models.Host.findById(request.hostId._id)
+        .populate("customerRef")
+        .populate("agencyId");
+
+      if (host) {
+        await notifyHostLeaveDecision({
+          host,
+          action: "reject",
+          agencyName: request.agencyId?.name || "your agency",
+          request,
+        });
+      }
+
       return res.status(200).json({
         success: true,
         message: "Left agency request rejected",
@@ -1473,13 +1495,22 @@ const respondToLeftRequest = async (req, res) => {
     }
 
     // ✅ Accept: Delete host and unassign from agency
-    const host = await models.Host.findById(request.hostId._id);
+    const host = await models.Host.findById(request.hostId._id)
+      .populate("customerRef")
+      .populate("agencyId");
     if (!host) {
       return res.status(404).json({
         success: false,
         message: "Host not found",
       });
     }
+
+    await notifyHostLeaveDecision({
+      host,
+      action: "accept",
+      agencyName: request.agencyId?.name || "your agency",
+      request,
+    });
 
     const { customerId, agencyId } = await removeHostFromAgency(host, request);
 
@@ -1634,6 +1665,83 @@ const hasAlreadyAppliedThisMonth = async (hostId, date = new Date()) => {
   }).select("_id status createdAt");
 
   return existing;
+};
+
+const hasPendingLeftRequest = async (hostId, date = new Date()) => {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+
+  return models.JoinRequest.findOne({
+    type: "leftRequest",
+    hostId,
+    status: "pending",
+    createdAt: { $gte: start, $lt: end },
+  }).select("_id status createdAt");
+};
+
+const isHostTargetAssigned = async () => {
+  const policy = await models.Policy.findOne({ type: "hostSalary" })
+    .select("hostSalary.diamondTarget")
+    .lean();
+
+  const diamondTarget = safeNumber(policy?.hostSalary?.diamondTarget);
+
+  return {
+    targetAssigned: diamondTarget > 0,
+    diamondTarget,
+  };
+};
+
+const notifyHostLeaveDecision = async ({
+  host,
+  action,
+  agencyName,
+  request,
+}) => {
+  const hostCustomerId = host?.customerRef?._id || host?.customerRef || null;
+
+  if (!hostCustomerId) {
+    return null;
+  }
+
+  const title =
+    action === "accept"
+      ? "Leave Agency Request Accepted"
+      : "Leave Agency Request Rejected";
+  const message =
+    action === "accept"
+      ? `Your request to leave agency ${agencyName} has been accepted.`
+      : `Your request to leave agency ${agencyName} has been rejected.`;
+
+  const notification = await models.Notification.create({
+    sentTo: [hostCustomerId],
+    notificationType: "agency",
+    title,
+    message,
+    data: {
+      requestId: toIdString(request?._id),
+      hostId: toIdString(host?._id),
+      agencyId: toIdString(host?.agencyId?._id || host?.agencyId),
+      action,
+    },
+    image: host?.agencyId?.logo || null,
+  });
+
+  await notificationService.sendNotificationToCustomer({
+    customerId: hostCustomerId,
+    title,
+    body: message,
+    data: {
+      requestId: toIdString(request?._id),
+      hostId: toIdString(host?._id),
+      agencyId: toIdString(host?.agencyId?._id || host?.agencyId),
+      action,
+    },
+  });
+
+  io.to(toIdString(hostCustomerId)).emit("notificationUpdate", notification);
+
+  return notification;
 };
 
 const getHostLeaveEligibility = async (host) => {
