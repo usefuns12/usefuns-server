@@ -176,6 +176,15 @@ const getHostStatDateRange = (period, startDate, endDate) => {
     };
   }
 
+  if (period === "15days") {
+    const fromDate = new Date(now);
+    fromDate.setDate(fromDate.getDate() - 14); // include today -> 15 days
+    return {
+      from: startOfDay(fromDate),
+      to: endOfDay(now),
+    };
+  }
+
   if (period === "monthly") {
     return {
       from: startOfMonth(now),
@@ -595,7 +604,7 @@ const getHostDetailsByAgencyOwner = async (req, res) => {
     const { id } = req.params;
     const { period = "monthly", startDate, endDate } = req.query;
 
-    if (!["daily", "weekly", "monthly"].includes(period)) {
+    if (!["daily", "weekly", "monthly", "15days"].includes(period)) {
       return res.status(400).json({
         success: false,
         message: "Invalid period. Must be daily, weekly, or monthly.",
@@ -1608,7 +1617,7 @@ const getHostDashboardStats = async (req, res) => {
     const { hostId } = req.params;
     const { period = "daily", startDate, endDate } = req.query;
 
-    if (!["daily", "weekly", "monthly"].includes(period)) {
+    if (!["daily", "weekly", "monthly", "15days"].includes(period)) {
       return res.status(400).json({
         success: false,
         message: "Invalid period. Must be daily, weekly, or monthly.",
