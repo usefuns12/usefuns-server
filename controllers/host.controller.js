@@ -246,30 +246,37 @@ const buildHostDashboardSummary = async (hostId) => {
     return null;
   }
 
-  const [wallet, policy, latestCycle, currentRoom] = await Promise.all([
-    models.Wallet.findOne({
-      $or: [
-        { userRef: host.customerRef?._id || host.customerRef },
-        { userId: host.customerRef?.userId },
-      ],
-    })
-      .select(
-        "diamonds beans ucoins lockedUcoins withdrawableUcoins fiatBalance status lastTopUpAt lastWithdrawAt",
-      )
-      .lean(),
-    models.Policy.findOne({ type: "hostSalary" }).lean(),
-    models.HostSalaryCycle.findOne({ hostId: host._id })
-      .sort({ cycleEnd: -1, createdAt: -1 })
-      .lean(),
-    host.customerRef?.currentJoinedRoomId
-      ? models.Room.findById(host.customerRef.currentJoinedRoomId)
-          .select(
-            "roomId roomType name announcement roomImage noOfSeats activeUsers totalGifts visitorsCount selfHostingCount hostingTimeCurrentSession hostingTimeLastSession countryCode agencyId hostId isActive",
-          )
-          .populate("agencyId")
-          .lean()
-      : Promise.resolve(null),
-  ]);
+  const [wallet, policy, latestCycle, currentRoom, ownerUser] =
+    await Promise.all([
+      models.Wallet.findOne({
+        $or: [
+          { userRef: host.customerRef?._id || host.customerRef },
+          { userId: host.customerRef?.userId },
+        ],
+      })
+        .select(
+          "diamonds beans ucoins lockedUcoins withdrawableUcoins fiatBalance status lastTopUpAt lastWithdrawAt",
+        )
+        .lean(),
+      models.Policy.findOne({ type: "hostSalary" }).lean(),
+      models.HostSalaryCycle.findOne({ hostId: host._id })
+        .sort({ cycleEnd: -1, createdAt: -1 })
+        .lean(),
+      host.customerRef?.currentJoinedRoomId
+        ? models.Room.findById(host.customerRef.currentJoinedRoomId)
+            .select(
+              "roomId roomType name announcement roomImage noOfSeats activeUsers totalGifts visitorsCount selfHostingCount hostingTimeCurrentSession hostingTimeLastSession countryCode agencyId hostId isActive",
+            )
+            .populate("agencyId")
+            .lean()
+        : Promise.resolve(null),
+      host.agencyId?.ownerUserId
+        ? models.User.findById(host.agencyId.ownerUserId)
+            .select("_id name customerRef role")
+            .populate("customerRef", "name")
+            .lean()
+        : Promise.resolve(null),
+    ]);
 
   const bonusTarget = safeNumber(policy?.hostSalary?.diamondTarget);
   const bonusProgress = safeNumber(
@@ -327,6 +334,13 @@ const buildHostDashboardSummary = async (hostId) => {
           diamondTarget: bonusTarget,
           hourSlabs: policy.hostSalary?.hourSlabs || [],
           reward: policy.hostSalary?.reward || null,
+        }
+      : null,
+    agencyOwner: ownerUser
+      ? {
+          _id: ownerUser._id,
+          name: ownerUser.customerRef?.name || ownerUser.name || null,
+          customerRef: ownerUser.customerRef || null,
         }
       : null,
   };
@@ -724,6 +738,47 @@ const manageHostByAgencyOwner = async (req, res) => {
       toIdString(host.agencyId?._id || host.agencyId) === toIdString(agencyId)
     ) {
       await removeHostFromAgency(host);
+
+      // create notification for host about owner-initiated removal
+      try {
+        const hostCustomerId =
+          host?.customerRef?._id || host?.customerRef || null;
+        const title = "Removed From Agency";
+        const message = `You have been removed from agency ${agency.name} by the agency owner.`;
+
+        if (hostCustomerId) {
+          const notification = await models.Notification.create({
+            sentTo: [hostCustomerId],
+            notificationType: "agency_owner_action",
+            title,
+            message,
+            data: {
+              hostId: toIdString(host._id),
+              agencyId: toIdString(agencyId),
+              action: "removed_by_owner",
+            },
+            image: agency.logo || null,
+          });
+
+          await notificationService.sendNotificationToCustomer({
+            customerId: hostCustomerId,
+            title,
+            body: message,
+            data: {
+              hostId: toIdString(host._id),
+              agencyId: toIdString(agencyId),
+              action: "removed_by_owner",
+            },
+          });
+
+          io.to(toIdString(hostCustomerId)).emit(
+            "notificationUpdate",
+            notification,
+          );
+        }
+      } catch (notifyErr) {
+        console.error("Error notifying host about owner removal:", notifyErr);
+      }
 
       return res.status(200).json({
         success: true,
@@ -1338,22 +1393,26 @@ const sendLeftAgencyRequest = async (req, res) => {
     const { targetAssigned } = await isHostTargetAssigned(host);
 
     // 🔹 Prevent duplicate pending left requests only
-    const existing = await hasPendingLeftRequest(host._id, now);
+    const existingPending = await hasPendingLeftRequest(host._id, now);
 
-    if (existing) {
+    if (existingPending) {
       return res.status(400).json({
         success: false,
         message: "You already have a pending leave request",
-        status: existing.status,
+        status: existingPending.status,
       });
     }
 
+    // If target is assigned, enforce one-request-per-month rule
     if (targetAssigned) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "You have already used your one leave application chance for this month.",
-      });
+      const alreadyThisMonth = await hasAlreadyAppliedThisMonth(host._id, now);
+      if (alreadyThisMonth) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "You have already used your one leave application chance for this month.",
+        });
+      }
     }
 
     const eligibility = await getHostLeaveEligibility(host);
