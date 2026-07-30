@@ -1,4 +1,52 @@
 const models = require("../models"); // adjust path
+const notificationService = require("../utils/notificationService");
+
+const notifyAgencyOwner = async ({
+  ownerUserId,
+  agency,
+  title,
+  message,
+  action,
+}) => {
+  if (!ownerUserId) return null;
+
+  const ownerUser = await models.User.findById(ownerUserId)
+    .select("customerRef")
+    .lean();
+  const customerId = ownerUser?.customerRef || null;
+
+  const notification = await models.Notification.create({
+    sentTo: customerId ? [customerId] : [],
+    notificationType: "agency_owner_action",
+    title,
+    message,
+    data: {
+      agencyId: agency?._id ? agency._id.toString() : null,
+      ownerUserId: ownerUserId ? ownerUserId.toString() : null,
+      action,
+    },
+    image: agency?.logo || null,
+  });
+
+  if (customerId) {
+    await notificationService.sendNotificationToCustomer({
+      customerId,
+      title,
+      body: message,
+      data: {
+        agencyId: agency?._id ? agency._id.toString() : null,
+        ownerUserId: ownerUserId ? ownerUserId.toString() : null,
+        action,
+      },
+    });
+
+    if (typeof io !== "undefined") {
+      io.to(customerId.toString()).emit("notificationUpdate", notification);
+    }
+  }
+
+  return notification;
+};
 
 // ✅ 1. Create Agency
 const createAgency = async (req, res) => {
@@ -70,6 +118,14 @@ const createAgency = async (req, res) => {
       status: isSubAdmin ? "inactive" : "active", // if SubAdmin, set inactive for review
     });
 
+    await notifyAgencyOwner({
+      ownerUserId,
+      agency: newAgency,
+      title: "Agency Created",
+      message: `Agency "${name}" has been created successfully.`,
+      action: "created",
+    });
+
     // Update Customer to link this Agency
     await models.Customer.findByIdAndUpdate(customerRef, {
       agencyId: newAgency._id,
@@ -107,7 +163,7 @@ const createAgency = async (req, res) => {
 // ✅ 1. Create Agency
 const createAgencyByAuthenticatedUser = async (req, res) => {
   try {
-    const ownerUserId = req.user._id;
+    const ownerUserId = req.body.ownerUserId || req.user._id;
 
     const { agencyId, name, customerRef } = req.body;
 
@@ -128,9 +184,8 @@ const createAgencyByAuthenticatedUser = async (req, res) => {
     }
 
     // Check if owner user exists
-    const owner = await models.User.findById(ownerUserId).populate(
-      "customerRef"
-    );
+    const owner =
+      await models.User.findById(ownerUserId).populate("customerRef");
     if (!owner) {
       return res
         .status(404)
@@ -167,6 +222,14 @@ const createAgencyByAuthenticatedUser = async (req, res) => {
       stats: { totalHosts: 0, activeHosts: 0, newHosts: 0 },
     });
 
+    await notifyAgencyOwner({
+      ownerUserId,
+      agency: newAgency,
+      title: "Agency Assigned",
+      message: `Agency "${name}" has been assigned to your profile.`,
+      action: "assigned",
+    });
+
     // Update Customer to link this Agency
     await models.Customer.findByIdAndUpdate(customerRef, {
       agencyId: newAgency._id,
@@ -193,7 +256,13 @@ const createAgencyByAuthenticatedUser = async (req, res) => {
 const getAllAgencies = async (req, res) => {
   try {
     const agencies = await models.Agency.find()
-      .populate("ownerUserId", "customerRef role") // show basic owner info
+      .populate({
+        path: "ownerUserId",
+        populate: [
+          { path: "customerRef", select: "name deviceToken countryCode" },
+          { path: "role", select: "name" },
+        ],
+      })
       .populate("hosts")
       .populate("customerRef"); // show hosts linked to agency
 
@@ -214,7 +283,13 @@ const getAgencyById = async (req, res) => {
     const { id } = req.params;
 
     const agency = await models.Agency.findById(id)
-      .populate("ownerUserId", "customerRef role") // show basic owner info
+      .populate({
+        path: "ownerUserId",
+        populate: [
+          { path: "customerRef", select: "name deviceToken countryCode" },
+          { path: "role", select: "name" },
+        ],
+      })
       .populate("hosts")
       .populate("customerRef"); // show hosts linked to agency
 
@@ -261,7 +336,13 @@ const getAgenciesByOwner = async (req, res) => {
       ownerUserId: { $in: allOwnerIds },
     })
       .populate("hosts")
-      .populate("ownerUserId", "customerRef role")
+      .populate({
+        path: "ownerUserId",
+        populate: [
+          { path: "customerRef", select: "name deviceToken countryCode" },
+          { path: "role", select: "name" },
+        ],
+      })
       .populate("customerRef");
 
     return res.status(200).json({
@@ -302,7 +383,13 @@ const getAgenciesByOwnerIdFromMiddlware = async (req, res) => {
       ownerUserId: { $in: allOwnerIds },
     })
       .populate("hosts")
-      .populate("ownerUserId", "customerRef role")
+      .populate({
+        path: "ownerUserId",
+        populate: [
+          { path: "customerRef", select: "name deviceToken countryCode" },
+          { path: "role", select: "name" },
+        ],
+      })
       .populate("customerRef");
 
     return res.status(200).json({
@@ -388,6 +475,8 @@ const updateAgency = async (req, res) => {
     const { id } = req.params;
     const updates = req.body;
 
+    const existingAgency = await models.Agency.findById(id).lean();
+
     const agency = await models.Agency.findByIdAndUpdate(id, updates, {
       new: true,
       runValidators: true,
@@ -397,6 +486,19 @@ const updateAgency = async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Agency not found" });
+    }
+
+    if (
+      updates.ownerUserId &&
+      String(updates.ownerUserId) !== String(existingAgency?.ownerUserId || "")
+    ) {
+      await notifyAgencyOwner({
+        ownerUserId: updates.ownerUserId,
+        agency,
+        title: "Agency Assigned",
+        message: `Agency "${agency.name}" has been assigned to your profile.`,
+        action: "assigned",
+      });
     }
 
     return res.status(200).json({
