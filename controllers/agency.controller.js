@@ -48,6 +48,60 @@ const notifyAgencyOwner = async ({
   return notification;
 };
 
+const safeNumber = (value) => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+};
+
+const startOfDay = (date) => {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+const endOfDay = (date) => {
+  const d = new Date(date);
+  d.setHours(23, 59, 59, 999);
+  return d;
+};
+
+const getDateRangeFromQuery = (startDate, endDate) => {
+  const now = new Date();
+
+  if (startDate || endDate) {
+    const from = startDate ? startOfDay(new Date(startDate)) : startOfDay(now);
+    const to = endDate ? endOfDay(new Date(endDate)) : endOfDay(now);
+    return { from, to };
+  }
+
+  const to = endOfDay(now);
+  const from = startOfDay(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));
+  return { from, to };
+};
+
+const getMonthRange = (month) => {
+  const now = new Date();
+
+  if (month && /^\d{4}-\d{2}$/.test(month)) {
+    const [year, mm] = month.split("-").map(Number);
+    const from = new Date(year, mm - 1, 1, 0, 0, 0, 0);
+    const to = new Date(year, mm, 0, 23, 59, 59, 999);
+    return { from, to };
+  }
+
+  const from = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const to = new Date(
+    now.getFullYear(),
+    now.getMonth() + 1,
+    0,
+    23,
+    59,
+    59,
+    999,
+  );
+  return { from, to };
+};
+
 // ✅ 1. Create Agency
 const createAgency = async (req, res) => {
   try {
@@ -532,6 +586,331 @@ const deleteAgency = async (req, res) => {
   }
 };
 
+const getAgencyReportList = async (req, res) => {
+  try {
+    const { agencyId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    const agency = await models.Agency.findById(agencyId).lean();
+    if (!agency) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Agency not found" });
+    }
+
+    const { from, to } = getDateRangeFromQuery(startDate, endDate);
+
+    const hosts = await models.Host.find({ agencyId })
+      .select("_id hostId customerRef")
+      .populate("customerRef", "name profileImage userId")
+      .lean();
+
+    const hostIds = hosts.map((host) => host._id);
+
+    if (!hostIds.length) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          dateRange: { from, to },
+          summary: {
+            sumPaidHostsRoomGiftingBeans: 0,
+            topHostQty: 0,
+            agencyPercentage: 0,
+            topHostPercentage: 0,
+            commissionBeans: 0,
+          },
+          list: [],
+        },
+      });
+    }
+
+    const [hostStatRows, hostSalaryRows, policy, commissionCycle] =
+      await Promise.all([
+        models.HostStat.aggregate([
+          {
+            $match: {
+              hostId: { $in: hostIds },
+              date: { $gte: from, $lte: to },
+            },
+          },
+          {
+            $group: {
+              _id: "$hostId",
+              sumHostingHours: { $sum: { $ifNull: ["$hostTimeHours", 0] } },
+              sumRoomGifting: { $sum: { $ifNull: ["$gifts", 0] } },
+              sumVisitors: { $sum: { $ifNull: ["$visitors", 0] } },
+            },
+          },
+        ]),
+        models.HostSalaryCycle.aggregate([
+          {
+            $match: {
+              hostId: { $in: hostIds },
+              cycleStart: { $lte: to },
+              cycleEnd: { $gte: from },
+            },
+          },
+          {
+            $group: {
+              _id: "$hostId",
+              totalSalary: { $sum: { $ifNull: ["$salaryUcoins", 0] } },
+              totalValidDiamonds: { $sum: { $ifNull: ["$validDiamonds", 0] } },
+            },
+          },
+        ]),
+        models.Policy.findOne({ type: "hostSalary" })
+          .select("hostSalary.diamondTarget")
+          .lean(),
+        models.AgencyCommissionCycle.findOne({
+          agencyId,
+          cycleStart: { $lte: to },
+          cycleEnd: { $gte: from },
+        })
+          .sort({ cycleEnd: -1, createdAt: -1 })
+          .lean(),
+      ]);
+
+    const statMap = new Map(hostStatRows.map((row) => [String(row._id), row]));
+    const salaryMap = new Map(
+      hostSalaryRows.map((row) => [String(row._id), row]),
+    );
+
+    const list = hosts
+      .map((host) => {
+        const stat = statMap.get(String(host._id)) || {};
+        const salary = salaryMap.get(String(host._id)) || {};
+
+        return {
+          hostRef: host._id,
+          hostId: host.hostId,
+          name: host.customerRef?.name || null,
+          profileImage: host.customerRef?.profileImage || null,
+          sumHostingHours: safeNumber(stat.sumHostingHours),
+          sumRoomGifting: safeNumber(stat.sumRoomGifting),
+          totalSalary: safeNumber(salary.totalSalary),
+          visitors: safeNumber(stat.sumVisitors),
+          totalValidDiamonds: safeNumber(salary.totalValidDiamonds),
+        };
+      })
+      .sort((a, b) => b.sumRoomGifting - a.sumRoomGifting);
+
+    const sumPaidHostsRoomGiftingBeans = list.reduce(
+      (acc, row) => acc + safeNumber(row.sumRoomGifting),
+      0,
+    );
+    const paidHostsCount = list.filter((row) => row.totalSalary > 0).length;
+    const diamondTarget = safeNumber(policy?.hostSalary?.diamondTarget);
+    const topHostQty = diamondTarget
+      ? list.filter((row) => row.totalValidDiamonds >= diamondTarget).length
+      : 0;
+    const topHostPercentage = paidHostsCount
+      ? Number(((topHostQty / paidHostsCount) * 100).toFixed(2))
+      : 0;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        dateRange: { from, to },
+        summary: {
+          sumPaidHostsRoomGiftingBeans,
+          topHostQty,
+          agencyPercentage: safeNumber(commissionCycle?.commissionPercentage),
+          topHostPercentage,
+          commissionBeans: safeNumber(commissionCycle?.commissionUcoins),
+        },
+        list,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching agency report list:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getPossibleLostHostsList = async (req, res) => {
+  try {
+    const { agencyId } = req.params;
+    const { limit = 100, salaryCap = 200000 } = req.query;
+
+    const agency = await models.Agency.findById(agencyId).lean();
+    if (!agency) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Agency not found" });
+    }
+
+    const hosts = await models.Host.find({ agencyId })
+      .select("_id hostId customerRef")
+      .populate("customerRef", "name profileImage userId")
+      .lean();
+
+    const hostIds = hosts.map((host) => host._id);
+    if (!hostIds.length) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          salaryWindowWeeks: 20,
+          cap: Number(salaryCap),
+          totalPossibleLostHosts: 0,
+          list: [],
+        },
+      });
+    }
+
+    const twentyWeeksAgo = new Date();
+    twentyWeeksAgo.setDate(twentyWeeksAgo.getDate() - 20 * 7);
+
+    const salaryRows = await models.HostSalaryCycle.aggregate([
+      {
+        $match: {
+          hostId: { $in: hostIds },
+          cycleStart: { $gte: twentyWeeksAgo },
+        },
+      },
+      {
+        $group: {
+          _id: "$hostId",
+          salaryInLast20Weeks: { $sum: { $ifNull: ["$salaryUcoins", 0] } },
+        },
+      },
+    ]);
+
+    const salaryMap = new Map(
+      salaryRows.map((row) => [
+        String(row._id),
+        safeNumber(row.salaryInLast20Weeks),
+      ]),
+    );
+
+    const capValue = Number(salaryCap);
+    const list = hosts
+      .map((host) => ({
+        hostRef: host._id,
+        hostId: host.hostId,
+        name: host.customerRef?.name || null,
+        profileImage: host.customerRef?.profileImage || null,
+        salaryInLast20Weeks: salaryMap.get(String(host._id)) || 0,
+      }))
+      .filter((row) => row.salaryInLast20Weeks <= capValue)
+      .sort((a, b) => b.salaryInLast20Weeks - a.salaryInLast20Weeks)
+      .slice(0, Number(limit));
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        salaryWindowWeeks: 20,
+        cap: capValue,
+        totalPossibleLostHosts: list.length,
+        list,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching possible lost hosts:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const getSubAgencyDataList = async (req, res) => {
+  try {
+    const { agencyId } = req.params;
+    const { month, startDate, endDate } = req.query;
+
+    const agency = await models.Agency.findById(agencyId).lean();
+    if (!agency) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Agency not found" });
+    }
+
+    const ownerUser = await models.User.findById(agency.ownerUserId)
+      .select("children")
+      .lean();
+
+    const childIds = Array.isArray(ownerUser?.children)
+      ? ownerUser.children
+      : [];
+
+    if (!childIds.length) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          totalGifts: 0,
+          list: [],
+        },
+      });
+    }
+
+    const subAgencies = await models.Agency.find({
+      ownerUserId: { $in: childIds },
+    })
+      .select("_id agencyId name")
+      .lean();
+
+    const dateRange =
+      startDate || endDate
+        ? getDateRangeFromQuery(startDate, endDate)
+        : getMonthRange(month);
+
+    const rows = await Promise.all(
+      subAgencies.map(async (subAgency) => {
+        const hosts = await models.Host.find({ agencyId: subAgency._id })
+          .select("_id")
+          .lean();
+        const hostIds = hosts.map((host) => host._id);
+
+        if (!hostIds.length) {
+          return {
+            agencyRef: subAgency._id,
+            agencyId: subAgency.agencyId,
+            agencyName: subAgency.name,
+            totalGifts: 0,
+          };
+        }
+
+        const giftAggregation = await models.HostStat.aggregate([
+          {
+            $match: {
+              hostId: { $in: hostIds },
+              date: { $gte: dateRange.from, $lte: dateRange.to },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              totalGifts: { $sum: { $ifNull: ["$gifts", 0] } },
+            },
+          },
+        ]);
+
+        return {
+          agencyRef: subAgency._id,
+          agencyId: subAgency.agencyId,
+          agencyName: subAgency.name,
+          totalGifts: safeNumber(giftAggregation[0]?.totalGifts),
+        };
+      }),
+    );
+
+    const list = rows.sort((a, b) => b.totalGifts - a.totalGifts);
+    const totalGifts = list.reduce(
+      (acc, item) => acc + safeNumber(item.totalGifts),
+      0,
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        dateRange,
+        totalGifts,
+        list,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching sub-agency data list:", error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   createAgency,
   getAllAgencies,
@@ -543,4 +922,7 @@ module.exports = {
   inviteHostToAgency,
   getAgenciesByOwnerIdFromMiddlware,
   createAgencyByAuthenticatedUser,
+  getAgencyReportList,
+  getPossibleLostHostsList,
+  getSubAgencyDataList,
 };

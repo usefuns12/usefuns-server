@@ -32,20 +32,28 @@ router
 // Get All Agencies
 router.route("/").get(
   // middleware.auth.authAdmin,
-  agencyController.getAllAgencies
+  agencyController.getAllAgencies,
 );
 
 // Get Agency details by ID
 router.route("/getAgencyDetails/:id").get(
   // middleware.auth.authAdmin,
-  agencyController.getAgencyById
+  agencyController.getAgencyById,
 );
 
 // Get all Agencies by Owner UserId
 router.route("/owner/:ownerUserId").get(
   // middleware.auth.authAdmin,
-  agencyController.getAgenciesByOwner
+  agencyController.getAgenciesByOwner,
 );
+
+// Agency center/report data list endpoints
+router.get("/:agencyId/report-list", agencyController.getAgencyReportList);
+router.get(
+  "/:agencyId/possible-lost-hosts",
+  agencyController.getPossibleLostHostsList,
+);
+router.get("/:agencyId/sub-agency-data", agencyController.getSubAgencyDataList);
 
 // Alternative route without URL param
 router
@@ -56,19 +64,19 @@ router
 router.post(
   "/invite-host",
   // middleware.auth.authAgency, // enable later
-  agencyController.inviteHostToAgency
+  agencyController.inviteHostToAgency,
 );
 
 // Update Agency by ID
 router.route("/:id").put(
   // middleware.auth.authAdmin,
-  agencyController.updateAgency
+  agencyController.updateAgency,
 );
 
 // Delete Agency by ID
 router.route("/:id").delete(
   // middleware.auth.authAdmin,
-  agencyController.deleteAgency
+  agencyController.deleteAgency,
 );
 
 module.exports = router;
